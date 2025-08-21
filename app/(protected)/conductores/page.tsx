@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Search, Plus, Edit, Trash2, User, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search, Plus, Edit, Trash2, User, ChevronLeft, ChevronRight, Eye } from 'lucide-react'
 import axios from 'axios'
 import { useNotifications, createApiNotifications } from '@/src/lib/notifications'
 import RouteGuard from '@/src/components/RouteGuard'
@@ -13,7 +13,7 @@ interface Conductor {
   telefono?: string
   correo?: string
   observaciones?: string
-  licenciaConducir?: string | null
+  licenciaConduccion?: Date | null
   activo: boolean
   conductorAutomovil: {
     id: number
@@ -39,7 +39,7 @@ interface FormData {
   correo: string
   observaciones: string
   activo: boolean
-  licenciaConducir?: string
+  licenciaConduccion?: string
   automoviles: number[]
 }
 
@@ -63,11 +63,13 @@ export default function ConductorManager() {
     correo: '', 
     observaciones: '', 
     activo: true, 
-    licenciaConducir: '',
+    licenciaConduccion: '',
     automoviles: [] 
   })
   const [editId, setEditId] = useState<number | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [viewItem, setViewItem] = useState<Conductor | null>(null)
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -134,6 +136,7 @@ export default function ConductorManager() {
         correo: '', 
         observaciones: '', 
         activo: true, 
+        licenciaConduccion: '',
         automoviles: [] 
       })
       setEditId(null)
@@ -166,6 +169,14 @@ export default function ConductorManager() {
 
   function handleEdit(conductor: Conductor) {
     const automovilesIds = conductor.conductorAutomovil.map(ca => ca.automovil.id)
+    
+    // Convertir la fecha de licencia de conducción al formato requerido por el input date
+    let licenciaConduccionFormatted = ''
+    if (conductor.licenciaConduccion) {
+      const fecha = new Date(conductor.licenciaConduccion)
+      licenciaConduccionFormatted = fecha.toISOString().split('T')[0] // Formato YYYY-MM-DD
+    }
+    
     setForm({ 
       nombre: conductor.nombre, 
       cedula: conductor.cedula, 
@@ -173,7 +184,7 @@ export default function ConductorManager() {
       correo: conductor.correo || '',
       observaciones: conductor.observaciones || '',
       activo: conductor.activo,
-      licenciaConducir: conductor.licenciaConducir || '',
+      licenciaConduccion: licenciaConduccionFormatted,
       automoviles: automovilesIds
     })
     setEditId(conductor.id)
@@ -188,7 +199,7 @@ export default function ConductorManager() {
       correo: '', 
       observaciones: '', 
       activo: true, 
-      licenciaConducir: '',
+      licenciaConduccion: '',
       automoviles: [] 
     })
     setEditId(null)
@@ -213,7 +224,7 @@ export default function ConductorManager() {
       correo: '', 
       observaciones: '', 
       activo: true,
-      licenciaConducir: '',
+      licenciaConduccion: '',
       automoviles: [] 
     })
     setEditId(null)
@@ -227,6 +238,18 @@ export default function ConductorManager() {
         ? prev.automoviles.filter(id => id !== automovilId)
         : [...prev.automoviles, automovilId]
     }))
+  }
+
+  function handleView(conductor: Conductor) {
+    console.log('🔍 Abriendo modal de visualización para conductor:', conductor);
+    setViewItem(conductor);
+    setIsViewModalOpen(true);
+  }
+
+  function handleViewModalClose() {
+    console.log('🔍 Cerrando modal de visualización');
+    setIsViewModalOpen(false);
+    setViewItem(null);
   }
 
   // Filtrar automóviles basado en el texto de búsqueda
@@ -361,6 +384,13 @@ export default function ConductorManager() {
                             title="Editar"
                           >
                             <Edit size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleView(conductor)}
+                            className="text-gray-600 hover:text-gray-900 p-1 rounded transition-colors cursor-pointer"
+                            title="Ver"
+                          >
+                            <Eye size={16} />
                           </button>
                           <button
                             onClick={() => setDeleteId(conductor.id)}
@@ -508,8 +538,8 @@ export default function ConductorManager() {
                     </label>
                     <input
                       type="date"
-                      value={form.licenciaConducir || ''}
-                      onChange={(e) => setForm({ ...form, licenciaConducir: e.target.value })}
+                      value={form.licenciaConduccion || ''}
+                      onChange={(e) => setForm({ ...form, licenciaConduccion: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -656,6 +686,107 @@ export default function ConductorManager() {
                   className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-4 py-2 rounded-lg transition-colors cursor-pointer"
                 >
                   {isLoading ? 'Eliminando...' : 'Eliminar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de visualización */}
+        {isViewModalOpen && viewItem && (
+          <div 
+            className="fixed inset-0 bg-gray-400/50 flex items-center justify-center z-50 p-4"
+            onClick={handleViewModalClose}
+          >
+            <div 
+              className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center p-6 border-b border-gray-200">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Detalles del Conductor - {viewItem.nombre}
+                </h2>
+                <button
+                  onClick={handleViewModalClose}
+                  className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                {/* Información básica */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Información Personal</h3>
+                    <div className="space-y-2">
+                      <p><span className="font-medium text-gray-700">Nombre:</span> <span className="text-gray-900">{viewItem.nombre}</span></p>
+                      <p><span className="font-medium text-gray-700">Cédula:</span> <span className="text-gray-900">{viewItem.cedula}</span></p>
+                      <p><span className="font-medium text-gray-700">Teléfono:</span> <span className="text-gray-900">{viewItem.telefono || 'No registrado'}</span></p>
+                      <p><span className="font-medium text-gray-700">Correo:</span> <span className="text-gray-900">{viewItem.correo || 'No registrado'}</span></p>
+                      <p>
+                        <span className="font-medium text-gray-700">Estado:</span> 
+                        <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${
+                          viewItem.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {viewItem.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Documentos</h3>
+                    <div className="space-y-2">
+                      <p><span className="font-medium text-gray-700">Licencia de Conducción:</span> <span className="text-gray-900">
+                        {viewItem.licenciaConduccion ? (() => {
+                          try {
+                            return new Date(viewItem.licenciaConduccion).toLocaleDateString('es-ES')
+                          } catch {
+                            return 'Fecha inválida'
+                          }
+                        })() : 'No registrada'}
+                      </span></p>
+                    </div>
+                  </div>
+                </div>
+
+                                 {/* Observaciones */}
+                 <div className="space-y-3">
+                   <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Observaciones</h3>
+                   <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">
+                     {viewItem.observaciones || 'Sin observaciones registradas'}
+                   </p>
+                 </div>
+
+                {/* Automóviles asignados */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Automóviles Asignados</h3>
+                  {viewItem.conductorAutomovil.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {viewItem.conductorAutomovil.map((ca) => (
+                        <span
+                          key={ca.id}
+                          className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
+                        >
+                          <User size={14} />
+                          {ca.automovil.movil} ({ca.automovil.placa})
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">No hay automóviles asignados</p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex justify-end p-6 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={handleViewModalClose}
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors cursor-pointer"
+                >
+                  Cerrar
                 </button>
               </div>
             </div>

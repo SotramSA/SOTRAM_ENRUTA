@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, Search, CalendarDays, AlertCircle, CheckCircle, Printer } from 'lucide-react';
+import { Loader2, Search, CalendarDays, AlertCircle, CheckCircle, Printer, Home } from 'lucide-react';
+import Link from 'next/link';
 
 interface Programacion {
   id: number;
@@ -258,21 +259,33 @@ export default function ConsultarProgramadoPage() {
         {/* Encabezado */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">Consultar Programación Semanal</h1>
-            {programaciones.length > 0 && (
-              <button
-                onClick={imprimirProgramacion}
-                disabled={imprimiendo}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400 transition-colors"
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Consultar Programación Semanal</h1>
+              <p className="text-gray-600 mt-1">Consulta la programación de turnos para un móvil específico</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <Link 
+                href="/"
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg transition-colors"
               >
-                {imprimiendo ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Printer className="h-4 w-4" />
-                )}
-                <span>{imprimiendo ? 'Imprimiendo...' : 'Imprimir'}</span>
-              </button>
-            )}
+                <Home className="w-4 h-4" />
+                <span>Volver al inicio</span>
+              </Link>
+              {programaciones.length > 0 && (
+                <button
+                  onClick={imprimirProgramacion}
+                  disabled={imprimiendo}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400 transition-colors"
+                >
+                  {imprimiendo ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Printer className="h-4 w-4" />
+                  )}
+                  <span>{imprimiendo ? 'Imprimiendo...' : 'Imprimir'}</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

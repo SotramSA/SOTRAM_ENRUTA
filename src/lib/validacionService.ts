@@ -8,6 +8,20 @@ export interface ValidacionResult {
     fecha: Date;
     activo: boolean;
   };
+  tieneListaChequeo: boolean;
+  listaChequeo?: {
+    id: number;
+    fecha: Date;
+    nombre: string;
+  };
+  licenciaConduccionVencida: boolean;
+  licenciaConduccion?: {
+    fechaVencimiento: Date;
+  };
+  documentosVencidos: Array<{
+    tipo: string;
+    fechaVencimiento: Date;
+  }>;
   sancionesAutomovil: Array<{
     id: number;
     fechaInicio: Date;
@@ -192,6 +206,191 @@ export class ValidacionService {
     }
 
     return { tienePlanilla: false };
+  }
+
+  /**
+   * Valida si un móvil tiene lista de chequeo para el día actual
+   */
+  static async validarListaChequeo(movilId: number): Promise<{ tieneListaChequeo: boolean; listaChequeo?: { id: number; fecha: Date; nombre: string } }> {
+    const ahora = TimeService.getCurrentTime();
+    const inicioDia = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000);
+
+    console.log('🔍 Validando lista de chequeo:', {
+      movilId,
+      ahora: ahora.toISOString(),
+      inicioDia: inicioDia.toISOString(),
+      finDia: finDia.toISOString()
+    });
+
+    const listaChequeo = await prisma.listaChequeo.findFirst({
+      where: {
+        movilId,
+        fecha: {
+          gte: inicioDia,
+          lt: finDia
+        }
+      },
+      orderBy: {
+        fecha: 'desc'
+      }
+    });
+
+    if (listaChequeo) {
+      console.log('✅ Lista de chequeo encontrada:', {
+        id: listaChequeo.id,
+        fecha: listaChequeo.fecha,
+        nombre: listaChequeo.nombre
+      });
+      
+      return {
+        tieneListaChequeo: true,
+        listaChequeo: {
+          id: listaChequeo.id,
+          fecha: new Date(listaChequeo.fecha),
+          nombre: listaChequeo.nombre
+        }
+      };
+    }
+
+    console.log('❌ No se encontró lista de chequeo para el día actual');
+    return { tieneListaChequeo: false };
+  }
+
+  /**
+   * Valida si la licencia de conducción del conductor está vencida
+   */
+  static async validarLicenciaConduccion(conductorId: number): Promise<{ licenciaConduccionVencida: boolean; licenciaConduccion?: { fechaVencimiento: Date } }> {
+    const conductor = await prisma.conductor.findUnique({
+      where: { id: conductorId },
+      select: { licenciaConduccion: true }
+    });
+
+    if (!conductor || !conductor.licenciaConduccion) {
+      console.log('❌ Conductor no encontrado o sin licencia de conducción');
+      return {
+        licenciaConduccionVencida: true // Si no tiene fecha, considerar vencida
+      };
+    }
+
+    const ahora = TimeService.getCurrentTime();
+    const fechaVencimiento = new Date(conductor.licenciaConduccion);
+    const vencida = fechaVencimiento < ahora;
+
+    console.log('🔍 Validando licencia de conducción:', {
+      conductorId,
+      fechaVencimiento: fechaVencimiento.toISOString(),
+      ahora: ahora.toISOString(),
+      vencida
+    });
+
+    if (vencida) {
+      console.log('❌ Licencia de conducción vencida');
+      return {
+        licenciaConduccionVencida: true,
+        licenciaConduccion: {
+          fechaVencimiento
+        }
+      };
+    }
+
+    console.log('✅ Licencia de conducción válida');
+    return {
+      licenciaConduccionVencida: false,
+      licenciaConduccion: {
+        fechaVencimiento
+      }
+    };
+  }
+
+  /**
+   * Valida si el móvil tiene documentos vencidos
+   */
+  static async validarDocumentosMovil(movilId: number): Promise<{ documentosVencidos: Array<{ tipo: string; fechaVencimiento: Date }> }> {
+    const automovil = await prisma.automovil.findUnique({
+      where: { id: movilId },
+      select: {
+        soat: true,
+        revisionTecnomecanica: true,
+        tarjetaOperacion: true,
+        licenciaTransito: true,
+        extintor: true,
+        revisionPreventiva: true,
+        revisionAnual: true
+      }
+    });
+
+    if (!automovil) {
+      console.log('❌ Automóvil no encontrado');
+      return { documentosVencidos: [] };
+    }
+
+    const ahora = TimeService.getCurrentTime();
+    const documentosVencidos: Array<{ tipo: string; fechaVencimiento: Date }> = [];
+
+    console.log('🔍 Validando documentos del móvil:', {
+      movilId,
+      ahora: ahora.toISOString()
+    });
+
+    // Validar SOAT
+    if (automovil.soat && new Date(automovil.soat) < ahora) {
+      documentosVencidos.push({
+        tipo: 'SOAT',
+        fechaVencimiento: new Date(automovil.soat)
+      });
+    }
+
+    // Validar Revisión Técnico Mecánica
+    if (automovil.revisionTecnomecanica && new Date(automovil.revisionTecnomecanica) < ahora) {
+      documentosVencidos.push({
+        tipo: 'Revisión Técnico Mecánica',
+        fechaVencimiento: new Date(automovil.revisionTecnomecanica)
+      });
+    }
+
+    // Validar Tarjeta de Operación
+    if (automovil.tarjetaOperacion && new Date(automovil.tarjetaOperacion) < ahora) {
+      documentosVencidos.push({
+        tipo: 'Tarjeta de Operación',
+        fechaVencimiento: new Date(automovil.tarjetaOperacion)
+      });
+    }
+
+    // Validar Licencia de Tránsito
+    if (automovil.licenciaTransito && new Date(automovil.licenciaTransito) < ahora) {
+      documentosVencidos.push({
+        tipo: 'Licencia de Tránsito',
+        fechaVencimiento: new Date(automovil.licenciaTransito)
+      });
+    }
+
+    // Validar Extintor
+    if (automovil.extintor && new Date(automovil.extintor) < ahora) {
+      documentosVencidos.push({
+        tipo: 'Extintor',
+        fechaVencimiento: new Date(automovil.extintor)
+      });
+    }
+
+    // Validar Revisión Preventiva
+    if (automovil.revisionPreventiva && new Date(automovil.revisionPreventiva) < ahora) {
+      documentosVencidos.push({
+        tipo: 'Revisión Preventiva',
+        fechaVencimiento: new Date(automovil.revisionPreventiva)
+      });
+    }
+
+    // Validar Revisión Anual
+    if (automovil.revisionAnual && new Date(automovil.revisionAnual) < ahora) {
+      documentosVencidos.push({
+        tipo: 'Revisión Anual',
+        fechaVencimiento: new Date(automovil.revisionAnual)
+      });
+    }
+
+    console.log('📋 Documentos vencidos encontrados:', documentosVencidos.length);
+    return { documentosVencidos };
   }
 
   /**
@@ -456,8 +655,11 @@ export class ValidacionService {
    * Realiza todas las validaciones para un móvil y conductor
    */
   static async validarCompleta(movilId: number, conductorId: number): Promise<ValidacionResult> {
-    const [validacionPlanilla, sancionesAutomovil, sancionesConductor] = await Promise.all([
+    const [validacionPlanilla, validacionListaChequeo, validacionLicencia, validacionDocumentos, sancionesAutomovil, sancionesConductor] = await Promise.all([
       this.validarPlanilla(movilId),
+      this.validarListaChequeo(movilId),
+      this.validarLicenciaConduccion(conductorId),
+      this.validarDocumentosMovil(movilId),
       this.validarSancionesAutomovil(movilId),
       this.validarSancionesConductor(conductorId)
     ]);
@@ -465,6 +667,11 @@ export class ValidacionService {
     return {
       tienePlanilla: validacionPlanilla.tienePlanilla,
       planilla: validacionPlanilla.planilla,
+      tieneListaChequeo: validacionListaChequeo.tieneListaChequeo,
+      listaChequeo: validacionListaChequeo.listaChequeo,
+      licenciaConduccionVencida: validacionLicencia.licenciaConduccionVencida,
+      licenciaConduccion: validacionLicencia.licenciaConduccion,
+      documentosVencidos: validacionDocumentos.documentosVencidos,
       sancionesAutomovil,
       sancionesConductor,
       tieneSanciones: sancionesAutomovil.length > 0 || sancionesConductor.length > 0

@@ -15,51 +15,52 @@ model Conductor {
   correo             String?
   observaciones      String?
   telefono           String?
+  licenciaConduccion DateTime?
   conductorAutomovil ConductorAutomovil[]
   sancionConductor   SancionConductor[]
   turno              Turno[]
 }
 
 model Propietario {
-  id            Int         @id @default(autoincrement())
-  nombre        String
-  cedula        String
-  telefono      String?
-  correo        String?
-  observaciones String?
-  estado        Boolean     @default(true)
+  id                   Int                    @id @default(autoincrement())
+  nombre               String
+  cedula               String
+  telefono             String?
+  correo               String?
+  observaciones        String?
+  estado               Boolean                @default(true)
   automovilPropietario AutomovilPropietario[]
 }
 
 model Automovil {
-  id                 Int                  @id @default(autoincrement())
-  movil              String    @unique
-  placa              String
-  activo             Boolean              @default(true)
-  disponible         Boolean              @default(true)
-  soat               DateTime?
+  id                    Int                    @id @default(autoincrement())
+  movil                 String
+  placa                 String
+  activo                Boolean                @default(true)
+  disponible            Boolean                @default(true)
+  soat                  DateTime?
   revisionTecnomecanica DateTime?
-  tarjetaOperacion   DateTime?
-  licenciaTransito   DateTime?
-  extintor           DateTime?
-  revisionPreventiva DateTime?
-  revisionAnual      DateTime?
-  conductorAutomovil ConductorAutomovil[]
-  automovilPropietario AutomovilPropietario[]
-  planilla           Planilla[]
-  programaciones     Programacion[]
-  sancionAutomovil   SancionAutomovil[]
-  turno              Turno[]
-  listaChequeo       ListaChequeo[]
+  tarjetaOperacion      DateTime?
+  licenciaTransito      DateTime?
+  extintor              DateTime?
+  revisionPreventiva    DateTime?
+  revisionAnual         DateTime?
+  automovilPropietario  AutomovilPropietario[]
+  conductorAutomovil    ConductorAutomovil[]
+  listaChequeo          ListaChequeo[]
+  planilla              Planilla[]
+  programaciones        Programacion[]
+  sancionAutomovil      SancionAutomovil[]
+  turno                 Turno[]
 }
 
 model AutomovilPropietario {
-  id           Int        @id @default(autoincrement())
-  automovilId  Int
+  id            Int         @id @default(autoincrement())
+  automovilId   Int
   propietarioId Int
-  activo       Boolean    @default(true)
-  automovil    Automovil  @relation(fields: [automovilId], references: [id])
-  propietario  Propietario @relation(fields: [propietarioId], references: [id])
+  activo        Boolean     @default(true)
+  automovil     Automovil   @relation(fields: [automovilId], references: [id])
+  propietario   Propietario @relation(fields: [propietarioId], references: [id])
 }
 
 model Ruta {
@@ -195,12 +196,12 @@ model Programacion {
   fecha      DateTime
   ruta       String
   hora       String
-  movilId    Int?
+  movilId    Int
   usuarioId  Int?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   disponible Boolean   @default(false)
-  movil      Automovil? @relation(fields: [movilId], references: [id])
+  movil      Automovil @relation(fields: [movilId], references: [id])
   usuario    Usuario?  @relation(fields: [usuarioId], references: [id])
 }
 

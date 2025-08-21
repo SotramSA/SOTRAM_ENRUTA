@@ -50,6 +50,22 @@ export async function POST(request: NextRequest) {
       ]
     })
 
+    // Obtener también los turnos programados para la fecha especificada
+    const turnosProgramados = await prisma.programacion.findMany({
+      where: {
+        fecha: {
+          gte: fechaInicio,
+          lte: fechaFin
+        }
+      },
+      include: {
+        movil: true
+      },
+      orderBy: [
+        { hora: 'asc' }
+      ]
+    })
+
     // Si no se encuentran turnos, buscar por cualquier fecha que contenga la fecha seleccionada
     if (turnos.length === 0) {
       console.log('No se encontraron turnos con filtro estricto, buscando con filtro más amplio...')
@@ -90,10 +106,11 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    console.log(`Buscando turnos para fecha: ${fecha}`)
+    console.log(`Buscando turnos y programaciones para fecha: ${fecha}`)
     console.log(`Fecha inicio: ${fechaInicio.toISOString()}`)
     console.log(`Fecha fin: ${fechaFin.toISOString()}`)
     console.log(`Turnos encontrados: ${turnos.length}`)
+    console.log(`Programaciones encontradas: ${turnosProgramados.length}`)
     
     // Mostrar información de los turnos encontrados para depuración
     if (turnos.length > 0) {
@@ -103,10 +120,17 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    if (turnos.length === 0) {
+    if (turnosProgramados.length > 0) {
+      console.log('Programaciones encontradas:')
+      turnosProgramados.forEach((programado, index) => {
+        console.log(`${index + 1}. ID: ${programado.id}, Fecha: ${programado.fecha}, Hora: "${programado.hora}" (tipo: ${typeof programado.hora}), Ruta: ${programado.ruta}, Móvil: ${programado.movil.movil}`)
+      })
+    }
+
+    if (turnos.length === 0 && turnosProgramados.length === 0) {
       return NextResponse.json(
         { 
-          error: 'No se encontraron turnos para la fecha especificada',
+          error: 'No se encontraron turnos ni programaciones para la fecha especificada',
           fecha: fecha,
           fechaInicio: fechaInicio.toISOString(),
           fechaFin: fechaFin.toISOString()
@@ -115,34 +139,89 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Agrupar turnos por ruta
-    const turnosPorRuta = turnos.reduce((acc, turno) => {
-      const rutaNombre = turno.ruta?.nombre || 'Sin Ruta'
-      if (!acc[rutaNombre]) {
-        acc[rutaNombre] = []
+    // Función para normalizar nombres de rutas
+    const normalizarNombreRuta = (nombre: string): string => {
+      if (!nombre) return 'Sin Ruta'
+      
+      const nombreLower = nombre.toLowerCase().trim()
+      
+      // Casos especiales para Despacho D con rutas específicas
+      if (nombreLower.includes('despacho d') && nombreLower.includes('ruta4')) {
+        return 'Despacho D Ruta4'
       }
-      acc[rutaNombre].push(turno)
+      if (nombreLower.includes('despacho d') && nombreLower.includes('ruta7')) {
+        return 'Despacho D Ruta7'
+      }
+      
+      // Casos específicos para los nombres exactos que vimos en los logs
+      if (nombreLower.includes('despacho d') && nombreLower.includes('rut4')) {
+        return 'Despacho D Ruta4'
+      }
+      if (nombreLower.includes('despacho d') && nombreLower.includes('rut7')) {
+        return 'Despacho D Ruta7'
+      }
+      
+      // Normalizar rutas que empiezan con "despacho"
+      if (nombreLower.startsWith('despacho')) {
+        // Extraer la letra después de "despacho"
+        const match = nombreLower.match(/despacho\s*([a-z])/i)
+        if (match) {
+          return `Despacho ${match[1].toUpperCase()}`
+        }
+      }
+      
+      // Si es solo una letra (A, B, C, etc.), convertir a "Despacho X"
+      if (/^[a-z]$/i.test(nombreLower)) {
+        return `Despacho ${nombreLower.toUpperCase()}`
+      }
+      
+      // Si contiene "RUT" seguido de un número, extraer solo la letra
+      const rutMatch = nombreLower.match(/rut\s*([a-z])/i)
+      if (rutMatch) {
+        return `Despacho ${rutMatch[1].toUpperCase()}`
+      }
+      
+      return nombre
+    }
+
+    // Agrupar turnos por ruta (incluyendo programados)
+    const turnosPorRuta = turnos.reduce((acc, turno) => {
+      const rutaNombre = normalizarNombreRuta(turno.ruta?.nombre || 'Sin Ruta')
+      if (!acc[rutaNombre]) {
+        acc[rutaNombre] = { turnos: [], programados: [] }
+      }
+      acc[rutaNombre].turnos.push(turno)
       return acc
-    }, {} as Record<string, typeof turnos>)
+    }, {} as Record<string, { turnos: typeof turnos, programados: any[] }>)
+
+    // Agregar programados a las rutas correspondientes
+    turnosProgramados.forEach(programado => {
+      const rutaOriginal = programado.ruta || 'Sin Ruta'
+      const rutaNombre = normalizarNombreRuta(rutaOriginal)
+      console.log(`Ruta original: "${rutaOriginal}" -> Normalizada: "${rutaNombre}"`)
+      
+      if (!turnosPorRuta[rutaNombre]) {
+        turnosPorRuta[rutaNombre] = { turnos: [], programados: [] }
+      }
+      turnosPorRuta[rutaNombre].programados.push(programado)
+    })
 
     // Crear el libro de Excel
     const workbook = new ExcelJS.Workbook()
 
     // Para cada ruta, crear una hoja
-    Object.entries(turnosPorRuta).forEach(([rutaNombre, turnosRuta]) => {
+    Object.entries(turnosPorRuta).forEach(([rutaNombre, datosRuta]) => {
+      console.log(`Creando hoja: "${rutaNombre}" con ${datosRuta.turnos.length} turnos y ${datosRuta.programados.length} programados`)
       // Crear la hoja
       const worksheet = workbook.addWorksheet(rutaNombre)
 
       // Configurar columnas
       worksheet.columns = [
-        { header: 'ID', key: 'id', width: 10 },
-        { header: 'Hora Solicitud', key: 'horaSolicitud', width: 15 },
+        { header: 'Tipo', key: 'tipo', width: 12 },
         { header: 'Hora Salida', key: 'horaSalida', width: 15 },
         { header: 'Móvil', key: 'movil', width: 12 },
         { header: 'Placa', key: 'placa', width: 15 },
-        { header: 'Conductor', key: 'conductor', width: 30 },
-        { header: 'Cédula', key: 'cedula', width: 20 },
-        { header: 'Estado', key: 'estado', width: 15 }
+        { header: 'Conductor', key: 'conductor', width: 30 }
       ]
 
       // Estilo para el encabezado
@@ -154,30 +233,77 @@ export async function POST(request: NextRequest) {
         fgColor: { argb: '4472C4' }
       }
 
-      // Agregar datos
-      turnosRuta.forEach(turno => {
-        worksheet.addRow({
-          id: turno.id,
-          horaSolicitud: turno.horaCreacion 
-            ? new Date(turno.horaCreacion).toLocaleTimeString('es-CO', { 
-                timeZone: 'America/Bogota',
-                hour: '2-digit', 
-                minute: '2-digit',
-                second: '2-digit'
-              })
-            : 'N/A',
-          horaSalida: turno.horaSalida 
-            ? new Date(turno.horaSalida).toLocaleTimeString('es-CO', { 
-                timeZone: 'America/Bogota',
-                hour: '2-digit', 
-                minute: '2-digit'
-              })
-            : 'N/A',
+      // Crear array con todos los datos para ordenar por hora de salida
+      const todosLosDatos = []
+
+      // Agregar datos de turnos
+      datosRuta.turnos.forEach(turno => {
+        const horaSalida = turno.horaSalida 
+          ? new Date(turno.horaSalida).toLocaleTimeString('es-CO', { 
+              timeZone: 'America/Bogota',
+              hour: '2-digit', 
+              minute: '2-digit'
+            })
+          : 'N/A'
+        
+        todosLosDatos.push({
+          tipo: 'TURNO',
+          horaSalida: horaSalida,
           movil: turno.movil.movil,
           placa: turno.movil.placa,
           conductor: turno.conductor.nombre,
-          cedula: turno.conductor.cedula,
-          estado: turno.estado || 'PENDIENTE'
+          horaSalidaDate: turno.horaSalida ? new Date(turno.horaSalida) : new Date(0)
+        })
+      })
+
+      // Agregar datos de programados
+      datosRuta.programados.forEach(programado => {
+        // Convertir la hora del programado y ajustar a hora colombiana
+        let horaColombiana = 'N/A'
+        let horaSalidaDate = new Date(0)
+        
+        if (programado.hora) {
+          try {
+            // La hora está en formato ISO completo, convertir a Date
+            const fechaHora = new Date(programado.hora)
+            
+            // Verificar que la fecha sea válida
+            if (!isNaN(fechaHora.getTime())) {
+              // Convertir a hora colombiana usando toLocaleString
+              horaColombiana = fechaHora.toLocaleTimeString('es-CO', {
+                timeZone: 'America/Bogota',
+                hour: '2-digit',
+                minute: '2-digit'
+              })
+              horaSalidaDate = fechaHora
+            }
+          } catch (error) {
+            console.error('Error procesando hora del programado:', programado.hora, error)
+            horaColombiana = 'N/A'
+          }
+        }
+
+        todosLosDatos.push({
+          tipo: 'PROGRAMADO',
+          horaSalida: horaColombiana,
+          movil: programado.movil.movil,
+          placa: programado.movil.placa,
+          conductor: 'N/A',
+          horaSalidaDate: horaSalidaDate
+        })
+      })
+
+      // Ordenar por hora de salida
+      todosLosDatos.sort((a, b) => a.horaSalidaDate.getTime() - b.horaSalidaDate.getTime())
+
+      // Agregar filas ordenadas al Excel
+      todosLosDatos.forEach(dato => {
+        worksheet.addRow({
+          tipo: dato.tipo,
+          horaSalida: dato.horaSalida,
+          movil: dato.movil,
+          placa: dato.placa,
+          conductor: dato.conductor
         })
       })
 

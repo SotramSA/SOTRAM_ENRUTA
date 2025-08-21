@@ -149,7 +149,8 @@ export default function AutomovilManager() {
 
   async function fetchConductores() {
     try {
-      const response = await axios.get('/api/conductores')
+      // Obtener todos los conductores sin paginación para el modal
+      const response = await axios.get('/api/conductores?limit=1000')
       // El endpoint devuelve un objeto { conductores, total, totalPages, page, limit }
       // Necesitamos solo el array de conductores para el estado local
       setConductores(response.data.conductores)
@@ -340,8 +341,15 @@ export default function AutomovilManager() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   function handleView(automovil: Automovil) {
+    console.log('🔍 Abriendo modal de visualización para:', automovil);
     setViewItem(automovil);
     setIsViewModalOpen(true);
+  }
+
+  function handleViewModalClose() {
+    console.log('🔍 Cerrando modal de visualización');
+    setIsViewModalOpen(false);
+    setViewItem(null);
   }
 
   return (
@@ -793,7 +801,7 @@ export default function AutomovilManager() {
                   </div>
 
                   {/* Lista de conductores filtrados */}
-                  <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-lg p-3 space-y-2 bg-gray-50">
+                  <div className="max-h-64 overflow-y-auto border border-gray-300 rounded-lg p-3 space-y-2 bg-gray-50">
                     {filteredConductores.length > 0 ? (
                       filteredConductores.map((conductor) => (
                         <label key={conductor.id} className="flex items-center cursor-pointer">
@@ -882,105 +890,169 @@ export default function AutomovilManager() {
 
         {/* Modal de visualización */}
         {isViewModalOpen && viewItem && (
-          <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-              {/* Fondo oscuro */}
-              <div 
-                className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
-                onClick={() => setIsViewModalOpen(false)}
-              ></div>
+          <div 
+            className="fixed inset-0 bg-gray-400/50 flex items-center justify-center z-50 p-4"
+            onClick={handleViewModalClose}
+          >
+            <div 
+              className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center p-6 border-b border-gray-200">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Detalles del Automóvil - {viewItem.movil}
+                </h2>
+                <button
+                  onClick={handleViewModalClose}
+                  className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                {/* Información básica */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Información General</h3>
+                    <div className="space-y-2">
+                      <p><span className="font-medium text-gray-700">Móvil:</span> <span className="text-gray-900">{viewItem.movil}</span></p>
+                      <p><span className="font-medium text-gray-700">Placa:</span> <span className="text-gray-900">{viewItem.placa}</span></p>
+                      <p>
+                        <span className="font-medium text-gray-700">Estado:</span> 
+                        <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${
+                          viewItem.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {viewItem.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </p>
+                      <p>
+                        <span className="font-medium text-gray-700">Disponibilidad:</span> 
+                        <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${
+                          viewItem.disponible ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
+                        }`}>
+                          {viewItem.disponible ? 'Disponible' : 'No disponible'}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
 
-              {/* Contenido del modal */}
-              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full">
-                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                  <div className="sm:flex sm:items-start">
-                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                      <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                        Detalles del Automóvil
-                      </h3>
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <p><span className="font-semibold">Móvil:</span> {viewItem.movil}</p>
-                            <p><span className="font-semibold">Placa:</span> {viewItem.placa}</p>
-                            <p>
-                              <span className="font-semibold">Estado:</span> 
-                              <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${
-                                viewItem.activo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                              }`}>
-                                {viewItem.activo ? 'Activo' : 'Inactivo'}
-                              </span>
-                            </p>
-                            <p>
-                              <span className="font-semibold">Disponibilidad:</span> 
-                              <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${
-                                viewItem.disponible ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'
-                              }`}>
-                                {viewItem.disponible ? 'Disponible' : 'No disponible'}
-                              </span>
-                            </p>
-                            <p>
-                              <span className="font-semibold">Propietarios:</span>
-                              {viewItem.automovilPropietario && viewItem.automovilPropietario.length > 0 ? (
-                                <span className="ml-2 flex flex-wrap gap-1">
-                                  {viewItem.automovilPropietario.map((ap) => (
-                                    <span key={ap.id} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
-                                      <UserCheck size={12} />
-                                      {ap.propietario.nombre} ({ap.propietario.cedula})
-                                    </span>
-                                  ))}
-                                </span>
-                              ) : (
-                                <span className="text-gray-500 ml-2">No asignados</span>
-                              )}
-                            </p>
-                          </div>
-
-                          <div className="space-y-2">
-                            <h4 className="font-semibold">Documentos y Fechas de Vencimiento:</h4>
-                            <div className="grid grid-cols-1 gap-2 text-sm">
-                              <p><span className="font-medium">SOAT:</span> {viewItem.soat ? new Date(viewItem.soat).toLocaleDateString() : 'No registrado'}</p>
-                              <p><span className="font-medium">Revisión Tecnomecánica:</span> {viewItem.revisionTecnomecanica ? new Date(viewItem.revisionTecnomecanica).toLocaleDateString() : 'No registrada'}</p>
-                              <p><span className="font-medium">Tarjeta de Operación:</span> {viewItem.tarjetaOperacion ? new Date(viewItem.tarjetaOperacion).toLocaleDateString() : 'No registrada'}</p>
-                              <p><span className="font-medium">Licencia de Tránsito:</span> {viewItem.licenciaTransito ? new Date(viewItem.licenciaTransito).toLocaleDateString() : 'No registrada'}</p>
-                              <p><span className="font-medium">Extintor:</span> {viewItem.extintor ? new Date(viewItem.extintor).toLocaleDateString() : 'No registrado'}</p>
-                              <p><span className="font-medium">Revisión Preventiva:</span> {viewItem.revisionPreventiva ? new Date(viewItem.revisionPreventiva).toLocaleDateString() : 'No registrada'}</p>
-                              <p><span className="font-medium">Revisión Anual:</span> {viewItem.revisionAnual ? new Date(viewItem.revisionAnual).toLocaleDateString() : 'No registrada'}</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-4">
-                          <h4 className="font-semibold mb-2">Conductores Asignados:</h4>
-                          {viewItem.conductorAutomovil.length > 0 ? (
-                            <div className="flex flex-wrap gap-2">
-                              {viewItem.conductorAutomovil.map((ca) => (
-                                <span
-                                  key={ca.id}
-                                  className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
-                                >
-                                  <UserCheck size={14} />
-                                  {ca.conductor.nombre} ({ca.conductor.cedula})
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-gray-500">No hay conductores asignados</p>
-                          )}
-                        </div>
-                      </div>
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Documentos y Fechas de Vencimiento</h3>
+                    <div className="space-y-2 text-sm">
+                      <p><span className="font-medium text-gray-700">SOAT:</span> <span className="text-gray-900">
+                        {viewItem.soat ? (() => {
+                          try {
+                            return new Date(viewItem.soat).toLocaleDateString('es-ES')
+                          } catch {
+                            return 'Fecha inválida'
+                          }
+                        })() : 'No registrado'}
+                      </span></p>
+                      <p><span className="font-medium text-gray-700">Revisión Tecnomecánica:</span> <span className="text-gray-900">
+                        {viewItem.revisionTecnomecanica ? (() => {
+                          try {
+                            return new Date(viewItem.revisionTecnomecanica).toLocaleDateString('es-ES')
+                          } catch {
+                            return 'Fecha inválida'
+                          }
+                        })() : 'No registrada'}
+                      </span></p>
+                      <p><span className="font-medium text-gray-700">Tarjeta de Operación:</span> <span className="text-gray-900">
+                        {viewItem.tarjetaOperacion ? (() => {
+                          try {
+                            return new Date(viewItem.tarjetaOperacion).toLocaleDateString('es-ES')
+                          } catch {
+                            return 'Fecha inválida'
+                          }
+                        })() : 'No registrada'}
+                      </span></p>
+                      <p><span className="font-medium text-gray-700">Licencia de Tránsito:</span> <span className="text-gray-900">
+                        {viewItem.licenciaTransito ? (() => {
+                          try {
+                            return new Date(viewItem.licenciaTransito).toLocaleDateString('es-ES')
+                          } catch {
+                            return 'Fecha inválida'
+                          }
+                        })() : 'No registrada'}
+                      </span></p>
+                      <p><span className="font-medium text-gray-700">Extintor:</span> <span className="text-gray-900">
+                        {viewItem.extintor ? (() => {
+                          try {
+                            return new Date(viewItem.extintor).toLocaleDateString('es-ES')
+                          } catch {
+                            return 'Fecha inválida'
+                          }
+                        })() : 'No registrado'}
+                      </span></p>
+                      <p><span className="font-medium text-gray-700">Revisión Preventiva:</span> <span className="text-gray-900">
+                        {viewItem.revisionPreventiva ? (() => {
+                          try {
+                            return new Date(viewItem.revisionPreventiva).toLocaleDateString('es-ES')
+                          } catch {
+                            return 'Fecha inválida'
+                          }
+                        })() : 'No registrada'}
+                      </span></p>
+                      <p><span className="font-medium text-gray-700">Revisión Anual:</span> <span className="text-gray-900">
+                        {viewItem.revisionAnual ? (() => {
+                          try {
+                            return new Date(viewItem.revisionAnual).toLocaleDateString('es-ES')
+                          } catch {
+                            return 'Fecha inválida'
+                          }
+                        })() : 'No registrada'}
+                      </span></p>
                     </div>
                   </div>
                 </div>
-                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                  <button
-                    type="button"
-                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
-                    onClick={() => setIsViewModalOpen(false)}
-                  >
-                    Cerrar
-                  </button>
+
+                {/* Propietarios */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Propietarios Asignados</h3>
+                  {viewItem.automovilPropietario && viewItem.automovilPropietario.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {viewItem.automovilPropietario.map((ap) => (
+                        <span key={ap.id} className="inline-flex items-center gap-1 px-3 py-1 text-sm font-medium bg-purple-100 text-purple-800 rounded-full">
+                          <UserCheck size={14} />
+                          {ap.propietario.nombre} ({ap.propietario.cedula})
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">No hay propietarios asignados</p>
+                  )}
                 </div>
+
+                {/* Conductores */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Conductores Asignados</h3>
+                  {viewItem.conductorAutomovil.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {viewItem.conductorAutomovil.map((ca) => (
+                        <span
+                          key={ca.id}
+                          className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
+                        >
+                          <UserCheck size={14} />
+                          {ca.conductor.nombre} ({ca.conductor.cedula})
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">No hay conductores asignados</p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex justify-end p-6 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={handleViewModalClose}
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors cursor-pointer"
+                >
+                  Cerrar
+                </button>
               </div>
             </div>
           </div>

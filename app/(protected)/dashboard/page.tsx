@@ -68,11 +68,12 @@ export default function DashboardPage() {
   const [fechaInicio, setFechaInicio] = useState('')
   const [fechaFin, setFechaFin] = useState('')
 
-  // Establecer fechas por defecto (con datos)
+  // Establecer fechas por defecto (fecha actual)
   useEffect(() => {
-    // Usar una fecha donde sabemos que hay datos
-    setFechaInicio('2025-08-04')
-    setFechaFin('2025-08-04')
+    const hoy = new Date()
+    const fechaActual = hoy.toISOString().split('T')[0] // Formato YYYY-MM-DD
+    setFechaInicio(fechaActual)
+    setFechaFin(fechaActual)
   }, [])
 
   // Cargar datos cuando cambien las fechas

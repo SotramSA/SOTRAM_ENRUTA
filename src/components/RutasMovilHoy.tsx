@@ -130,7 +130,7 @@ export default function RutasMovilHoy({ movilId, movilNombre }: RutasMovilHoyPro
         <div className="flex items-center space-x-2">
           <Car className="w-5 h-5 text-blue-600" />
           <h3 className="text-lg font-semibold text-gray-900">
-            Rutas del Móvil {movilNombre}
+            Despachos del Móvil {movilNombre}
           </h3>
         </div>
         <div className="flex items-center space-x-2">

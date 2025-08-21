@@ -58,6 +58,7 @@ export async function PUT(
             telefono: telefono || null,
             correo: correo || null,
             observaciones: observaciones || null,
+            licenciaConduccion: licenciaConduccion ? new Date(licenciaConduccion) : null,
             activo: activo !== undefined ? activo : true,
           }
         });

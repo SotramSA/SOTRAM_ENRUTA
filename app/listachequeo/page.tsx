@@ -6,6 +6,8 @@ import { Input } from '@/src/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/Card';
 import { Alert, AlertDescription } from '@/src/components/ui/alert';
 import { Separator } from '@/src/components/ui/separator';
+import { Home } from 'lucide-react';
+import Link from 'next/link';
 
 // Nota: El componente Checkbox no existe en la UI, usaremos un input de tipo checkbox simple
 const Checkbox = ({ id, checked, onChange, className = '' }: { id: string; checked: boolean; onChange: (checked: boolean) => void; className?: string }) => (
@@ -292,6 +294,17 @@ export default function ListaChequeoPage() {
           </div>
           <p className="text-gray-600">Complete la inspección pre-operacional del vehículo</p>
           <div className="mt-2 text-sm text-gray-500">{fechaActual}</div>
+          
+          {/* Botón Volver al inicio */}
+          <div className="mt-4">
+            <Link 
+              href="/"
+              className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg transition-colors"
+            >
+              <Home className="w-4 h-4" />
+              <span>Volver al inicio</span>
+            </Link>
+          </div>
         </div>
 
         {/* Tarjeta de búsqueda */}

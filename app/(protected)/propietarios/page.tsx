@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/src/components/ui/Button'
-import { UserCheck, Plus, Edit, Trash2, Search, Filter, Bus } from 'lucide-react'
+import { UserCheck, Plus, Edit, Trash2, Search, Filter, Bus, Eye } from 'lucide-react'
 import RouteGuard from '@/src/components/RouteGuard'
 import { useNotifications, createApiNotifications } from '@/src/lib/notifications'
 
@@ -33,6 +33,8 @@ export default function PropietariosPage() {
   const [filteredPropietarios, setFilteredPropietarios] = useState<Propietario[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingPropietario, setEditingPropietario] = useState<Propietario | null>(null)
+  const [viewItem, setViewItem] = useState<Propietario | null>(null)
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [isLoading, setIsLoading] = useState(true)
@@ -159,6 +161,18 @@ export default function PropietariosPage() {
       automoviles: propietario.automoviles?.map(auto => auto.id) || []
     })
     setIsModalOpen(true)
+  }
+
+  const handleView = (propietario: Propietario) => {
+    console.log('🔍 Abriendo modal de visualización para propietario:', propietario);
+    setViewItem(propietario);
+    setIsViewModalOpen(true);
+  }
+
+  const handleViewModalClose = () => {
+    console.log('🔍 Cerrando modal de visualización');
+    setIsViewModalOpen(false);
+    setViewItem(null);
   }
 
   const handleDelete = async (id: number) => {
@@ -368,14 +382,22 @@ export default function PropietariosPage() {
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                                                     <Button
-                             onClick={() => setDeleteId(propietario.id)}
-                             variant="outline"
-                             size="sm"
-                             className="text-red-600 hover:text-red-900"
-                           >
-                             <Trash2 className="w-4 h-4" />
-                           </Button>
+                          <Button
+                            onClick={() => handleView(propietario)}
+                            variant="outline"
+                            size="sm"
+                            className="text-gray-600 hover:text-gray-900"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            onClick={() => setDeleteId(propietario.id)}
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -610,6 +632,92 @@ export default function PropietariosPage() {
                    className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors cursor-pointer"
                  >
                    Eliminar
+                 </button>
+               </div>
+             </div>
+           </div>
+         )}
+
+         {/* Modal de visualización */}
+         {isViewModalOpen && viewItem && (
+           <div 
+             className="fixed inset-0 bg-gray-400/50 flex items-center justify-center z-50 p-4"
+             onClick={handleViewModalClose}
+           >
+             <div 
+               className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+               onClick={(e) => e.stopPropagation()}
+             >
+               <div className="flex justify-between items-center p-6 border-b border-gray-200">
+                 <h2 className="text-xl font-semibold text-gray-900">
+                   Detalles del Propietario - {viewItem.nombre}
+                 </h2>
+                 <button
+                   onClick={handleViewModalClose}
+                   className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                 >
+                   ✕
+                 </button>
+               </div>
+               
+               <div className="p-6 space-y-6">
+                 {/* Información básica */}
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="space-y-3">
+                     <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Información Personal</h3>
+                     <div className="space-y-2">
+                       <p><span className="font-medium text-gray-700">Nombre:</span> <span className="text-gray-900">{viewItem.nombre}</span></p>
+                       <p><span className="font-medium text-gray-700">Cédula:</span> <span className="text-gray-900">{viewItem.cedula}</span></p>
+                       <p><span className="font-medium text-gray-700">Teléfono:</span> <span className="text-gray-900">{viewItem.telefono || 'No registrado'}</span></p>
+                       <p><span className="font-medium text-gray-700">Correo:</span> <span className="text-gray-900">{viewItem.correo || 'No registrado'}</span></p>
+                       <p>
+                         <span className="font-medium text-gray-700">Estado:</span> 
+                         <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${
+                           viewItem.estado ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                         }`}>
+                           {viewItem.estado ? 'Activo' : 'Inactivo'}
+                         </span>
+                       </p>
+                     </div>
+                   </div>
+                 </div>
+
+                 {/* Observaciones */}
+                 {viewItem.observaciones && (
+                   <div className="space-y-3">
+                     <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Observaciones</h3>
+                     <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">{viewItem.observaciones}</p>
+                   </div>
+                 )}
+
+                 {/* Automóviles asignados */}
+                 <div className="space-y-3">
+                   <h3 className="text-lg font-semibold text-gray-900 border-b pb-2">Automóviles Asignados</h3>
+                   {viewItem.automoviles && viewItem.automoviles.length > 0 ? (
+                     <div className="flex flex-wrap gap-2">
+                       {viewItem.automoviles.map((automovil) => (
+                         <span
+                           key={automovil.id}
+                           className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
+                         >
+                           <UserCheck size={14} />
+                           {automovil.movil} ({automovil.placa})
+                         </span>
+                       ))}
+                     </div>
+                   ) : (
+                     <p className="text-gray-500">No hay automóviles asignados</p>
+                   )}
+                 </div>
+               </div>
+               
+               <div className="flex justify-end p-6 border-t border-gray-200">
+                 <button
+                   type="button"
+                   onClick={handleViewModalClose}
+                   className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors cursor-pointer"
+                 >
+                   Cerrar
                  </button>
                </div>
              </div>

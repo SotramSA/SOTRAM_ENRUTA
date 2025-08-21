@@ -370,8 +370,12 @@ export default function TurnoPage() {
       const validacionResult = result.data.validacion;
       setValidacion(validacionResult);
       
-      // Si no tiene planilla o tiene sanciones, no cargar huecos
-      if (!validacionResult.tienePlanilla || validacionResult.tieneSanciones) {
+      // Si no tiene planilla, no tiene lista de chequeo, tiene licencia vencida, tiene documentos vencidos o tiene sanciones, no cargar huecos
+      if (!validacionResult.tienePlanilla || 
+          !validacionResult.tieneListaChequeo || 
+          validacionResult.licenciaConduccionVencida ||
+          validacionResult.documentosVencidos.length > 0 ||
+          validacionResult.tieneSanciones) {
         setHuecos([]);
         setAsignacionAutomatica(null);
         return;
@@ -462,6 +466,25 @@ export default function TurnoPage() {
     // Verificar que tenga planilla antes de asignar
     if (validacion && !validacion.tienePlanilla) {
       notifications.error('No se puede asignar turnos sin planilla para el día de hoy');
+      return;
+    }
+
+    // Verificar que tenga lista de chequeo antes de asignar
+    if (validacion && !validacion.tieneListaChequeo) {
+      notifications.error('No se puede asignar turnos sin completar la lista de chequeo para el día de hoy');
+      return;
+    }
+
+    // Verificar que no tenga licencia vencida antes de asignar
+    if (validacion && validacion.licenciaConduccionVencida) {
+      notifications.error('No se puede asignar turnos con licencia de conducción vencida');
+      return;
+    }
+
+    // Verificar que no tenga documentos vencidos antes de asignar
+    if (validacion && validacion.documentosVencidos.length > 0) {
+      const documentosVencidos = validacion.documentosVencidos.map(doc => doc.tipo).join(', ');
+      notifications.error(`No se puede asignar turnos con documentos vencidos: ${documentosVencidos}`);
       return;
     }
 
@@ -768,6 +791,22 @@ export default function TurnoPage() {
     }
   };
 
+  // Función para limpiar nombres de rutas y evitar duplicación de "Despacho"
+  const limpiarNombreRuta = (nombre: string): string => {
+    // Si ya contiene "DESPACHO" o "Despacho", solo limpiar y formatear
+    if (nombre.toUpperCase().includes('DESPACHO')) {
+      // Extraer la parte después de "DESPACHO" o "Despacho"
+      const match = nombre.match(/(?:DESPACHO|Despacho)\s*(.+)/i);
+      if (match) {
+        return `Despacho ${match[1].trim()}`;
+      }
+      return nombre;
+    }
+    
+    // Si no contiene "Despacho", agregarlo
+    return `Despacho ${nombre}`;
+  };
+
 
 
   const generarMensajeValidacion = () => {
@@ -780,6 +819,47 @@ export default function TurnoPage() {
           type="error"
           title="Sin Planilla para Hoy"
           message="El móvil seleccionado no tiene una planilla activa para el día de hoy. No se pueden asignar turnos sin planilla."
+        />
+      );
+    }
+
+    // Si no tiene lista de chequeo, mostrar error
+    if (!validacion.tieneListaChequeo) {
+      return (
+        <ValidationMessage
+          type="error"
+          title="Lista de Chequeo Pendiente"
+          message="El móvil seleccionado no tiene la lista de chequeo completada para el día de hoy. No se pueden asignar turnos sin completar la lista de chequeo."
+        />
+      );
+    }
+
+    // Si la licencia de conducción está vencida, mostrar error
+    if (validacion.licenciaConduccionVencida) {
+      return (
+        <ValidationMessage
+          type="error"
+          title="Licencia de Conducción Vencida"
+          message="El conductor tiene la licencia de conducción vencida. No se pueden asignar turnos con licencia vencida."
+        />
+      );
+    }
+
+         // Si tiene documentos vencidos, mostrar error
+     if (validacion.documentosVencidos.length > 0) {
+       const detalles = validacion.documentosVencidos.map(doc => {
+         // Asegurar que la fecha sea un objeto Date válido
+         const fechaVencimiento = doc.fechaVencimiento instanceof Date ? doc.fechaVencimiento : new Date(doc.fechaVencimiento);
+         const fechaTexto = fechaVencimiento.toLocaleDateString('es-ES', { timeZone: 'UTC' });
+         return `📄 ${doc.tipo}: Vencido el ${fechaTexto}`;
+       });
+
+      return (
+        <ValidationMessage
+          type="error"
+          title="Documentos del Móvil Vencidos"
+          message="El móvil seleccionado tiene los siguientes documentos vencidos. No se pueden asignar turnos con documentos vencidos:"
+          details={detalles}
         />
       );
     }
@@ -830,7 +910,14 @@ export default function TurnoPage() {
       );
     }
 
-    return null;
+    // Si todas las validaciones pasan, mostrar mensaje de éxito
+    return (
+      <ValidationMessage
+        type="info"
+        title="Validaciones Completadas"
+        message={`✅ Planilla: ${validacion.planilla ? 'Válida' : 'No encontrada'} | ✅ Lista de Chequeo: Completada por ${validacion.listaChequeo?.nombre || 'N/A'} | ✅ Licencia: ${validacion.licenciaConduccionVencida ? 'Vencida' : 'Válida'} | ✅ Documentos: ${validacion.documentosVencidos.length > 0 ? `${validacion.documentosVencidos.length} vencidos` : 'Todos válidos'} | ✅ Sanciones: ${validacion.tieneSanciones ? 'Pendientes' : 'Sin sanciones'}`}
+      />
+    );
   };
 
   const formatHora = (hora: string) => {
@@ -1112,12 +1199,7 @@ export default function TurnoPage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Sistema de Turnos Inteligente</h1>
               <p className="text-gray-600 mt-1">Asignación automática con rotación entre Despachos A, B y C</p>
-              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>🔄 Sistema Integrado:</strong> Los programados (4:50-7:00 AM) se muestran automáticamente como huecos disponibles. 
-                  Los turnos respetan horarios: Despachos A/B inician a las 7:00 AM y Despacho C a las 8:30 AM cuando hay programados.
-                </p>
-              </div>
+             
             </div>
             <div className="flex gap-2">
               <Button
@@ -1255,7 +1337,7 @@ export default function TurnoPage() {
               <div className="flex items-center justify-center gap-3">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
                 <div className="text-center">
-                  <h3 className="font-semibold text-gray-900 mb-1">Analizando mejores rutas...</h3>
+                                     <h3 className="font-semibold text-gray-900 mb-1">Analizando mejores opciones...</h3>
                   <p className="text-sm text-gray-600 mb-2">
                     Calculando sugerencias inteligentes para {automoviles.find(a => a.id.toString() === automovilSeleccionado)?.movil} 
                     y {conductoresPorAutomovil[parseInt(automovilSeleccionado)]?.find(c => c.id.toString() === conductorSeleccionado)?.nombre}
@@ -1292,7 +1374,7 @@ export default function TurnoPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Route className="h-4 w-4 text-green-600" />
-                    <span className="font-medium">Ruta {asignacionAutomatica.mejorHueco.rutaNombre}</span>
+                                         <span className="font-medium">{asignacionAutomatica.mejorHueco.rutaNombre}</span>
                     <Clock className="h-4 w-4 text-green-600" />
                     <span className="font-medium">{formatHora(asignacionAutomatica.mejorHueco.horaSalida)}</span>
                   </div>
@@ -1320,7 +1402,7 @@ export default function TurnoPage() {
                         <div className="space-y-1 text-sm">
                           <div className="flex items-center gap-1">
                             <Route className="h-3 w-3 text-gray-600" />
-                            <span>Ruta {hueco.rutaNombre}</span>
+                                                         <span>{hueco.rutaNombre}</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <Clock className="h-3 w-3 text-gray-600" />
@@ -1377,7 +1459,7 @@ export default function TurnoPage() {
             ) : loadingAsignacion ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600 mx-auto mb-4"></div>
-                <h3 className="font-semibold text-gray-900 mb-2">Cargando sugerencias de ruta...</h3>
+                                 <h3 className="font-semibold text-gray-900 mb-2">Cargando sugerencias...</h3>
                 <p className="text-sm text-gray-600">
                   Analizando mejores resultados para {automoviles.find(a => a.id.toString() === automovilSeleccionado)?.movil} 
                   y {conductoresPorAutomovil[parseInt(automovilSeleccionado)]?.find(c => c.id.toString() === conductorSeleccionado)?.nombre}
@@ -1395,7 +1477,7 @@ export default function TurnoPage() {
                     <div className="flex items-center gap-3">
                       <div className={`w-4 h-4 rounded-full ${getRutaColor(rutaNombre)}`}></div>
                       <h3 className="font-semibold text-gray-900">
-                        {rutaNombre.startsWith('DESPACHO') ? rutaNombre : `Despacho ${rutaNombre}`}
+                        {limpiarNombreRuta(rutaNombre)}
                       </h3>
                       <Badge className="bg-white text-gray-700 border border-gray-300">
                         {huecosPorRuta[rutaNombre]?.length || 0} huecos
@@ -1472,7 +1554,7 @@ export default function TurnoPage() {
                       <div className="flex items-center gap-3">
                         <div className={`w-4 h-4 rounded-full ${getRutaColor(rutaNombre)}`}></div>
                         <CardTitle className="text-lg font-semibold text-gray-900">
-                          {rutaNombre.startsWith('DESPACHO') ? rutaNombre : `Despacho ${rutaNombre}`}
+                          {limpiarNombreRuta(rutaNombre)}
                         </CardTitle>
                         <Badge className="bg-white text-gray-700 border border-gray-300">
                           {turnosPorRuta[rutaNombre]?.length || 0} turnos

@@ -62,7 +62,7 @@ export default async function Sidebar() {
       avalaible: session?.tablaPropietarios,
     },
     {
-      name: "Rutas",
+      name: "Despacho",
       href: "/rutas",
       icon: "Route",
       avalaible: session?.tablaRuta,

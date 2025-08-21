@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { nombre, cedula, telefono, correo, observaciones, activo, automoviles, licenciaConducir } = await request.json();
+    const { nombre, cedula, telefono, correo, observaciones, activo, automoviles, licenciaConduccion } = await request.json();
     
     if (!nombre || !cedula) {
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
           telefono: telefono || null,
           correo: correo || null,
           observaciones: observaciones || null,
+          licenciaConduccion: licenciaConduccion ? new Date(licenciaConduccion) : null,
           activo: activo !== undefined ? activo : true,
         }
       });

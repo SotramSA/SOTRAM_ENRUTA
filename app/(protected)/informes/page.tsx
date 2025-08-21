@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/src
 import { Button } from '@/src/components/ui/Button'
 import { Input } from '@/src/components/ui/Input'
 import { Label } from '@/src/components/ui/Label'
-import { Calendar, Download, FileText, Loader2, Users, Bus, AlertTriangle, Car, Search } from 'lucide-react'
+import { Calendar, Download, FileText, Loader2, Users, Bus, AlertTriangle, Car, Search, UserCheck } from 'lucide-react'
 import RouteGuard from '@/src/components/RouteGuard'
 
 export default function InformesPage() {
@@ -95,6 +95,7 @@ export default function InformesPage() {
     const names: { [key: string]: string } = {
       'conductores': 'Lista de Conductores',
       'vehiculos': 'Lista de Vehículos',
+      'propietarios': 'Lista de Propietarios',
       'sanciones-conductores': 'Sanciones de Conductores',
       'sanciones-vehiculos': 'Sanciones de Vehículos'
     }
@@ -125,6 +126,18 @@ export default function InformesPage() {
       buttonColor: 'bg-green-600',
       buttonHover: 'hover:bg-green-700',
       buttonDisabled: 'disabled:bg-green-400'
+    },
+    {
+      id: 'propietarios',
+      titulo: 'Lista de Propietarios',
+      descripcion: 'Reporte completo de todos los propietarios registrados con sus vehículos asignados',
+      icono: UserCheck,
+      color: 'purple',
+      bgColor: 'bg-purple-100',
+      textColor: 'text-purple-600',
+      buttonColor: 'bg-purple-600',
+      buttonHover: 'hover:bg-purple-700',
+      buttonDisabled: 'disabled:bg-purple-400'
     },
     {
       id: 'sanciones-conductores',
@@ -212,7 +225,6 @@ export default function InformesPage() {
                           <>
                             <Loader2 className="w-4 h-4 animate-spin" />
                             Generando...
-                            Fuiffifjfjifjfiaflj
                           </>
                         ) : (
                           <>
