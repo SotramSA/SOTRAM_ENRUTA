@@ -1,10 +1,18 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
-import { loginSchema } from "./src/lib/zod";
-import { prisma } from "./src/lib/prisma";
+import { z } from "zod";
+import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+const prisma = new PrismaClient();
+
+// Schema de validación simplificado
+const loginSchema = z.object({
+  usuario: z.string().min(1, "Usuario es requerido"),
+  password: z.string().min(1, "Contraseña es requerida")
+});
+
+const authConfig = {
   secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: 'jwt' as const,
@@ -107,4 +115,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session
     }
   }
-})
+}
+
+export const { handlers, signIn, signOut, auth } = NextAuth(authConfig)
