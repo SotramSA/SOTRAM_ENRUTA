@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TurnoService } from '@/src/lib/turnoService';
 import { TimeService } from '@/src/lib/timeService';
-import { auth } from '@/auth';
 
 const turnoService = new TurnoService();
 
