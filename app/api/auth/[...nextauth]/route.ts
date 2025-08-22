@@ -1,9 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { handlers } from "@/auth"
 
-export async function GET(request: NextRequest) {
-  return NextResponse.json({ message: 'Auth endpoint' })
-}
-
-export async function POST(request: NextRequest) {
-  return NextResponse.json({ message: 'Auth endpoint' })
-}
+export const GET = handlers.GET
+export const POST = handlers.POST

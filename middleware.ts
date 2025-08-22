@@ -6,6 +6,7 @@ const publicRoutes = [
   '/login',
   '/register',
   '/listachequeo',
+  '/listachequeo/todos',
   '/consultarprogramado',
   '/api/automoviles/buscar',
   '/api/listachequeo',
@@ -22,22 +23,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
   
-  // Verificar si hay una sesión válida
-  const sessionCookie = request.cookies.get('session')
+  // Verificar si hay una sesión válida de NextAuth
+  const nextAuthCookie = request.cookies.get('next-auth.session-token') || 
+                        request.cookies.get('__Secure-next-auth.session-token')
   
-  // Si no hay cookie de sesión y no es una ruta pública, redirigir a login
-  if (!sessionCookie) {
-    return NextResponse.redirect(new URL('/login', request.url))
-  }
-  
-  // Verificar que la sesión sea válida
-  try {
-    const sessionData = JSON.parse(sessionCookie.value)
-    if (!sessionData || !sessionData.id) {
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
-  } catch (error) {
-    // Si hay error al parsear la cookie, redirigir a login
+  // Si no hay cookie de NextAuth y no es una ruta pública, redirigir a login
+  if (!nextAuthCookie) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
   
