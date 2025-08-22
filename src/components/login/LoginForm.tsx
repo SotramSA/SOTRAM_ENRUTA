@@ -30,11 +30,27 @@ export default function LoginForm() {
     async function onSubmit(values: z.infer<typeof loginSchema>) {
 
         startTransition(async () => {
-            const response = await loginAction(values)
-            if (response.error) {
-                setError(response.error)
-            } else {
-                router.push('/admin')
+            try {
+                // Usar fetch directo a la ruta simple de login
+                const response = await fetch('/api/auth/simple-login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(values),
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    setError(result.error || 'Error de autenticación');
+                } else {
+                    console.log('Login exitoso, redirigiendo a /admin');
+                    router.push('/admin');
+                }
+            } catch (error) {
+                console.error('Error en login:', error);
+                setError('Error de conexión');
             }
         })
     }

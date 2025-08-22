@@ -1,5 +1,5 @@
 import NextAuth from "next-auth"
-import Credentials from "next-auth/providers/credentials"
+import CredentialsProvider from "next-auth/providers/credentials"
 import { z } from "zod";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
@@ -12,8 +12,9 @@ const loginSchema = z.object({
   password: z.string().min(1, "Contraseña es requerida")
 });
 
+// Configuración de NextAuth v4
 const authConfig = {
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || '2ac197677e64dea614f0fa46ced4f394b720ca90960a0a287e953e17b669a117',
   session: {
     strategy: 'jwt' as const,
   },
@@ -21,7 +22,7 @@ const authConfig = {
     signIn: '/login',
   },
   providers: [
-    Credentials({
+    CredentialsProvider({
       credentials: {
         usuario: { label: "Usuario", type: "text" },
         password: { label: "Contraseña", type: "password" }
@@ -117,4 +118,11 @@ const authConfig = {
   }
 }
 
-export const { handlers, signIn, signOut, auth } = NextAuth(authConfig)
+// Crear la instancia de NextAuth
+const nextAuth = NextAuth(authConfig)
+
+// Exportar los elementos individualmente para mejor compatibilidad
+export const handlers = nextAuth.handlers
+export const signIn = nextAuth.signIn
+export const signOut = nextAuth.signOut
+export const auth = nextAuth.auth
