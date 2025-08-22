@@ -66,7 +66,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Obtener configuración activa o crear una nueva
-    let configuracionActual = await prisma.configuracion.findFirst({
+    const configuracionActual = await prisma.configuracion.findFirst({
       where: { activo: true }
     });
 

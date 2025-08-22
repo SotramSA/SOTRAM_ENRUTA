@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Construir la consulta con búsqueda y filtro por automóvil
-    let where: any = {};
+    const where: any = {};
     
     if (automovilId) {
       where.automovilId = parseInt(automovilId);

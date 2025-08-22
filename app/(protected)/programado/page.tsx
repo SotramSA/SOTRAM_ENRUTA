@@ -533,7 +533,7 @@ export default function ProgramadoPage() {
     // Helpers de hora: parsear 'HH:MM' o 'HHMM', convertir de UTC a Colombia y formatear 'HH:mm'
     const parseHHMM = (raw: string): { h: number; m: number } | null => {
       if (!raw) return null
-      let str = String(raw).trim()
+      const str = String(raw).trim()
       // ISO 8601 como '2025-08-10T09:55:00.000Z'
       if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?\.\d{3}Z$/.test(str) || /T/.test(str)) {
         const d = new Date(str)

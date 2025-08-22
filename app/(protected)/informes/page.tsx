@@ -243,7 +243,7 @@ export default function InformesPage() {
               <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontraron reportes</h3>
               <p className="text-gray-600">
-                No hay reportes que coincidan con tu búsqueda "{searchTerm}".
+                No hay reportes que coincidan con tu búsqueda &quot;{searchTerm}&quot;.
               </p>
             </div>
           )}

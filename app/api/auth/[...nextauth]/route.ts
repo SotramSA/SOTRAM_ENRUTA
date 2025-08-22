@@ -1,2 +1,9 @@
-import { handlers } from "@/auth"  // Referring to the auth.ts we just created
-export const { GET, POST } = handlers
+import { NextRequest, NextResponse } from 'next/server'
+
+export async function GET(request: NextRequest) {
+  return NextResponse.json({ message: 'Auth endpoint' })
+}
+
+export async function POST(request: NextRequest) {
+  return NextResponse.json({ message: 'Auth endpoint' })
+}

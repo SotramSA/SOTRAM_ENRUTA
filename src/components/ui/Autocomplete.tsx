@@ -179,7 +179,7 @@ export function AutoComplete({
       {isOpen && value && filteredOptions.length === 0 && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg">
           <div className="px-3 py-2 text-sm text-gray-500">
-            No se encontraron resultados para "{value}"
+            No se encontraron resultados para &quot;{value}&quot;
           </div>
         </div>
       )}

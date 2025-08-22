@@ -5,6 +5,12 @@ import { prisma } from "./src/lib/prisma";
 import bcrypt from "bcryptjs";
 
 export default {
+    session: {
+        strategy: 'jwt' as const,
+    },
+    pages: {
+        signIn: '/login',
+    },
     providers: [
         Credentials({
           credentials: {
