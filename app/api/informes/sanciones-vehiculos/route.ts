@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
         }
       },
       orderBy: {
-        fecha: 'desc'
+        fechaInicio: 'desc'
       }
     })
 
@@ -28,11 +28,10 @@ export async function POST(request: NextRequest) {
       { header: 'ID', key: 'id', width: 10 },
       { header: 'Vehículo', key: 'vehiculo', width: 30 },
       { header: 'Placa', key: 'placa', width: 20 },
-      { header: 'Tipo de Sanción', key: 'tipo', width: 25 },
-      { header: 'Descripción', key: 'descripcion', width: 40 },
-      { header: 'Fecha', key: 'fecha', width: 20 },
-      { header: 'Estado', key: 'estado', width: 15 },
-      { header: 'Fecha de Registro', key: 'fechaRegistro', width: 20 }
+      { header: 'Motivo', key: 'motivo', width: 40 },
+      { header: 'Fecha Inicio', key: 'fechaInicio', width: 20 },
+      { header: 'Fecha Fin', key: 'fechaFin', width: 20 },
+      { header: 'Estado', key: 'estado', width: 15 }
     ]
 
     // Estilo para el encabezado
@@ -51,35 +50,36 @@ export async function POST(request: NextRequest) {
         id: 'N/A',
         vehiculo: 'No hay sanciones registradas',
         placa: 'N/A',
-        tipo: 'N/A',
-        descripcion: 'No hay sanciones de vehículos en el sistema',
-        fecha: 'N/A',
-        estado: 'N/A',
-        fechaRegistro: 'N/A'
+        motivo: 'No hay sanciones de vehículos en el sistema',
+        fechaInicio: 'N/A',
+        fechaFin: 'N/A',
+        estado: 'N/A'
       })
     } else {
       sanciones.forEach(sancion => {
+        const ahora = new Date();
+        const fechaInicio = new Date(sancion.fechaInicio);
+        const fechaFin = new Date(sancion.fechaFin);
+        const estaActiva = ahora >= fechaInicio && ahora <= fechaFin;
+        
         worksheet.addRow({
           id: sancion.id,
           vehiculo: sancion.automovil.movil,
           placa: sancion.automovil.placa,
-          tipo: sancion.tipo,
-          descripcion: sancion.descripcion,
-          fecha: sancion.fecha ? 
-            new Date(sancion.fecha).toLocaleDateString('es-CO', {
-              timeZone: 'America/Bogota',
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit'
-            }) : 'N/A',
-          estado: sancion.activa ? 'Activa' : 'Inactiva',
-          fechaRegistro: sancion.createdAt ? 
-            new Date(sancion.createdAt).toLocaleDateString('es-CO', {
-              timeZone: 'America/Bogota',
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit'
-            }) : 'N/A'
+          motivo: sancion.motivo,
+          fechaInicio: fechaInicio.toLocaleDateString('es-CO', {
+            timeZone: 'America/Bogota',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          }),
+          fechaFin: fechaFin.toLocaleDateString('es-CO', {
+            timeZone: 'America/Bogota',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          }),
+          estado: estaActiva ? 'Activa' : 'Inactiva'
         })
       })
     }

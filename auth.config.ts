@@ -53,7 +53,7 @@ export default {
         }),
       ],
     callbacks: {
-        jwt: async ({ token, user }) => {
+        jwt: async ({ token, user }: { token: any; user: any }) => {
             if (user) {
                 token.id = user.id
                 token.nombre = user.nombre
@@ -76,7 +76,7 @@ export default {
             }
             return token
         },
-        session: async ({ session, token }) => {
+        session: async ({ session, token }: { session: any; token: any }) => {
             if (token) {
                 session.user.id = token.id as string
                 session.user.nombre = token.nombre as string

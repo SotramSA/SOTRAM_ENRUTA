@@ -234,7 +234,14 @@ export async function POST(request: NextRequest) {
       }
 
       // Crear array con todos los datos para ordenar por hora de salida
-      const todosLosDatos = []
+      const todosLosDatos: Array<{
+        tipo: string;
+        horaSalida: string;
+        movil: string;
+        placa: string;
+        conductor: string;
+        horaSalidaDate: Date;
+      }> = []
 
       // Agregar datos de turnos
       datosRuta.turnos.forEach(turno => {

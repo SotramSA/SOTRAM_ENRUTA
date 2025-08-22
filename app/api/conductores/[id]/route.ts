@@ -3,10 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: idParam } = params;
+    const { id: idParam } = await params;
     const id = parseInt(idParam);
     
     if (isNaN(id)) {

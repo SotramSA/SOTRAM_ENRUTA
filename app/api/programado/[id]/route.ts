@@ -55,7 +55,9 @@ export async function PUT(
             movilId: movilId,
             fecha: programacionActual.fecha,
             id: { not: id },
-            movilId: { not: -1 } // Excluir registros con movilId = -1
+            AND: {
+              movilId: { not: -1 } // Excluir registros con movilId = -1
+            }
           }
         })
 

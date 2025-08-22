@@ -3,10 +3,11 @@ import prisma from '@/lib/prisma';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { movil: string } }
+  { params }: { params: Promise<{ movil: string }> }
 ) {
   try {
-    const numeroMovil = params.movil;
+    const { movil } = await params;
+    const numeroMovil = movil;
 
     // Buscar el automóvil por número de móvil
     const automovil = await prisma.automovil.findFirst({

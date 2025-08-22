@@ -139,17 +139,9 @@ export async function DELETE(
       )
     }
 
-    // Eliminar el usuario y sus cuentas asociadas
-    await prisma.$transaction(async (tx) => {
-      // Primero eliminar las cuentas asociadas
-      await tx.account.deleteMany({
-        where: { userId: id }
-      })
-      
-      // Luego eliminar el usuario
-      await tx.usuario.delete({
-        where: { id }
-      })
+    // Eliminar el usuario
+    await prisma.usuario.delete({
+      where: { id }
     })
 
     return NextResponse.json({ message: 'Usuario eliminado correctamente' })

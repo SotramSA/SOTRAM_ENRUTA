@@ -1,32 +1,49 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/src/lib/prisma';
 
-// Helper para obtener el rango de la semana (Lunes a Sábado)
+// Helper para obtener el rango de la semana actual (Lunes a Domingo)
 const getWeekRange = (date: Date) => {
-  // Rango amplio: desde domingo 10 hasta domingo 17 para asegurar que incluya todo
-  const startDate = new Date(2025, 7, 10); // 10 de agosto (domingo)
-  startDate.setHours(0, 0, 0, 0);
+  // Obtener el día de la semana (0 = Domingo, 1 = Lunes, ..., 6 = Sábado)
+  const dayOfWeek = date.getDay();
   
-  const endDate = new Date(2025, 7, 17); // 17 de agosto (domingo)
-  endDate.setHours(23, 59, 59, 999);
+  // Calcular cuántos días hay que restar para llegar al lunes
+  // Si es domingo (0), restamos 6 días para llegar al lunes anterior
+  // Si es lunes (1), no restamos nada
+  // Si es martes (2), restamos 1 día, etc.
+  const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
   
-  console.log('Rango amplio de semana (10-17 agosto):', {
-    inicio: startDate.toISOString(),
-    fin: endDate.toISOString(),
-    fechaInicio: startDate.toISOString().split('T')[0],
-    fechaFin: endDate.toISOString().split('T')[0],
-    diaInicio: startDate.getDay(),
-    diaFin: endDate.getDay()
+  // Calcular el lunes de la semana actual
+  
+  const monday = new Date(date);
+  monday.setDate(date.getDate() - daysToSubtract);
+  monday.setHours(0, 0, 0, 0);
+  
+  // Calcular el domingo de la semana actual (6 días después del lunes)
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  
+  // Asegurar que las fechas estén en UTC para evitar problemas de zona horaria
+  const mondayUTC = new Date(Date.UTC(monday.getFullYear(), monday.getMonth(), monday.getDate(), 0, 0, 0, 0));
+  const sundayUTC = new Date(Date.UTC(sunday.getFullYear(), sunday.getMonth(), sunday.getDate(), 23, 59, 59, 999));
+  
+  console.log('Rango de semana actual (Lunes a Domingo):', {
+    fechaActual: date.toISOString(),
+    diaActual: ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][dayOfWeek],
+    lunes: mondayUTC.toISOString(),
+    domingo: sundayUTC.toISOString(),
+    fechaInicio: mondayUTC.toISOString().split('T')[0],
+    fechaFin: sundayUTC.toISOString().split('T')[0]
   });
 
-  return { startOfWeek: startDate, endOfWeek: endDate };
+  return { startOfWeek: mondayUTC, endOfWeek: sundayUTC };
 };
 
 export async function GET(
   request: Request,
-  { params }: { params: { movil: string } }
+  { params }: { params: Promise<{ movil: string }> }
 ) {
-  const { movil } = params;
+  const { movil } = await params;
 
   if (!movil) {
     return NextResponse.json({ error: 'Número de móvil es requerido' }, { status: 400 });

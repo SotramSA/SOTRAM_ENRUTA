@@ -77,21 +77,33 @@ async function main() {
   console.log(`Start seeding ...`);
 
   for (const item of data) {
-    const automovil = await prisma.automovil.upsert({
+    let automovil = await prisma.automovil.findFirst({
       where: { movil: item.movil },
-      update: { placa: item.placa },
-      create: {
-        movil: item.movil,
-        placa: item.placa,
-        soat: getRandomDate(),
-        revisionTecnomecanica: getRandomDate(),
-        tarjetaOperacion: getRandomDate(),
-        licenciaTransito: getRandomDate(),
-        extintor: getRandomDate(),
-        revisionPreventiva: getRandomDate(),
-        revisionAnual: getRandomDate(),
-      },
     });
+
+    if (!automovil) {
+      automovil = await prisma.automovil.create({
+        data: {
+          movil: item.movil,
+          placa: item.placa,
+          soat: getRandomDate(),
+          revisionTecnomecanica: getRandomDate(),
+          tarjetaOperacion: getRandomDate(),
+          licenciaTransito: getRandomDate(),
+          extintor: getRandomDate(),
+          revisionPreventiva: getRandomDate(),
+          revisionAnual: getRandomDate(),
+        },
+      });
+    } else {
+      // Actualizar la placa si es diferente
+      if (automovil.placa !== item.placa) {
+        automovil = await prisma.automovil.update({
+          where: { id: automovil.id },
+          data: { placa: item.placa },
+        });
+      }
+    }
 
     const conductores = Array.isArray(item.conductor) ? item.conductor : [item.conductor];
 
