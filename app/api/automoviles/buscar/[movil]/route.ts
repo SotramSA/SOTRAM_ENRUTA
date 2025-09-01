@@ -27,7 +27,7 @@ export async function GET(
 
       const listaChequeoHoy = await prisma.listaChequeo.findFirst({
         where: {
-          movilId: automovil.id,
+          automovilId: automovil.id,
           fecha: {
             gte: hoy,
             lt: manana,
@@ -45,8 +45,9 @@ export async function GET(
           },
           yaRegistrado: true,
           listaChequeo: {
-            nombre: listaChequeoHoy.nombre,
+            items: listaChequeoHoy.items,
             fecha: listaChequeoHoy.fecha,
+            inspector: listaChequeoHoy.inspector,
           },
         });
       }

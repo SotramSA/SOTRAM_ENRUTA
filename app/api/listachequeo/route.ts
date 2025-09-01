@@ -31,9 +31,13 @@ export async function POST(request: NextRequest) {
     // Crear el registro de lista de chequeo
     const listaChequeo = await prisma.listaChequeo.create({
       data: {
-        nombre: nombreInspector,
-        movilId: automovil.id,
-        fecha: new Date()
+        automovilId: automovil.id,
+        fecha: new Date(),
+        inspector: nombreInspector,
+        items: JSON.stringify({
+          fechaInspeccion: new Date().toISOString(),
+          estado: 'completado'
+        })
       }
     });
 
@@ -43,7 +47,8 @@ export async function POST(request: NextRequest) {
       listaChequeo: {
         id: listaChequeo.id,
         fecha: listaChequeo.fecha,
-        nombre: listaChequeo.nombre,
+        inspector: listaChequeo.inspector,
+        items: listaChequeo.items,
         movil: numeroMovil
       }
     });

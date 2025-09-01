@@ -1,4 +1,4 @@
-import { prisma } from '@/src/lib/prisma';
+import prismaWithRetry from '@/lib/prismaClient';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
@@ -19,32 +19,40 @@ export async function GET(request: NextRequest) {
       ]
     } : {};
 
+    console.log('🔍 Consultando conductores con filtros:', { where, skip, limit });
+
     // Obtener conductores con paginación, búsqueda y relaciones
     const [conductores, total] = await Promise.all([
-      prisma.conductor.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: [
-          { activo: 'desc' }, // Primero los activos (true antes que false)
-          { nombre: 'asc' }   // Luego por orden alfabético del nombre
-        ],
-        include: {
-          conductorAutomovil: {
-            include: {
-              automovil: {
-                select: {
-                  id: true,
-                  movil: true,
-                  placa: true
+      prismaWithRetry.executeWithRetry(async () => {
+        return await prismaWithRetry.conductor.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: [
+            { activo: 'desc' }, // Primero los activos (true antes que false)
+            { nombre: 'asc' }   // Luego por orden alfabético del nombre
+          ],
+          include: {
+            conductorAutomovil: {
+              include: {
+                automovil: {
+                  select: {
+                    id: true,
+                    movil: true,
+                    placa: true
+                  }
                 }
               }
             }
           }
-        }
+        });
       }),
-      prisma.conductor.count({ where })
+      prismaWithRetry.executeWithRetry(async () => {
+        return await prismaWithRetry.conductor.count({ where });
+      })
     ]);
+
+    console.log('✅ Conductores obtenidos:', { count: conductores.length, total });
 
     const totalPages = Math.ceil(total / limit);
 
@@ -56,12 +64,14 @@ export async function GET(request: NextRequest) {
       limit
     });
   } catch (error) {
-    console.error('Error al obtener conductores:', error);
+    console.error('❌ Error al obtener conductores:', error);
     return NextResponse.json({ 
       error: 'Error al obtener conductores',
       details: error instanceof Error ? error.message : 'Error desconocido',
       stack: error instanceof Error ? error.stack : undefined
     }, { status: 500 });
+  } finally {
+    await prismaWithRetry.$disconnect();
   }
 }
 
@@ -74,39 +84,43 @@ export async function POST(request: NextRequest) {
     }
 
     // Crear conductor y sus relaciones con automóviles en una transacción
-    const nuevoConductor = await prisma.$transaction(async (tx) => {
-      const conductor = await tx.conductor.create({
-        data: { 
-          nombre, 
-          cedula, 
-          telefono: telefono || null,
-          correo: correo || null,
-          observaciones: observaciones || null,
-          licenciaConduccion: licenciaConduccion ? new Date(licenciaConduccion) : null,
-          activo: activo !== undefined ? activo : true,
-        }
-      });
-
-      // Crear relaciones con automóviles si se proporcionan
-      if (automoviles && automoviles.length > 0) {
-        await tx.conductorAutomovil.createMany({
-          data: automoviles.map((automovilId: number) => ({
-            conductorId: conductor.id,
-            automovilId,
-            activo: true
-          }))
+    const nuevoConductor = await prismaWithRetry.executeWithRetry(async () => {
+      return await prismaWithRetry.$transaction(async (tx) => {
+        const conductor = await tx.conductor.create({
+          data: { 
+            nombre, 
+            cedula, 
+            telefono: telefono || null,
+            correo: correo || null,
+            observaciones: observaciones || null,
+            licenciaConduccion: licenciaConduccion ? new Date(licenciaConduccion) : null,
+            activo: activo !== undefined ? activo : true,
+          }
         });
-      }
 
-      return conductor;
+        // Crear relaciones con automóviles si se proporcionan
+        if (automoviles && automoviles.length > 0) {
+          await tx.conductorAutomovil.createMany({
+            data: automoviles.map((automovilId: number) => ({
+              conductorId: conductor.id,
+              automovilId,
+              activo: true
+            }))
+          });
+        }
+
+        return conductor;
+      });
     });
     
     return NextResponse.json(nuevoConductor, { status: 201 });
   } catch (error) {
-    console.error('Error al crear conductor:', error);
+    console.error('❌ Error al crear conductor:', error);
     return NextResponse.json({ 
       error: 'Error al crear conductor',
       details: error instanceof Error ? error.message : 'Error desconocido'
     }, { status: 500 });
+  } finally {
+    await prismaWithRetry.$disconnect();
   }
 } 

@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
         }
       },
       orderBy: {
-        fechaInicio: 'desc'
+        fecha: 'desc'
       }
     })
 
@@ -28,9 +28,9 @@ export async function POST(request: NextRequest) {
       { header: 'ID', key: 'id', width: 10 },
       { header: 'Conductor', key: 'conductor', width: 30 },
       { header: 'Cédula', key: 'cedula', width: 20 },
-      { header: 'Motivo', key: 'motivo', width: 40 },
-      { header: 'Fecha Inicio', key: 'fechaInicio', width: 20 },
-      { header: 'Fecha Fin', key: 'fechaFin', width: 20 },
+      { header: 'Descripción', key: 'descripcion', width: 40 },
+      { header: 'Fecha', key: 'fecha', width: 20 },
+      { header: 'Monto', key: 'monto', width: 15 },
       { header: 'Estado', key: 'estado', width: 15 }
     ]
 
@@ -50,36 +50,31 @@ export async function POST(request: NextRequest) {
         id: 'N/A',
         conductor: 'No hay sanciones registradas',
         cedula: 'N/A',
-        motivo: 'No hay sanciones de conductores en el sistema',
-        fechaInicio: 'N/A',
-        fechaFin: 'N/A',
+        descripcion: 'No hay sanciones de conductores en el sistema',
+        fecha: 'N/A',
+        monto: 'N/A',
         estado: 'N/A'
       })
     } else {
       sanciones.forEach(sancion => {
-        const ahora = new Date();
-        const fechaInicio = new Date(sancion.fechaInicio);
-        const fechaFin = new Date(sancion.fechaFin);
-        const estaActiva = ahora >= fechaInicio && ahora <= fechaFin;
+        const fecha = new Date(sancion.fecha);
         
         worksheet.addRow({
           id: sancion.id,
           conductor: sancion.conductor.nombre,
           cedula: sancion.conductor.cedula,
-          motivo: sancion.motivo,
-          fechaInicio: fechaInicio.toLocaleDateString('es-CO', {
+          descripcion: sancion.descripcion,
+          fecha: fecha.toLocaleDateString('es-CO', {
             timeZone: 'America/Bogota',
             year: 'numeric',
             month: '2-digit',
             day: '2-digit'
           }),
-          fechaFin: fechaFin.toLocaleDateString('es-CO', {
-            timeZone: 'America/Bogota',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
+          monto: sancion.monto.toLocaleString('es-CO', {
+            style: 'currency',
+            currency: 'COP'
           }),
-          estado: estaActiva ? 'Activa' : 'Inactiva'
+          estado: 'Registrada'
         })
       })
     }

@@ -1,4 +1,4 @@
-import { prisma } from '@/src/lib/prisma';
+import prisma from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       OR: [
         { conductor: { nombre: { contains: search } } },
         { conductor: { cedula: { contains: search } } },
-        { motivo: { contains: search } }
+        { descripcion: { contains: search } }
       ]
     } : {};
 
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
         skip,
         take: limit,
         orderBy: [
-          { fechaInicio: 'desc' }, // Más recientes primero
+          { fecha: 'desc' }, // Más recientes primero
           { conductor: { nombre: 'asc' } } // Luego por nombre del conductor
         ],
         include: {
@@ -58,9 +58,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { conductorId, fechaInicio, fechaFin, motivo } = await request.json();
+    const { conductorId, fecha, descripcion, monto } = await request.json();
     
-    if (!conductorId || !fechaInicio || !fechaFin || !motivo) {
+    if (!conductorId || !fecha || !descripcion || !monto) {
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
     }
 
@@ -73,21 +73,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Conductor no encontrado o inactivo' }, { status: 400 });
     }
 
-    // Verificar que las fechas son válidas
-    const inicio = new Date(fechaInicio);
-    const fin = new Date(fechaFin);
-    
-    if (fin < inicio) {
-      return NextResponse.json({ error: 'La fecha de fin no puede ser menor a la fecha de inicio' }, { status: 400 });
+    // Verificar que el monto es válido
+    if (typeof monto !== 'number' || monto < 0) {
+      return NextResponse.json({ error: 'El monto debe ser un número positivo' }, { status: 400 });
     }
 
     // Crear la sanción
     const nuevaSancion = await prisma.sancionConductor.create({
       data: {
         conductorId,
-        fechaInicio: inicio,
-        fechaFin: fin,
-        motivo: motivo.trim()
+        fecha: new Date(fecha),
+        descripcion: descripcion.trim(),
+        monto: monto
       },
       include: {
         conductor: {

@@ -183,14 +183,14 @@ export default function ListaChequeoPage() {
 
         if (data.yaRegistrado) {
           setYaRegistrado(true);
-          setNombreInspector(data.listaChequeo.nombre);
+          setNombreInspector(data.listaChequeo.inspector || '');
           // Marcar todos los items como chequeados
           const allChecked = checklistKeys.reduce((acc, key) => {
             acc[key] = true;
             return acc;
           }, {} as { [key: string]: boolean });
           setCheckedItems(allChecked);
-          setMensaje(`Inspección ya registrada hoy por: ${data.listaChequeo.nombre}.`);
+          setMensaje(`Inspección ya registrada hoy por: ${data.listaChequeo.inspector || 'Inspector'}.`);
           setMensajeTipo('success');
         } else {
           // Preparar para una nueva inspección
@@ -224,7 +224,7 @@ export default function ListaChequeoPage() {
 
   // Función para enviar la lista de chequeo
   const enviarListaChequeo = async () => {
-    if (!nombreInspector.trim()) {
+    if (!nombreInspector || !nombreInspector.trim()) {
       setMensaje('Por favor ingrese el nombre del inspector');
       return;
     }
@@ -490,7 +490,7 @@ export default function ListaChequeoPage() {
                 </Button>
                 <Button
                   onClick={enviarListaChequeo}
-                  disabled={loading || !nombreInspector.trim() || Object.values(checkedItems).some(v => !v) || yaRegistrado}
+                  disabled={loading || !nombreInspector || !nombreInspector.trim() || Object.values(checkedItems).some(v => !v) || yaRegistrado}
                   size="lg"
                   className="w-full sm:w-auto px-8 bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400"
                 >

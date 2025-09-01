@@ -41,8 +41,8 @@ export async function GET() {
       listaChequeo: vehiculo.listaChequeo.length > 0 ? {
         id: vehiculo.listaChequeo[0].id,
         fecha: vehiculo.listaChequeo[0].fecha,
-        nombre: vehiculo.listaChequeo[0].nombre,
-        movilId: vehiculo.listaChequeo[0].movilId
+        items: vehiculo.listaChequeo[0].items,
+        automovilId: vehiculo.listaChequeo[0].automovilId
       } : undefined
     }));
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/src/lib/prisma';
+import prismaWithRetry from '@/lib/prismaClient';
 import { TimeService } from '@/src/lib/timeService';
 
 export async function GET(request: NextRequest) {
@@ -16,12 +16,25 @@ export async function GET(request: NextRequest) {
     });
 
     // Obtener todos los programados del día usando solo la fecha
-    const programados = await prisma.programacion.findMany({
-      include: {
-        movil: true,
-        usuario: true
-      },
-      orderBy: { hora: 'asc' }
+    const programados = await prismaWithRetry.executeWithRetry(async () => {
+      return await prismaWithRetry.programacion.findMany({
+        include: {
+          automovil: {
+            select: {
+              id: true,
+              movil: true,
+              placa: true
+            }
+          },
+          ruta: {
+            select: {
+              id: true,
+              nombre: true
+            }
+          }
+        },
+        orderBy: { hora: 'asc' }
+      });
     });
 
     // Filtrar por fecha de hoy comparando solo la parte de fecha
@@ -36,117 +49,92 @@ export async function GET(request: NextRequest) {
       fechaHoy,
       muestraProgramados: programadosHoy.slice(0, 3).map(p => ({
         fecha: new Date(p.fecha).toISOString().split('T')[0],
-        ruta: p.ruta,
+        ruta: p.ruta?.nombre || 'Sin ruta',
         hora: p.hora,
-        disponible: p.disponible,
-        movilId: p.movilId
+        automovilId: p.automovilId
       }))
     });
 
-    // Mostrar estadísticas de disponibilidad
-    const disponibles = programadosHoy.filter(p => p.disponible);
-    const asignados = programadosHoy.filter(p => !p.disponible);
+    // Mostrar estadísticas de disponibilidad (Nota: la tabla Programacion no tiene campo 'disponible')
+    const programadosAsignados = programadosHoy.filter(p => p.automovilId);
+    const programadosSinAsignar = programadosHoy.filter(p => !p.automovilId);
     
-    console.log('📊 Estadísticas de disponibilidad:', {
+    console.log('📊 Estadísticas de programación:', {
       totalHoy: programadosHoy.length,
-      disponibles: disponibles.length,
-      asignados: asignados.length,
-      disponiblesDetalle: disponibles.map(p => ({
+      asignados: programadosAsignados.length,
+      sinAsignar: programadosSinAsignar.length,
+      detalleAsignados: programadosAsignados.slice(0, 5).map(p => ({
         id: p.id,
-        ruta: p.ruta,
+        ruta: p.ruta?.nombre || 'Sin ruta',
         hora: p.hora,
-        movilId: p.movilId
+        automovilId: p.automovilId,
+        movil: p.automovil?.movil || 'Sin móvil'
       }))
     });
 
     // Separar programados disponibles y asignados
     const programadosDisponibles = [];
-    const programadosAsignados = [];
+    const programadosAsignadosList = [];
 
     for (const prog of programadosHoy) {
       try {
-        // Convertir la hora del programado a Date usando la fecha del programado
+        // Convertir la hora del programado (número) a Date usando la fecha del programado
         let horaProgramado: Date;
         
-        if (typeof prog.hora === 'string') {
-          // Si viene como ISO string
-          if (prog.hora.includes('T')) {
-            // Extraer solo la hora (HH:MM) del ISO string
-            const horaISO = new Date(prog.hora);
-            const horas = horaISO.getUTCHours();
-            const minutos = horaISO.getUTCMinutes();
-            
-            // Usar la fecha del programado (no la fecha actual)
-            const fechaProgramado = new Date(prog.fecha);
-            horaProgramado = new Date(fechaProgramado);
-            horaProgramado.setHours(horas, minutos, 0, 0);
-          } else {
-            // Si viene como HH:MM, usar la fecha del programado
-            const [horas, minutos] = prog.hora.split(':').map(Number);
-            const fechaProgramado = new Date(prog.fecha);
-            horaProgramado = new Date(fechaProgramado);
-            horaProgramado.setHours(horas, minutos, 0, 0);
-          }
-        } else {
-          // Si es un Date, extraer la hora y usar la fecha del programado
-          const horaDate = new Date(prog.hora);
-          const horas = horaDate.getHours();
-          const minutos = horaDate.getMinutes();
+        if (typeof prog.hora === 'number') {
+          // La hora se guarda como número (ej: 450 = 04:50)
+          const horas = Math.floor(prog.hora / 100);
+          const minutos = prog.hora % 100;
           
           const fechaProgramado = new Date(prog.fecha);
           horaProgramado = new Date(fechaProgramado);
           horaProgramado.setHours(horas, minutos, 0, 0);
+        } else {
+          // Fallback por si viene en otro formato
+          const fechaProgramado = new Date(prog.fecha);
+          horaProgramado = new Date(fechaProgramado);
+          horaProgramado.setHours(7, 0, 0, 0); // Hora por defecto
         }
 
-        console.log(`🔍 Evaluando programado para huecos: ${prog.ruta}`, {
+        const rutaNombre = prog.ruta?.nombre || 'Sin ruta';
+
+        console.log(`🔍 Evaluando programado: ${rutaNombre}`, {
           id: prog.id,
-          disponible: prog.disponible,
           horaProgramado: horaProgramado.toISOString(),
           ahora: ahora.toISOString(),
           estaEnFuturo: horaProgramado > ahora,
-          movilId: prog.movilId
+          automovilId: prog.automovilId,
+          tieneAutomovil: !!prog.automovilId
         });
 
-        // Verificar consistencia: si tiene movilId asignado, no debería estar disponible
-        const esRealmenteDisponible = prog.disponible && (!prog.movilId || prog.movilId === -1);
-        
-        console.log(`🔍 Verificando disponibilidad real: ${prog.ruta}`, {
-          id: prog.id,
-          disponible: prog.disponible,
-          movilId: prog.movilId,
-          esRealmenteDisponible,
-          horaProgramado: horaProgramado.toISOString(),
-          ahora: ahora.toISOString(),
-          estaEnFuturo: horaProgramado > ahora
-        });
-
-        if (esRealmenteDisponible && horaProgramado > ahora) {
+        if (!prog.automovilId && horaProgramado > ahora) {
+          // Programado sin asignar y en el futuro = disponible como hueco
           const hueco = {
-            rutaId: 0, // Los programados no tienen rutaId
-            rutaNombre: prog.ruta,
+            rutaId: prog.ruta?.id || 0,
+            rutaNombre,
             horaSalida: horaProgramado.toISOString(),
             prioridad: 'CUALQUIERA' as const,
             razon: `Programado disponible (${Math.round((horaProgramado.getTime() - ahora.getTime()) / (1000 * 60))} min)`,
             frecuenciaCalculada: 0,
-            programadoId: prog.id, // Agregar ID del programado para identificación
+            programadoId: prog.id,
             tipo: 'programado'
           };
           
           programadosDisponibles.push(hueco);
           console.log(`✅ Programado agregado como hueco disponible:`, hueco);
-        } else if (!prog.disponible) {
+        } else if (prog.automovilId) {
           // Programado ya asignado
-          programadosAsignados.push({
+          programadosAsignadosList.push({
             id: prog.id,
             tipo: 'programado',
             horaSalida: horaProgramado.toISOString(),
             ruta: { 
-              id: 0,
-              nombre: prog.ruta 
+              id: prog.ruta?.id || 0,
+              nombre: rutaNombre
             },
             movil: { 
-              id: prog.movil.id, 
-              movil: prog.movil.movil 
+              id: prog.automovil?.id || 0, 
+              movil: prog.automovil?.movil || 'Sin móvil'
             },
             conductor: { 
               id: 0,
@@ -155,24 +143,11 @@ export async function GET(request: NextRequest) {
             estado: 'PROGRAMADO'
           });
         } else {
-          let razon = '';
-          if (!esRealmenteDisponible) {
-            if (!prog.disponible) {
-              razon = 'No disponible (disponible=false)';
-            } else if (prog.movilId) {
-              razon = 'Ya asignado (tiene movilId)';
-            }
-          } else if (horaProgramado <= ahora) {
-            razon = 'Hora ya pasó';
-          }
-          
           console.log(`❌ Programado NO incluido como hueco:`, {
-            ruta: prog.ruta,
-            disponible: prog.disponible,
-            movilId: prog.movilId,
-            esRealmenteDisponible,
+            ruta: rutaNombre,
+            automovilId: prog.automovilId,
             estaEnFuturo: horaProgramado > ahora,
-            razon
+            razon: horaProgramado <= ahora ? 'Hora ya pasó' : 'Otro motivo'
           });
         }
       } catch (error) {
@@ -184,18 +159,18 @@ export async function GET(request: NextRequest) {
       totalEncontrados: programados.length,
       totalHoy: programadosHoy.length,
       disponibles: programadosDisponibles.length,
-      asignados: programadosAsignados.length,
+      asignados: programadosAsignadosList.length,
       fechaHoy
     });
 
     return NextResponse.json({
       success: true,
       programadosDisponibles,
-      programadosAsignados,
+      programadosAsignados: programadosAsignadosList,
       estadisticas: {
         totalProgramados: programadosHoy.length,
         disponibles: programadosDisponibles.length,
-        asignados: programadosAsignados.length,
+        asignados: programadosAsignadosList.length,
         fechaHoy
       },
       debug: TimeService.getDebugInfo()
@@ -211,5 +186,7 @@ export async function GET(request: NextRequest) {
       },
       { status: 500 }
     );
+  } finally {
+    await prismaWithRetry.$disconnect();
   }
 }

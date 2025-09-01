@@ -18,7 +18,6 @@ interface Automovil {
   licenciaTransito?: string | null
   extintor?: string | null
   revisionPreventiva?: string | null
-  revisionAnual?: string | null
   automovilPropietario: {
     id: number
     propietario: {
@@ -56,7 +55,6 @@ interface FormData {
   licenciaTransito?: string
   extintor?: string
   revisionPreventiva?: string
-  revisionAnual?: string
 }
 
 interface Propietario {
@@ -95,8 +93,7 @@ export default function AutomovilManager() {
     tarjetaOperacion: '', 
     licenciaTransito: '', 
     extintor: '', 
-    revisionPreventiva: '', 
-    revisionAnual: '' 
+    revisionPreventiva: '' 
   })
   const [editId, setEditId] = useState<number | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -174,8 +171,7 @@ export default function AutomovilManager() {
       tarjetaOperacion: '',
       licenciaTransito: '',
       extintor: '',
-      revisionPreventiva: '',
-      revisionAnual: ''
+      revisionPreventiva: ''
     })
     setIsModalOpen(true)
   }
@@ -196,8 +192,7 @@ export default function AutomovilManager() {
       tarjetaOperacion: '',
       licenciaTransito: '',
       extintor: '',
-      revisionPreventiva: '',
-      revisionAnual: ''
+      revisionPreventiva: ''
     })
   }
 
@@ -256,7 +251,6 @@ export default function AutomovilManager() {
       licenciaTransito: automovil.licenciaTransito ? new Date(automovil.licenciaTransito).toISOString().slice(0, 10) : '',
       extintor: automovil.extintor ? new Date(automovil.extintor).toISOString().slice(0, 10) : '',
       revisionPreventiva: automovil.revisionPreventiva ? new Date(automovil.revisionPreventiva).toISOString().slice(0, 10) : '',
-      revisionAnual: automovil.revisionAnual ? new Date(automovil.revisionAnual).toISOString().slice(0, 10) : '',
     })
     setIsModalOpen(true)
   }
@@ -274,7 +268,6 @@ export default function AutomovilManager() {
         licenciaTransito: form.licenciaTransito ? form.licenciaTransito : null,
         extintor: form.extintor ? form.extintor : null,
         revisionPreventiva: form.revisionPreventiva ? form.revisionPreventiva : null,
-        revisionAnual: form.revisionAnual ? form.revisionAnual : null,
       }
       if (editId) {
         await axios.put(`/api/automoviles/${editId}`, payload)
@@ -284,7 +277,7 @@ export default function AutomovilManager() {
         apiNotifications.createSuccess('Automóvil')
       }
       
-      setForm({ movil: '', placa: '', activo: true, disponible: true, propietarios: [], conductores: [], soat: '', revisionTecnomecanica: '', tarjetaOperacion: '', licenciaTransito: '', extintor: '', revisionPreventiva: '', revisionAnual: '' })
+      setForm({ movil: '', placa: '', activo: true, disponible: true, propietarios: [], conductores: [], soat: '', revisionTecnomecanica: '', tarjetaOperacion: '', licenciaTransito: '', extintor: '', revisionPreventiva: '' })
       setEditId(null)
       setIsModalOpen(false)
       fetchAutomoviles()
@@ -771,15 +764,7 @@ export default function AutomovilManager() {
                           className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Revisión Anual</label>
-                        <input
-                          type="date"
-                          value={form.revisionAnual || ''}
-                          onChange={(e) => setForm({ ...form, revisionAnual: e.target.value })}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
+
                     </div>
                   </div>
                 </div>
@@ -994,15 +979,7 @@ export default function AutomovilManager() {
                           }
                         })() : 'No registrada'}
                       </span></p>
-                      <p><span className="font-medium text-gray-700">Revisión Anual:</span> <span className="text-gray-900">
-                        {viewItem.revisionAnual ? (() => {
-                          try {
-                            return new Date(viewItem.revisionAnual).toLocaleDateString('es-ES')
-                          } catch {
-                            return 'Fecha inválida'
-                          }
-                        })() : 'No registrada'}
-                      </span></p>
+
                     </div>
                   </div>
                 </div>

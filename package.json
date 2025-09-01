@@ -4,12 +4,17 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:local": "powershell -ExecutionPolicy Bypass -File scripts/start-app-with-db.ps1",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
+    "db:tunnel": "powershell -ExecutionPolicy Bypass -File scripts/start-ssh-tunnel.ps1",
+    "db:test": "node scripts/test-local-connection.js",
+    "db:test-remote": "node scripts/test-db-connection.js",
+    "db:test-remote-full": "node scripts/test-remote-db-connection.js",
     "seed:rutas": "node scripts/seed-rutas.js",
     "seed": "node scripts/seed-vehicles-and-drivers.cjs"
   },

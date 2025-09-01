@@ -15,7 +15,17 @@ const prisma =
   global.prisma ||
   new PrismaClient({
     log: ['query'],
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL,
+      },
+    },
   });
+
+// Logging de queries en desarrollo
+if (process.env.NODE_ENV !== 'production') {
+  // Los logs ya están configurados en el PrismaClient con log: ['query']
+}
 
 if (process.env.NODE_ENV !== 'production') global.prisma = prisma;
 

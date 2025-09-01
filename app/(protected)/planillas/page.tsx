@@ -126,7 +126,17 @@ export default function PlanillasManager() {
       
       const existe = planillas.some(p => p.fecha === fechaString)
       const { sancionado, motivoSancion } = verificarSancion(fechaString, sanciones)
-  
+      
+      // Debug: mostrar información sobre fechas específicas
+      if (planillas.some(p => p.fecha === fechaString)) {
+        console.log(`✅ Fecha ${fechaString} encontrada en planillas`)
+      } else {
+        // Solo mostrar para fechas que no están en planillas para evitar spam
+        if (fechaString.includes('2025-08-')) {
+          console.log(`❌ Fecha ${fechaString} NO encontrada en planillas`)
+        }
+      }
+
       fechas.push({
         fecha: fechaString,
         disponible: existe,
@@ -136,6 +146,7 @@ export default function PlanillasManager() {
     }
   
     setFechasMes(fechas)
+    console.log('📊 Fechas generadas:', fechas.filter(f => f.fecha).map(f => ({ fecha: f.fecha, disponible: f.disponible })))
   }
 
   // CORRECCIÓN ADICIONAL: Función mejorada para obtener la fecha de hoy
@@ -182,9 +193,16 @@ const getFechaHoy = () => {
       const año = currentDate.getFullYear()
       const mes = currentDate.getMonth() + 1
 
+      console.log(`🔍 Consultando planillas para automóvil ${automovilSeleccionado.id}, año ${año}, mes ${mes}`)
+      
       const res = await axios.get(`/api/planillas?automovilId=${automovilSeleccionado.id}&año=${año}&mes=${mes}`)
+      
+      console.log('📡 Respuesta completa de API planillas:', res.data)
+      console.log('📦 Planillas extraídas:', res.data.planillas)
+      
       return res.data.planillas || []
     } catch (error) {
+      console.error('❌ Error al cargar planillas:', error)
       apiNotifications.fetchError('planillas')
       return []
     } finally {
@@ -200,16 +218,28 @@ const getFechaHoy = () => {
     setIsLoadingSanciones(true)
 
     try {
+      console.log('🔄 Iniciando carga de datos completos...')
+      
+      // Limpiar estado antes de cargar
+      setPlanillasExistentes([])
+      setSancionesAutomovil([])
+      setSancionesCache(new Map())
+      
       // Cargar sanciones primero
       const sanciones = await fetchSanciones()
       setSancionesAutomovil(sanciones)
+      console.log('📋 Sanciones cargadas:', sanciones.length)
 
       // Luego cargar planillas
       const planillas = await fetchPlanillas()
+      console.log('📅 Planillas recibidas de API:', planillas)
       setPlanillasExistentes(planillas)
+      console.log('📅 Planillas cargadas:', planillas.length)
+      console.log('📅 Fechas de planillas:', planillas.map((p: Planilla) => p.fecha))
 
       // Finalmente generar las fechas con ambos datos
       generarFechasMes(currentDate, planillas, sanciones)
+      console.log('🎯 Fechas del mes generadas')
     } catch (error) {
       console.error('Error al cargar datos completos:', error)
     } finally {
@@ -400,17 +430,43 @@ const getFechaHoy = () => {
 
     setIsLoading(true)
     try {
-      await axios.post('/api/planillas', {
+      console.log('🔄 Creando planillas para fechas:', fechasParaAgregar)
+      
+      const response = await axios.post('/api/planillas', {
         automovilId: automovilSeleccionado.id,
         fechas: fechasParaAgregar
       })
 
-      notifications.success(`${fechasParaAgregar.length} fecha(s) agregada(s) correctamente`)
+      console.log('✅ Respuesta de creación:', response.data)
+      
+      const { count, fechasCreadas, fechasExistentes, fechasConError, message } = response.data
+      
+      // Mostrar notificación con información detallada
+      if (count > 0) {
+        notifications.success(message)
+      } else if (fechasExistentes.length > 0) {
+        notifications.warning(message)
+      } else {
+        notifications.error(message)
+      }
+      
       setFechasSeleccionadas(new Set())
       
-      // Recargar datos completos para actualizar el calendario inmediatamente
-      await cargarDatosCompletos()
+      // Solo recargar si realmente se crearon planillas nuevas
+      if (count > 0) {
+        console.log('🔄 Recargando datos porque se crearon planillas nuevas')
+        // Esperar un poco antes de recargar para asegurar que la base de datos se actualice
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Recargar datos completos para actualizar el calendario inmediatamente
+        await cargarDatosCompletos()
+        
+        console.log('🔄 Datos recargados después de crear planillas')
+      } else {
+        console.log('⏭️ No se recargan datos porque no se crearon planillas nuevas')
+      }
     } catch (error) {
+      console.error('❌ Error al crear planillas:', error)
       apiNotifications.createError('fechas')
     } finally {
       setIsLoading(false)
@@ -458,9 +514,27 @@ const getFechaHoy = () => {
                 <h1 className="text-2xl font-bold text-gray-900">Gestión de Planillas</h1>
                 <p className="text-gray-600 mt-1">Administra las fechas disponibles de trabajo por automóvil</p>
               </div>
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <Calendar className="w-5 h-5" />
-                <span>Calendario de Disponibilidad</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    console.log('🧹 Limpiando estado y forzando recarga...')
+                    setPlanillasExistentes([])
+                    setSancionesAutomovil([])
+                    setSancionesCache(new Map())
+                    setFechasMes([])
+                    setFechasSeleccionadas(new Set())
+                    if (automovilSeleccionado) {
+                      cargarDatosCompletos()
+                    }
+                  }}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  🔄 Forzar Recarga
+                </button>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Calendar className="w-5 h-5" />
+                  <span>Calendario de Disponibilidad</span>
+                </div>
               </div>
             </div>
           </div>

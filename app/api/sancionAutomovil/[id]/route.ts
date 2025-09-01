@@ -8,9 +8,9 @@ export async function PUT(
   try {
     const { id: idParam } = await params;
     const id = parseInt(idParam);
-    const { automovilId, fechaInicio, fechaFin, motivo } = await request.json();
+    const { automovilId, fecha, descripcion } = await request.json();
     
-    if (!automovilId || !fechaInicio || !fechaFin || !motivo) {
+    if (!automovilId || !fecha || !descripcion) {
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
     }
 
@@ -32,12 +32,11 @@ export async function PUT(
       return NextResponse.json({ error: 'Automóvil no encontrado o inactivo' }, { status: 400 });
     }
 
-    // Verificar que las fechas son válidas
-    const inicio = new Date(fechaInicio);
-    const fin = new Date(fechaFin);
+    // Verificar que la fecha es válida
+    const fechaObj = new Date(fecha);
     
-    if (fin < inicio) {
-      return NextResponse.json({ error: 'La fecha de fin no puede ser menor a la fecha de inicio' }, { status: 400 });
+    if (isNaN(fechaObj.getTime())) {
+      return NextResponse.json({ error: 'Fecha inválida' }, { status: 400 });
     }
 
     // Actualizar la sanción
@@ -45,9 +44,8 @@ export async function PUT(
       where: { id },
       data: {
         automovilId,
-        fechaInicio: inicio,
-        fechaFin: fin,
-        motivo: motivo.trim()
+        fecha: fechaObj,
+        descripcion: descripcion.trim()
       },
       include: {
         automovil: {

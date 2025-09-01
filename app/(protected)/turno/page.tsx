@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import ProtectedRoute from '@/src/components/ProtectedRoute';
 import { 
   Card, 
   CardContent, 
@@ -42,6 +43,14 @@ interface Conductor {
 }
 
 export default function TurnoPage() {
+  return (
+    <ProtectedRoute requiredPermission="tablaTurno">
+      <TurnoPageContent />
+    </ProtectedRoute>
+  );
+}
+
+function TurnoPageContent() {
   const notifications = useNotifications();
   const [turnos, setTurnos] = useState<Turno[]>([]);
   const [huecos, setHuecos] = useState<HuecoDisponible[]>([]);
@@ -871,14 +880,10 @@ export default function TurnoPage() {
       // Agregar detalles de sanciones del automóvil
       if (validacion.sancionesAutomovil.length > 0) {
         validacion.sancionesAutomovil.forEach(sancion => {
-          // Asegurar que las fechas sean objetos Date válidos
-          const fechaInicio = sancion.fechaInicio instanceof Date ? sancion.fechaInicio : new Date(sancion.fechaInicio);
-          const fechaFin = sancion.fechaFin instanceof Date ? sancion.fechaFin : new Date(sancion.fechaFin);
+          // Asegurar que la fecha sea un objeto Date válido
+          const fecha = sancion.fecha instanceof Date ? sancion.fecha : new Date(sancion.fecha);
           
-          const esUnDia = fechaInicio.toDateString() === fechaFin.toDateString();
-          const fechaTexto = esUnDia 
-            ? fechaInicio.toLocaleDateString('es-ES', { timeZone: 'UTC' })
-            : `${fechaInicio.toLocaleDateString('es-ES', { timeZone: 'UTC' })} - ${fechaFin.toLocaleDateString('es-ES', { timeZone: 'UTC' })}`;
+          const fechaTexto = fecha.toLocaleDateString('es-ES', { timeZone: 'UTC' });
           
           detalles.push(`🚗 Automóvil: ${sancion.motivo} (${fechaTexto})`);
         });
@@ -887,14 +892,10 @@ export default function TurnoPage() {
       // Agregar detalles de sanciones del conductor
       if (validacion.sancionesConductor.length > 0) {
         validacion.sancionesConductor.forEach(sancion => {
-          // Asegurar que las fechas sean objetos Date válidos
-          const fechaInicio = sancion.fechaInicio instanceof Date ? sancion.fechaInicio : new Date(sancion.fechaInicio);
-          const fechaFin = sancion.fechaFin instanceof Date ? sancion.fechaFin : new Date(sancion.fechaFin);
+          // Asegurar que la fecha sea un objeto Date válido
+          const fecha = sancion.fecha instanceof Date ? sancion.fecha : new Date(sancion.fecha);
           
-          const esUnDia = fechaInicio.toDateString() === fechaFin.toDateString();
-          const fechaTexto = esUnDia 
-            ? fechaInicio.toLocaleDateString('es-ES', { timeZone: 'UTC' })
-            : `${fechaInicio.toLocaleDateString('es-ES', { timeZone: 'UTC' })} - ${fechaFin.toLocaleDateString('es-ES', { timeZone: 'UTC' })}`;
+          const fechaTexto = fecha.toLocaleDateString('es-ES', { timeZone: 'UTC' });
           
           detalles.push(`👤 Conductor: ${sancion.motivo} (${fechaTexto})`);
         });
@@ -915,7 +916,7 @@ export default function TurnoPage() {
       <ValidationMessage
         type="info"
         title="Validaciones Completadas"
-        message={`✅ Planilla: ${validacion.planilla ? 'Válida' : 'No encontrada'} | ✅ Lista de Chequeo: Completada por ${validacion.listaChequeo?.nombre || 'N/A'} | ✅ Licencia: ${validacion.licenciaConduccionVencida ? 'Vencida' : 'Válida'} | ✅ Documentos: ${validacion.documentosVencidos.length > 0 ? `${validacion.documentosVencidos.length} vencidos` : 'Todos válidos'} | ✅ Sanciones: ${validacion.tieneSanciones ? 'Pendientes' : 'Sin sanciones'}`}
+        message={`✅ Planilla: ${validacion.planilla ? 'Válida' : 'No encontrada'} | ✅ Lista de Chequeo: ${validacion.listaChequeo ? 'Completada' : 'No encontrada'} | ✅ Licencia: ${validacion.licenciaConduccionVencida ? 'Vencida' : 'Válida'} | ✅ Documentos: ${validacion.documentosVencidos.length > 0 ? `${validacion.documentosVencidos.length} vencidos` : 'Todos válidos'} | ✅ Sanciones: ${validacion.tieneSanciones ? 'Pendientes' : 'Sin sanciones'}`}
       />
     );
   };
@@ -936,220 +937,103 @@ export default function TurnoPage() {
     }
   };
 
+  const createReceiptHTML = (reciboData: any, includeConductor: boolean) => {
+    const conductorRow = includeConductor ? `
+      <div class="info-row">
+        <span class="label">Conductor:</span>
+        <span class="value">${reciboData.conductor}</span>
+      </div>` : '';
+
+    return `<!DOCTYPE html>
+<html>
+<head>
+  <title>Recibo</title>
+  <style>
+    @media print {
+      @page { size: 80mm auto; margin: 0; }
+      body { margin: 0; padding: 8px; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.3; }
+    }
+    body { margin: 0; padding: 8px; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.3; width: 80mm; max-width: 80mm; }
+    .header { text-align: center; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .logo { width: 50px; height: 50px; display: block; }
+    .company-name { font-size: 16px; font-weight: bold; }
+    .title { font-size: 15px; font-weight: bold; text-align: center; margin: 8px 0; border-bottom: 2px solid #000; padding-bottom: 4px; }
+    .info-row { display: flex; justify-content: space-between; margin: 4px 0; padding: 2px; }
+    .label { font-weight: bold; font-size: 13px; }
+    .value { text-align: right; font-size: 13px; }
+    .hora-salida { font-size: 20px; font-weight: bold; text-align: center; margin: 8px 0; padding: 6px; }
+    .ruta-destacada { font-size: 28px; font-weight: bold; text-align: center; margin: 8px 0; padding: 8px; }
+    .footer { text-align: center; margin-top: 8px; font-size: 11px; border-top: 1px solid #000; padding-top: 4px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="/logo png.png" alt="Logo" class="logo" />
+    <div class="company-name">SOTRAM S.A</div>
+  </div>
+  <div class="title">PLANILLA DE VIAJE No. ${reciboData.id}</div>
+  <div class="hora-salida">Hora de salida: ${reciboData.horaSalida}</div>
+  <div class="ruta-destacada">${reciboData.ruta}</div>
+  <div class="info-row"><span class="label">Fecha:</span><span class="value">${reciboData.fechaSalida}</span></div>
+  <div class="info-row"><span class="label">Móvil:</span><span class="value">${reciboData.movil}</span></div>
+  <div class="info-row"><span class="label">Placa:</span><span class="value">${reciboData.placa}</span></div>${conductorRow}
+  <div class="info-row"><span class="label">Despachado por:</span><span class="value">${reciboData.despachadoPor}</span></div>
+  <div class="info-row"><span class="label">Registro:</span><span class="value">${reciboData.registro}</span></div>
+  <div class="footer">EnRuta 2025</div>
+</body>
+</html>`;
+  };
+
   const imprimirRecibo = async (turnoId: number) => {
     try {
-      console.log('🖨️ Iniciando impresión de recibo para turno:', turnoId);
-      
       const response = await fetch(`/api/turnos/${turnoId}/recibo`);
-      
-      console.log('🖨️ Respuesta del servidor:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok
-      });
-      
       if (response.ok) {
         const reciboData = await response.json();
-        console.log('🖨️ Datos del recibo:', reciboData);
-        
-        // Crear ventana de impresión
-        const printWindow = window.open('', '_blank');
-        if (printWindow && reciboData) {
-          printWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <title>Recibo de Turno</title>
-                <style>
-                  @media print {
-                    @page {
-                      size: 80mm auto;
-                      margin: 0;
-                    }
-                    body {
-                      margin: 0;
-                      padding: 10px;
-                      font-family: 'Courier New', monospace;
-                      font-size: 12px;
-                      line-height: 1.2;
-                    }
-                  }
-                  body {
-                    margin: 0;
-                    padding: 6px;
-                    font-family: 'Courier New', monospace;
-                    font-size: 11px;
-                    line-height: 1.1;
-                    width: 80mm;
-                    max-width: 80mm;
-                  }
-                  .header {
-                    text-align: center;
-                    margin-bottom: 4px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 6px;
-                  }
-                  .logo {
-                    width: 30px;
-                    height: 30px;
-                    display: block;
-                  }
-                  .company-name {
-                    font-size: 12px;
-                    font-weight: bold;
-                  }
-                  .title {
-                    font-size: 12px;
-                    font-weight: bold;
-                    text-align: center;
-                    margin: 4px 0;
-                    border-bottom: 1px solid #000;
-                    padding-bottom: 2px;
-                  }
-                  .main-info {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-start;
-                    margin: 4px 0;
-                  }
-                  .left-section {
-                    flex: 1;
-                  }
-                  .right-section {
-                    flex: 0 0 80px;
-                    text-align: center;
-                  }
-                  .info-row {
-                    display: flex;
-                    justify-content: space-between;
-                    margin: 2px 0;
-                    padding: 0 2px;
-                  }
-                  .label {
-                    font-weight: bold;
-                    font-size: 11px;
-                  }
-                  .value {
-                    text-align: right;
-                    font-size: 11px;
-                  }
-                  .hora-salida {
-                    font-size: 16px;
-                    font-weight: bold;
-                    text-align: center;
-                    margin: 6px 0;
-                    padding: 4px;
-                  }
-                  .ruta-destacada {
-                    font-size: 22px;
-                    font-weight: bold;
-                    text-align: center;
-                    margin: 6px 0;
-                    padding: 6px;
-                  }
-
-                  .footer {
-                    text-align: center;
-                    margin-top: 4px;
-                    font-size: 8px;
-                    border-top: 1px solid #000;
-                    padding-top: 2px;
-                  }
-                  .divider {
-                    border-top: 1px dashed #000;
-                    margin: 2px 0;
-                  }
-                </style>
-              </head>
-              <body>
-                <div class="header">
-                  <img src="/logo png.png" alt="Logo" class="logo" />
-                  <div class="company-name">SOTRAM S.A</div>
-                </div>
-                
-                <div class="title">PLANILLA DE VIAJE No. ${reciboData.id}</div>
-                
-                <!-- Hora de salida destacada -->
-                <div class="hora-salida">
-                  Hora de salida: ${reciboData.horaSalida}
-                </div>
-                
-                <!-- Ruta destacada -->
-                <div class="ruta-destacada">
-                  Ruta: ${reciboData.ruta}
-                </div>
-                
-                <div class="main-info">
-                  <div class="left-section">
-                    <div class="info-row">
-                      <span class="label">Fecha:</span>
-                      <span class="value">${reciboData.fechaSalida}</span>
-                    </div>
-                    <div class="info-row">
-                      <span class="label">Móvil:</span>
-                      <span class="value">${reciboData.movil}</span>
-                    </div>
-                    <div class="info-row">
-                      <span class="label">Placa:</span>
-                      <span class="value">${reciboData.placa}</span>
-                    </div>
-                    <div class="info-row">
-                      <span class="label">Conductor:</span>
-                      <span class="value">${reciboData.conductor}</span>
-                    </div>
-                    <div class="info-row">
-                      <span class="label">Despachado:</span>
-                      <span class="value">${reciboData.despachadoPor}</span>
-                    </div>
-                    <div class="info-row">
-                      <span class="label">Registro:</span>
-                      <span class="value">${reciboData.registro}</span>
-                    </div>
-                  </div>
-                  
-
-                </div>
-                
-                <div class="footer">
-                  EnRuta 2025
-                </div>
-              </body>
-            </html>
-          `);
-          
-          printWindow.document.close();
-          
-          // Manejar impresión
-          setTimeout(() => {
-            // Manejar impresión según configuración
-            if (configuracionImpresora?.impresionDirecta) {
-              console.log('🖨️ Impresión directa habilitada - intentando imprimir automáticamente...');
-              // Nota: Los navegadores siempre muestran el diálogo por seguridad
-              // Pero podemos intentar usar la impresora predeterminada
-              printWindow.focus();
+        if (reciboData) {
+          const printWindow = window.open('', '_blank', 'width=1,height=1,left=-1000,top=-1000,scrollbars=no,resizable=no,toolbar=no,location=no,directories=no,status=no,menubar=no');
+          if (printWindow) {
+            const htmlContent = createReceiptHTML(reciboData, true);
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+            setTimeout(() => {
               printWindow.print();
-              // La ventana permanecerá abierta para que el usuario pueda ver el recibo
-            } else {
-              console.log('🖨️ Mostrando diálogo de impresión para confirmación...');
-              printWindow.focus();
-              printWindow.print();
-              // La ventana permanecerá abierta para que el usuario pueda ver el recibo
-            }
-          }, 100);
+              if (configuracionImpresora?.impresionDirecta) {
+                printWindow.close();
+              }
+            }, 500);
+          }
         }
       } else {
-        const errorText = await response.text();
-        console.error('🖨️ Error en la respuesta de la API:', {
-          status: response.status,
-          statusText: response.statusText,
-          errorText
-        });
-        notifications.error(`Error al generar el recibo: ${response.status} ${response.statusText}`);
+        notifications.error('Error al generar el recibo');
       }
     } catch (error) {
-      console.error('🖨️ Error al imprimir recibo:', error);
+      notifications.error('Error al imprimir el recibo');
+    }
+  };
+
+  const imprimirReciboProgramado = async (programadoId: number) => {
+    try {
+      const response = await fetch(`/api/programados/${programadoId}/recibo`);
+      if (response.ok) {
+        const reciboData = await response.json();
+        if (reciboData) {
+          const printWindow = window.open('', '_blank', 'width=1,height=1,left=-1000,top=-1000,scrollbars=no,resizable=no,toolbar=no,location=no,directories=no,status=no,menubar=no');
+          if (printWindow) {
+            const htmlContent = createReceiptHTML(reciboData, false);
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+            setTimeout(() => {
+              printWindow.print();
+              if (configuracionImpresora?.impresionDirecta) {
+                printWindow.close();
+              }
+            }, 500);
+          }
+        }
+      } else {
+        notifications.error('Error al generar el recibo');
+      }
+    } catch (error) {
       notifications.error('Error al imprimir el recibo');
     }
   };
@@ -1590,22 +1474,28 @@ export default function TurnoPage() {
                                 ) : (
                                   <>
                                     <Car className="h-4 w-4 text-gray-600" />
-                                    <span>{turno.movil.movil}</span>
+                                    <span>{turno.movil?.movil || 'Sin móvil'}</span>
                                     <User className="h-4 w-4 text-gray-600" />
-                                    <span>{turno.conductor.nombre}</span>
+                                    <span>{turno.conductor?.nombre || 'Sin conductor'}</span>
                                   </>
                                 )}
                                 {(turno as any).tipo === 'programado' && (
                                   <>
                                     <Car className="h-4 w-4 text-gray-600" />
-                                    <span>{turno.movil.movil}</span>
+                                    <span>{turno.movil?.movil || 'Sin móvil'}</span>
                                   </>
                                 )}
                               </div>
                               <div className="flex items-center gap-2">
-                                {configuracionImpresora?.impresoraHabilitada && (turno as any).tipo !== 'programado' && (
+                                {configuracionImpresora?.impresoraHabilitada && (
                                   <Button
-                                    onClick={() => imprimirRecibo(turno.id)}
+                                    onClick={() => {
+                                      if ((turno as any).tipo === 'programado') {
+                                        imprimirReciboProgramado(turno.id);
+                                      } else {
+                                        imprimirRecibo(turno.id);
+                                      }
+                                    }}
                                     variant="outline"
                                     size="sm"
                                     className="bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100"
@@ -1660,7 +1550,7 @@ export default function TurnoPage() {
         onClose={() => setShowDeleteTurnoModal(false)}
         onConfirm={confirmarEliminarTurno}
         title="Confirmar Eliminación de Turno"
-        message={`¿Estás seguro de que quieres eliminar el turno de ${turnoAEliminar?.conductor.nombre} en el móvil ${turnoAEliminar?.movil.movil} para la ruta ${turnoAEliminar?.ruta?.nombre} a las ${turnoAEliminar ? formatHora(turnoAEliminar.horaSalida) : ''}? Esta acción no se puede deshacer.`}
+        message={`¿Estás seguro de que quieres eliminar el turno de ${turnoAEliminar?.conductor?.nombre || 'Sin conductor'} en el móvil ${turnoAEliminar?.movil?.movil || 'Sin móvil'} para la ruta ${turnoAEliminar?.ruta?.nombre || 'Sin ruta'} a las ${turnoAEliminar ? formatHora(turnoAEliminar.horaSalida) : ''}? Esta acción no se puede deshacer.`}
         confirmText="Sí, Eliminar Turno"
         cancelText="Cancelar"
         variant="danger"

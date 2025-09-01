@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { movil, placa, activo, disponible, propietarios, conductores, soat, revisionTecnomecanica, tarjetaOperacion, licenciaTransito, extintor, revisionPreventiva, revisionAnual } = await request.json();
+    const { movil, placa, activo, disponible, propietarios, conductores, soat, revisionTecnomecanica, tarjetaOperacion, licenciaTransito, extintor, revisionPreventiva } = await request.json();
     
     if (!movil || !placa) {
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
@@ -100,7 +100,6 @@ export async function POST(request: NextRequest) {
           licenciaTransito: licenciaTransito ? new Date(licenciaTransito) : null,
           extintor: extintor ? new Date(extintor) : null,
           revisionPreventiva: revisionPreventiva ? new Date(revisionPreventiva) : null,
-          revisionAnual: revisionAnual ? new Date(revisionAnual) : null,
         }
       });
 

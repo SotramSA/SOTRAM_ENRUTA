@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       },
       include: {
         conductor: true,
-        movil: true,
+        automovil: true,
         ruta: true
       },
       orderBy: [
@@ -59,7 +59,8 @@ export async function POST(request: NextRequest) {
         }
       },
       include: {
-        movil: true
+        automovil: true,
+        ruta: true
       },
       orderBy: [
         { hora: 'asc' }
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
         },
         include: {
           conductor: true,
-          movil: true,
+          automovil: true,
           ruta: true
         },
         orderBy: [
@@ -123,7 +124,7 @@ export async function POST(request: NextRequest) {
     if (turnosProgramados.length > 0) {
       console.log('Programaciones encontradas:')
       turnosProgramados.forEach((programado, index) => {
-        console.log(`${index + 1}. ID: ${programado.id}, Fecha: ${programado.fecha}, Hora: "${programado.hora}" (tipo: ${typeof programado.hora}), Ruta: ${programado.ruta}, Móvil: ${programado.movil.movil}`)
+        console.log(`${index + 1}. ID: ${programado.id}, Fecha: ${programado.fecha}, Hora: "${programado.hora}" (tipo: ${typeof programado.hora}), Ruta: ${programado.ruta?.nombre || 'N/A'}, Móvil: ${programado.automovil.movil}`)
       })
     }
 
@@ -196,7 +197,7 @@ export async function POST(request: NextRequest) {
 
     // Agregar programados a las rutas correspondientes
     turnosProgramados.forEach(programado => {
-      const rutaOriginal = programado.ruta || 'Sin Ruta'
+      const rutaOriginal = programado.ruta?.nombre || 'Sin Ruta'
       const rutaNombre = normalizarNombreRuta(rutaOriginal)
       console.log(`Ruta original: "${rutaOriginal}" -> Normalizada: "${rutaNombre}"`)
       
@@ -256,8 +257,8 @@ export async function POST(request: NextRequest) {
         todosLosDatos.push({
           tipo: 'TURNO',
           horaSalida: horaSalida,
-          movil: turno.movil.movil,
-          placa: turno.movil.placa,
+          movil: turno.automovil.movil,
+          placa: turno.automovil.placa,
           conductor: turno.conductor.nombre,
           horaSalidaDate: turno.horaSalida ? new Date(turno.horaSalida) : new Date(0)
         })
@@ -293,8 +294,8 @@ export async function POST(request: NextRequest) {
         todosLosDatos.push({
           tipo: 'PROGRAMADO',
           horaSalida: horaColombiana,
-          movil: programado.movil.movil,
-          placa: programado.movil.placa,
+          movil: programado.automovil.movil,
+          placa: programado.automovil.placa,
           conductor: 'N/A',
           horaSalidaDate: horaSalidaDate
         })

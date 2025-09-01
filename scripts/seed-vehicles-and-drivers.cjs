@@ -95,7 +95,6 @@ async function main() {
           licenciaTransito: getRandomDate(),
           extintor: getRandomDate(),
           revisionPreventiva: getRandomDate(),
-          revisionAnual: getRandomDate(),
         },
       });
     }

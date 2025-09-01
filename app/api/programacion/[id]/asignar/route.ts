@@ -31,7 +31,7 @@ export async function PUT(
     // Verificar que el programado existe y está disponible
     const programado = await prisma.programacion.findUnique({
       where: { id: programadoId },
-      include: { movil: true }
+      include: { automovil: true }
     });
 
     if (!programado) {
@@ -41,7 +41,7 @@ export async function PUT(
       );
     }
 
-    if (!programado.disponible) {
+    if (programado.estado !== 'PENDIENTE') {
       return NextResponse.json(
         { success: false, error: 'Este programado ya está asignado' },
         { status: 400 }
@@ -64,19 +64,20 @@ export async function PUT(
     const programadoActualizado = await prisma.programacion.update({
       where: { id: programadoId },
       data: {
-        movilId: parseInt(movilId),
-        disponible: false
+        automovilId: parseInt(movilId),
+        estado: 'ASIGNADO'
       },
       include: {
-        movil: true
+        automovil: true,
+        ruta: true
       }
     });
 
     console.log('✅ Programado asignado exitosamente:', {
       id: programadoActualizado.id,
-      ruta: programadoActualizado.ruta,
-      movilAnterior: programado.movil.movil,
-      movilNuevo: programadoActualizado.movil.movil
+      ruta: programadoActualizado.ruta?.nombre || 'Sin Ruta',
+      movilAnterior: programado.automovil.movil,
+      movilNuevo: programadoActualizado.automovil.movil
     });
 
     return NextResponse.json({
@@ -84,13 +85,13 @@ export async function PUT(
       message: 'Programado asignado exitosamente',
       programado: {
         id: programadoActualizado.id,
-        ruta: programadoActualizado.ruta,
+        ruta: programadoActualizado.ruta?.nombre || 'Sin Ruta',
         hora: programadoActualizado.hora,
-        movil: {
-          id: programadoActualizado.movil.id,
-          movil: programadoActualizado.movil.movil
+        automovil: {
+          id: programadoActualizado.automovil.id,
+          movil: programadoActualizado.automovil.movil
         },
-        disponible: programadoActualizado.disponible
+        estado: programadoActualizado.estado
       }
     });
 

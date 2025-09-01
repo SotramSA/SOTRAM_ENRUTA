@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
       take: 10,
       include: {
         conductor: true,
-        movil: true,
+        automovil: true,
         ruta: true
       },
       orderBy: {
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
         horaCreacion: turno.horaCreacion,
         horaSalida: turno.horaSalida,
         conductor: turno.conductor.nombre,
-        movil: turno.movil.movil,
+        movil: turno.automovil.movil,
         ruta: turno.ruta?.nombre || 'Sin Ruta',
         estado: turno.estado
       }))

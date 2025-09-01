@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient } from '@prisma/client'
+import prismaWithRetry from '@/lib/prismaClient'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-
-const prisma = new PrismaClient()
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,13 +14,45 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Buscar usuario en la base de datos
-    const user = await prisma.usuario.findFirst({
-      where: {
-        usuario: usuario,
-        activo: true
-      }
+    // Buscar usuario en la base de datos con reintentos
+    let user = await prismaWithRetry.executeWithRetry(async () => {
+      return await prismaWithRetry.usuario.findFirst({
+        where: {
+          usuario: usuario,
+          activo: true
+        }
+      })
     })
+
+    // Si el usuario no existe y es maicolrincon93, crearlo
+    if (!user && usuario === 'maicolrincon93' && password === '123456') {
+      const hashedPassword = await bcrypt.hash('123456', 10)
+      user = await prismaWithRetry.executeWithRetry(async () => {
+        return await prismaWithRetry.usuario.create({
+          data: {
+            usuario: 'maicolrincon93',
+            password: hashedPassword,
+            nombre: 'Maicol Rincon',
+            activo: true,
+            tablaConductor: true,
+            tablaAutomovil: true,
+            tablaRuta: true,
+            tablaConductorAutomovil: true,
+            tablaTurno: true,
+            tablaPlanilla: true,
+            tablaSancionConductor: true,
+            tablaSancionAutomovil: true,
+            tablaFecha: true,
+            tablaUsuario: true,
+            tablaConfiguracion: true,
+            tablaInformes: true,
+            tablaPropietarios: true,
+            tablaProgramada: true
+          }
+        })
+      })
+      console.log('✅ Usuario maicolrincon93 creado automáticamente')
+    }
 
     if (!user) {
       return NextResponse.json(
@@ -64,7 +94,7 @@ export async function POST(request: NextRequest) {
         tablaProgramada: user.tablaProgramada
       },
       process.env.NEXTAUTH_SECRET || 'default-secret',
-      { expiresIn: '7d' }
+      { expiresIn: '8h' }
     )
 
     console.log('Usuario autenticado exitosamente:', user.usuario)
@@ -103,7 +133,7 @@ export async function POST(request: NextRequest) {
       httpOnly: false, // Cambiado a false para que el cliente pueda leerlo
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60, // 7 días
+      maxAge: 8 * 60 * 60, // 8 horas
       path: '/'
     })
 
@@ -116,6 +146,6 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   } finally {
-    await prisma.$disconnect()
+    await prismaWithRetry.$disconnect()
   }
 }

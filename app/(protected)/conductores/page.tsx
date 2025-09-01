@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Suspense } from 'react'
 import { Search, Plus, Edit, Trash2, User, ChevronLeft, ChevronRight, Eye } from 'lucide-react'
 import axios from 'axios'
 import { useNotifications, createApiNotifications } from '@/src/lib/notifications'
@@ -88,6 +89,8 @@ export default function ConductorManager() {
 
   async function fetchConductores() {
     try {
+      console.log('🔍 Iniciando fetchConductores');
+      
       const params = new URLSearchParams({
         page: pagination.page.toString(),
         limit: pagination.limit.toString(),
@@ -95,14 +98,22 @@ export default function ConductorManager() {
       })
       
       const res = await axios.get(`/api/conductores?${params}`)
-      setConductores(res.data.conductores)
+      console.log('✅ Respuesta recibida:', res.data);
+      
+      setConductores(res.data.conductores || [])
       setPagination(prev => ({
         ...prev,
-        total: res.data.total,
-        totalPages: res.data.totalPages
+        total: res.data.total || 0,
+        totalPages: res.data.totalPages || 0
       }))
     } catch (error) {
-      apiNotifications.fetchError('conductores')
+      console.error('❌ Error en fetchConductores:', error);
+      setConductores([])
+      setPagination(prev => ({
+        ...prev,
+        total: 0,
+        totalPages: 0
+      }))
     }
   }
 

@@ -7,6 +7,30 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Usuario {
+  id                    Int    @id @default(autoincrement())
+  usuario               String @unique
+  password              String
+  nombre                String
+  activo                Boolean @default(true)
+  tablaConductor        Boolean @default(false)
+  tablaAutomovil        Boolean @default(false)
+  tablaRuta             Boolean @default(false)
+  tablaConductorAutomovil Boolean @default(false)
+  tablaTurno            Boolean @default(false)
+  tablaPlanilla         Boolean @default(false)
+  tablaSancionConductor Boolean @default(false)
+  tablaSancionAutomovil Boolean @default(false)
+  tablaFecha            Boolean @default(false)
+  tablaUsuario          Boolean @default(false)
+  tablaConfiguracion    Boolean @default(false)
+  tablaInformes         Boolean @default(false)
+  tablaPropietarios     Boolean @default(false)
+  tablaProgramada       Boolean @default(false)
+  programaciones        Programacion[]
+  turnos               Turno[]
+}
+
 model Conductor {
   id                 Int                  @id @default(autoincrement())
   nombre             String
@@ -44,14 +68,13 @@ model Automovil {
   licenciaTransito      DateTime?
   extintor              DateTime?
   revisionPreventiva    DateTime?
-  revisionAnual         DateTime?
   automovilPropietario  AutomovilPropietario[]
   conductorAutomovil    ConductorAutomovil[]
   listaChequeo          ListaChequeo[]
-  planilla              Planilla[]
-  programaciones        Programacion[]
   sancionAutomovil      SancionAutomovil[]
   turno                 Turno[]
+  planillas             Planilla[]
+  programaciones        Programacion[]
 }
 
 model AutomovilPropietario {
@@ -74,10 +97,11 @@ model Ruta {
   activo             Boolean           @default(true)
   descripcion        String?
   fechaCreacion      DateTime?         @default(now())
-  fechaActualizacion DateTime?         @default(now()) @updatedAt
+  fechaActualizacion DateTime?         @default(now())
   prioridad          Int?              @default(0)
   huecosDisponibles  HuecoDisponible[]
   turno              Turno[]
+  programaciones     Programacion[]
 }
 
 model ConductorAutomovil {
@@ -99,116 +123,74 @@ model Turno {
   horaCreacion DateTime? @default(now())
   estado       String?   @default("PENDIENTE")
   usuarioId    Int?
+  automovil    Automovil @relation(fields: [movilId], references: [id])
   conductor    Conductor @relation(fields: [conductorId], references: [id])
-  movil        Automovil @relation(fields: [movilId], references: [id])
-  ruta         Ruta?     @relation(fields: [rutaId], references: [id], onDelete: Restrict)
-  usuario      Usuario?  @relation(fields: [usuarioId], references: [id], onUpdate: NoAction)
+  ruta         Ruta?     @relation(fields: [rutaId], references: [id])
+  usuario      Usuario?  @relation(fields: [usuarioId], references: [id])
+}
+
+model Planilla {
+  id          Int       @id @default(autoincrement())
+  automovilId Int
+  fecha       DateTime
+  horaInicio  DateTime
+  horaFin     DateTime
+  observaciones String?
+  automovil   Automovil @relation(fields: [automovilId], references: [id])
 }
 
 model SancionConductor {
   id          Int       @id @default(autoincrement())
   conductorId Int
-  fechaInicio DateTime
-  fechaFin    DateTime
-  motivo      String
+  fecha       DateTime
+  descripcion String
+  monto       Float
   conductor   Conductor @relation(fields: [conductorId], references: [id])
 }
 
 model SancionAutomovil {
   id          Int       @id @default(autoincrement())
   automovilId Int
-  fechaInicio DateTime
-  fechaFin    DateTime
-  motivo      String
+  fecha       DateTime
+  descripcion String
+  monto       Float
   automovil   Automovil @relation(fields: [automovilId], references: [id])
 }
 
-model Planilla {
-  id      Int       @id @default(autoincrement())
-  fecha   DateTime
-  movilId Int
-  activo  Boolean   @default(true)
-  movil   Automovil @relation(fields: [movilId], references: [id])
-}
-
-model Usuario {
-  id                      Int            @id @default(autoincrement())
-  nombre                  String
-  tablaConductor          Boolean        @default(false)
-  tablaAutomovil          Boolean        @default(false)
-  tablaRuta               Boolean        @default(false)
-  tablaConductorAutomovil Boolean        @default(false)
-  tablaTurno              Boolean        @default(false)
-  tablaPlanilla           Boolean        @default(false)
-  tablaSancionConductor   Boolean        @default(false)
-  tablaSancionAutomovil   Boolean        @default(false)
-  tablaFecha              Boolean        @default(false)
-  activo                  Boolean        @default(true)
-  usuario                 String
-  password                String
-  tablaUsuario            Boolean        @default(false)
-  tablaConfiguracion      Boolean        @default(false)
-  tablaInformes           Boolean        @default(false)
-  tablaProgramada         Boolean        @default(false)
-  tablaPropietarios       Boolean        @default(false)
-  programaciones          Programacion[]
-  turnos                  Turno[]
-}
-
-model Configuracion {
-  id                   Int      @id @default(autoincrement())
-  frecuenciaAutomatica Boolean  @default(true)
-  tiempoMinimoSalida   Int      @default(2)
-  tiempoMaximoTurno    Int      @default(45)
-  activo               Boolean  @default(true)
-  fechaCreacion        DateTime @default(now())
-  fechaActualizacion   DateTime @default(now()) @updatedAt
-  impresionDirecta     Boolean? @default(false)
-  impresoraHabilitada  Boolean? @default(false)
-  nombreImpresora      String?
-}
-
-model TimeSimulation {
-  id                 Int      @id @default(autoincrement())
-  horaSimulada       DateTime
-  activo             Boolean  @default(true)
-  fechaCreacion      DateTime @default(now())
-  fechaActualizacion DateTime @default(now()) @updatedAt
-}
-
 model HuecoDisponible {
-  id                  Int      @id @default(autoincrement())
-  rutaId              Int
-  rutaNombre          String
-  horaSalida          DateTime
-  prioridad           String
-  razon               String
-  frecuenciaCalculada Int
-  fecha               DateTime @default(now())
-  activo              Boolean  @default(true)
-  fechaCreacion       DateTime @default(now())
-  fechaActualizacion  DateTime @default(now()) @updatedAt
-  ruta                Ruta     @relation(fields: [rutaId], references: [id], onDelete: Cascade)
-}
-
-model Programacion {
-  id         Int       @id @default(autoincrement())
-  fecha      DateTime
-  ruta       String
-  hora       String
-  movilId    Int
-  usuarioId  Int?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  disponible Boolean   @default(false)
-  movil      Automovil @relation(fields: [movilId], references: [id])
-  usuario    Usuario?  @relation(fields: [usuarioId], references: [id])
+  id     Int  @id @default(autoincrement())
+  rutaId Int
+  hora   Int
+  ruta   Ruta @relation(fields: [rutaId], references: [id])
 }
 
 model ListaChequeo {
-  id      Int       @id @default(autoincrement())
-  fecha   DateTime  @default(now())
-  nombre  String
-  movilId Int
-  movil   Automovil @relation(fields: [movilId], references: [id])
+  id          Int       @id @default(autoincrement())
+  automovilId Int
+  fecha       DateTime
+  inspector   String?   // Nombre del inspector que realizó la lista de chequeo
+  items       String    // JSON string
+  automovil   Automovil @relation(fields: [automovilId], references: [id])
+}
+
+model Programacion {
+  id          Int       @id @default(autoincrement())
+  automovilId Int
+  fecha       DateTime
+  hora        Int
+  rutaId      Int?
+  estado      String    @default("PENDIENTE")
+  automovil   Automovil @relation(fields: [automovilId], references: [id])
+  ruta        Ruta?     @relation(fields: [rutaId], references: [id])
+  usuario     Usuario?  @relation(fields: [usuarioId], references: [id])
+  usuarioId   Int?
+}
+
+model Configuracion {
+  id          Int       @id @default(autoincrement())
+  nombre      String
+  valor       String
+  activo      Boolean   @default(true)
+  descripcion String?
+  fechaCreacion DateTime @default(now())
 }

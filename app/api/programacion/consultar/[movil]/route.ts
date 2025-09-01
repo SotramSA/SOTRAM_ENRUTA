@@ -1,5 +1,43 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/src/lib/prisma';
+import prismaWithRetry from '@/lib/prismaClient';
+
+// Definición de rutas especiales para mapeo
+const RUTAS_ESPECIALES = {
+  'DESPACHO D. RUT7 CORZO LORETO': [
+    '04:50', '04:57', '05:04', '05:11'
+  ],
+  'DESPACHO E RUT7 CORZO': [
+    '04:55', '05:05', '05:15'
+  ],
+  'DESPACHO D RUT4 PAMPA-CORZO': [
+    '04:50', '05:00', '05:10'
+  ]
+}
+
+// Función para determinar si una hora pertenece a una ruta especial
+function getRutaEspecialByHora(hora: number, rutaBase: string): string {
+  const horaStr = `${Math.floor(hora / 100).toString().padStart(2, '0')}:${(hora % 100).toString().padStart(2, '0')}`
+  
+  // Solo aplicar para programaciones que usan Despacho A como base
+  if (rutaBase === 'Despacho A') {
+    for (const [rutaEspecial, horarios] of Object.entries(RUTAS_ESPECIALES)) {
+      if (horarios.includes(horaStr)) {
+        return rutaEspecial
+      }
+    }
+  }
+  
+  return rutaBase
+}
+
+// Función para convertir hora numérica a ISO string
+function horaToISOString(hora: number, fecha: Date): string {
+  const hours = Math.floor(hora / 100)
+  const minutes = hora % 100
+  const fechaHora = new Date(fecha)
+  fechaHora.setHours(hours, minutes, 0, 0)
+  return fechaHora.toISOString()
+}
 
 // Helper para obtener el rango de la semana actual (Lunes a Domingo)
 const getWeekRange = (date: Date) => {
@@ -50,7 +88,7 @@ export async function GET(
   }
 
   try {
-    const automovil = await prisma.automovil.findFirst({
+    const automovil = await prismaWithRetry.automovil.findFirst({
       where: { movil },
     });
 
@@ -68,47 +106,73 @@ export async function GET(
       endDay: endOfWeek.getDay()
     });
 
-    const programaciones = await prisma.programacion.findMany({
+    const programaciones = await prismaWithRetry.programacion.findMany({
       where: {
-        movilId: automovil.id,
+        automovilId: automovil.id,
         fecha: {
           gte: startOfWeek,
           lte: endOfWeek,
         },
       },
-      orderBy: {
-        fecha: 'asc',
+      include: {
+        ruta: {
+          select: {
+            id: true,
+            nombre: true
+          }
+        }
       },
+      orderBy: [
+        { fecha: 'asc' },
+        { hora: 'asc' }
+      ],
     });
 
     console.log('Programaciones encontradas:', programaciones.length);
-    programaciones.forEach(p => {
+    
+    // Mapear las programaciones para incluir ruta correcta y hora en formato ISO
+    const programacionesMapeadas = programaciones.map(p => {
+      const rutaOriginal = p.ruta?.nombre || 'Sin ruta'
+      const rutaFinal = getRutaEspecialByHora(p.hora, rutaOriginal)
+      const horaISO = horaToISOString(p.hora, p.fecha)
+      
       // Extraer solo la fecha sin la hora para calcular correctamente el día
       const fechaStr = p.fecha.toISOString().split('T')[0]; // "2025-08-12"
       const [year, month, day] = fechaStr.split('-').map(Number);
       const fechaLocal = new Date(year, month - 1, day);
       const diaSemana = fechaLocal.getDay();
       
-      console.log('Programación:', {
+      console.log('Programación mapeada:', {
         id: p.id,
         fecha: p.fecha,
         fechaExtraida: fechaStr,
         fechaLocal: fechaLocal.toISOString(),
         dia: diaSemana,
         nombreDia: ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][diaSemana],
-        ruta: p.ruta,
-        hora: p.hora
+        rutaOriginal,
+        rutaFinal,
+        horaNum: p.hora,
+        horaISO
       });
+      
+      return {
+        id: p.id,
+        fecha: p.fecha.toISOString(),
+        ruta: rutaFinal,
+        hora: horaISO
+      }
     });
 
     return NextResponse.json({ 
       encontrado: true, 
-      programaciones, 
+      programaciones: programacionesMapeadas, 
       rango: { inicio: startOfWeek.toISOString(), fin: endOfWeek.toISOString() }
     });
 
   } catch (error) {
     console.error('Error al consultar la programación:', error);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+  } finally {
+    await prismaWithRetry.$disconnect();
   }
 }

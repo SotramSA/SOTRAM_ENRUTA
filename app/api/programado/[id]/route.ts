@@ -18,7 +18,13 @@ export async function PUT(
     const programacionActual = await prisma.programacion.findUnique({
       where: { id },
       include: {
-        movil: true
+        automovil: {
+          select: {
+            id: true,
+            movil: true,
+            placa: true
+          }
+        }
       }
     })
 
@@ -29,11 +35,10 @@ export async function PUT(
     const updateData: any = {}
 
     // Si se está cambiando el móvil
-    if (movilId !== undefined && movilId !== programacionActual.movilId) {
+    if (movilId !== undefined && movilId !== programacionActual.automovilId) {
       if (movilId === null || movilId === -1) {
-        // Eliminar móvil (hacer disponible) - usar un valor especial (-1) para indicar sin móvil
-        updateData.movilId = -1
-        updateData.disponible = true
+        // Eliminar móvil (hacer disponible) - usar null para indicar sin móvil
+        updateData.automovilId = null
       } else {
         // Asignar nuevo móvil
         // Verificar que el nuevo móvil esté disponible y activo
@@ -52,12 +57,9 @@ export async function PUT(
         // Verificar que el móvil no esté ya asignado a otra ruta en la misma fecha
         const movilOcupado = await prisma.programacion.findFirst({
           where: {
-            movilId: movilId,
+            automovilId: movilId,
             fecha: programacionActual.fecha,
-            id: { not: id },
-            AND: {
-              movilId: { not: -1 } // Excluir registros con movilId = -1
-            }
+            id: { not: id }
           }
         })
 
@@ -65,21 +67,28 @@ export async function PUT(
           return NextResponse.json({ error: 'Móvil ya asignado a otra ruta en esta fecha' }, { status: 400 })
         }
 
-        updateData.movilId = movilId
+        updateData.automovilId = movilId
       }
     }
 
-    // Si se está cambiando el estado disponible
-    if (typeof disponible === 'boolean') {
-      updateData.disponible = disponible
-    }
+    // Si se está cambiando el estado disponible - campo removido del modelo
+    // El estado disponible ahora se determina por si automovilId es null
+    // if (typeof disponible === 'boolean') {
+    //   updateData.disponible = disponible
+    // }
 
     // Actualizar la programación
     const programacionActualizada = await prisma.programacion.update({
       where: { id },
       data: updateData,
       include: {
-        movil: true
+        automovil: {
+          select: {
+            id: true,
+            movil: true,
+            placa: true
+          }
+        }
       }
     })
 

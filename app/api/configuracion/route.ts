@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/src/lib/prisma';
+import prisma from '@/lib/prisma';
 
 export async function GET() {
   try {
@@ -23,7 +23,17 @@ export async function GET() {
       return NextResponse.json(defaults, { status: 200 });
     }
 
-    return NextResponse.json(configuracion);
+    // Parsear el valor JSON de la configuración
+    const configuracionParsed = {
+      id: configuracion.id,
+      nombre: configuracion.nombre,
+      activo: configuracion.activo,
+      descripcion: configuracion.descripcion,
+      fechaCreacion: configuracion.fechaCreacion,
+      ...JSON.parse(configuracion.valor)
+    };
+
+    return NextResponse.json(configuracionParsed);
   } catch (error) {
     console.error('Error al obtener configuración:', error);
     return NextResponse.json(
@@ -76,23 +86,30 @@ export async function PUT(request: NextRequest) {
       // Si no existe configuración activa, crear una nueva
       configuracionActualizada = await prisma.configuracion.create({
         data: {
-          tiempoMinimoSalida,
-          impresoraHabilitada: impresoraHabilitada ?? false,
-          impresionDirecta: impresionDirecta ?? false,
+          nombre: 'configuracion_principal',
+          valor: JSON.stringify({
+            tiempoMinimoSalida,
+            impresoraHabilitada: impresoraHabilitada ?? false,
+            impresionDirecta: impresionDirecta ?? false
+          }),
           activo: true,
-          fechaCreacion: new Date(),
-          fechaActualizacion: new Date()
+          descripcion: 'Configuración principal del sistema'
         }
       });
     } else {
       // Si existe, actualizarla
+      const valorActual = JSON.parse(configuracionActual.valor);
+      const nuevoValor = {
+        ...valorActual,
+        tiempoMinimoSalida,
+        impresoraHabilitada: impresoraHabilitada ?? valorActual.impresoraHabilitada,
+        impresionDirecta: impresionDirecta ?? valorActual.impresionDirecta
+      };
+      
       configuracionActualizada = await prisma.configuracion.update({
         where: { id: configuracionActual.id },
         data: {
-          tiempoMinimoSalida,
-          impresoraHabilitada,
-          impresionDirecta,
-          fechaActualizacion: new Date()
+          valor: JSON.stringify(nuevoValor)
         }
       });
     }

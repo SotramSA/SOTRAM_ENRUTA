@@ -20,30 +20,44 @@ export async function GET(request: NextRequest) {
     const fechaInicio = new Date(parseInt(año), parseInt(mes) - 1, 1)
     const fechaFin = new Date(parseInt(año), parseInt(mes), 0, 23, 59, 59)
 
+    // Buscar planillas directamente por automovilId y rango de fechas
     const planillas = await prisma.planilla.findMany({
       where: {
-        movilId: parseInt(automovilId),
+        automovilId: parseInt(automovilId),
         fecha: {
           gte: fechaInicio,
           lte: fechaFin
-        },
-        activo: true // Solo planillas activas
+        }
       },
-      select: {
-        id: true,
-        fecha: true,
-        movilId: true
+      include: {
+        automovil: {
+          select: {
+            id: true,
+            movil: true,
+            placa: true
+          }
+        }
       },
       orderBy: {
         fecha: 'asc'
       }
     })
 
+    console.log('📅 Planillas encontradas:', planillas.length)
+
+    const planillasFormateadas = planillas.map(p => ({
+      id: p.id,
+      fecha: p.fecha.toISOString().slice(0, 10),
+      horaInicio: p.horaInicio,
+      horaFin: p.horaFin,
+      observaciones: p.observaciones,
+      automovil: p.automovil
+    }))
+
+    console.log('📅 Planillas devueltas por API:', planillasFormateadas.map(p => ({ id: p.id, fecha: p.fecha })))
+
     return NextResponse.json({
-      planillas: planillas.map(p => ({
-        ...p,
-        fecha: p.fecha.toISOString().slice(0, 10)
-      }))
+      planillas: planillasFormateadas
     })
   } catch (error) {
     console.error('Error al obtener planillas:', error)
@@ -78,21 +92,114 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Crear las planillas en lote
-    const planillasCreadas = await prisma.planilla.createMany({
-      data: fechas.map((fecha: string) => ({
-        movilId: automovilId,
-        fecha: new Date(fecha + 'T00:00:00') // Forzar hora local para evitar desfase
-      })),
-      skipDuplicates: true // Evitar duplicados
-    })
+    let planillasCreadas = 0;
+    const fechasCreadas: string[] = [];
+    const fechasExistentes: string[] = [];
+    const fechasConError: string[] = [];
+
+    // Crear planillas independientes para cada fecha
+    for (const fecha of fechas) {
+      try {
+        // Verificar si ya existe una planilla para esta fecha y móvil
+        const planillaExistente = await prisma.planilla.findFirst({
+          where: {
+            automovilId: automovilId,
+            fecha: {
+              gte: new Date(fecha + 'T00:00:00'),
+              lt: new Date(fecha + 'T23:59:59')
+            }
+          }
+        });
+
+        if (planillaExistente) {
+          console.log(`Ya existe una planilla para el móvil ${automovilId} en la fecha ${fecha}`);
+          fechasExistentes.push(fecha);
+          continue;
+        }
+
+        // Crear la planilla directamente
+        await prisma.planilla.create({
+          data: {
+            automovilId: automovilId,
+            fecha: new Date(fecha + 'T00:00:00'),
+            horaInicio: new Date(fecha + 'T06:00:00'),
+            horaFin: new Date(fecha + 'T18:00:00'),
+            observaciones: 'Planilla creada automáticamente'
+          }
+        });
+
+        planillasCreadas++;
+        fechasCreadas.push(fecha);
+        console.log(`✅ Planilla creada exitosamente para fecha ${fecha}`);
+      } catch (error) {
+        console.error(`Error al crear planilla para fecha ${fecha}:`, error);
+        fechasConError.push(fecha);
+        // Continuar con las siguientes fechas
+      }
+    }
+
+    // Construir mensaje informativo
+    let mensaje = '';
+    if (planillasCreadas > 0) {
+      mensaje += `${planillasCreadas} planilla(s) creada(s) correctamente. `;
+    }
+    if (fechasExistentes.length > 0) {
+      mensaje += `${fechasExistentes.length} fecha(s) ya tenían planilla existente. `;
+    }
+    if (fechasConError.length > 0) {
+      mensaje += `${fechasConError.length} fecha(s) con error.`;
+    }
 
     return NextResponse.json({
-      message: `${planillasCreadas.count} planilla(s) creada(s) correctamente`,
-      count: planillasCreadas.count
+      message: mensaje.trim(),
+      count: planillasCreadas,
+      fechasCreadas,
+      fechasExistentes,
+      fechasConError
     }, { status: 201 })
   } catch (error) {
     console.error('Error al crear planillas:', error)
+    return NextResponse.json(
+      { error: 'Error interno del servidor' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const planillaId = searchParams.get('id')
+
+    if (!planillaId) {
+      return NextResponse.json(
+        { error: 'Se requiere el ID de la planilla' },
+        { status: 400 }
+      )
+    }
+
+    // Verificar que la planilla existe
+    const planilla = await prisma.planilla.findUnique({
+      where: { id: parseInt(planillaId) }
+    })
+
+    if (!planilla) {
+      return NextResponse.json(
+        { error: 'Planilla no encontrada' },
+        { status: 404 }
+      )
+    }
+
+    // Eliminar la planilla
+    await prisma.planilla.delete({
+      where: { id: parseInt(planillaId) }
+    })
+
+    return NextResponse.json({
+      message: 'Planilla eliminada correctamente'
+    })
+  } catch (error) {
+    console.error('Error al eliminar planilla:', error)
     return NextResponse.json(
       { error: 'Error interno del servidor' },
       { status: 500 }

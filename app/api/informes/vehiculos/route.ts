@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       { header: 'Licencia de Tránsito', key: 'licenciaTransito', width: 20 },
       { header: 'Extintor', key: 'extintor', width: 15 },
       { header: 'Revisión Preventiva', key: 'revisionPreventiva', width: 20 },
-      { header: 'Revisión Anual', key: 'revisionAnual', width: 20 },
+
       { header: 'Conductores Asignados', key: 'conductoresAsignados', width: 40 }
     ]
 
@@ -97,7 +97,6 @@ export async function POST(request: NextRequest) {
         licenciaTransito: formatearFecha(vehiculo.licenciaTransito),
         extintor: formatearFecha(vehiculo.extintor),
         revisionPreventiva: formatearFecha(vehiculo.revisionPreventiva),
-        revisionAnual: formatearFecha(vehiculo.revisionAnual),
         conductoresAsignados: conductoresAsignados || 'Sin asignar'
       })
     })

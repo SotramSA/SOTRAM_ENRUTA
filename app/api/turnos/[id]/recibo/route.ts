@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/src/lib/prisma';
+import { getSessionUser } from '@/src/lib/authHelper';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // TEMPORAL: Comentando auth() para evitar error en desarrollo
-    // const session = await auth();
-    // if (!session?.user) {
-    //   return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    // }
-    const session = { user: { name: 'Usuario' } }; // Usuario temporal
+    // Obtener el usuario de la sesión
+    const sessionUser = await getSessionUser(request);
+    if (!sessionUser) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
 
     const { id } = await params;
     const turnoId = parseInt(id);
@@ -24,7 +24,7 @@ export async function GET(
       where: { id: turnoId },
       include: {
         conductor: true,
-        movil: true,
+        automovil: true,
         ruta: true,
         usuario: true
       }
@@ -66,17 +66,17 @@ export async function GET(
       id: turno.id,
       fechaSalida: fechaSalidaFormateada,
       horaSalida: horaSalidaFormateada,
-      movil: turno.movil.movil,
-      placa: turno.movil.placa,
+      movil: turno.automovil.movil,
+      placa: turno.automovil.placa,
       ruta: turno.ruta?.nombre || 'N/A',
       conductor: turno.conductor.nombre,
-      despachadoPor: turno.usuario?.nombre || session.user.name || 'N/A',
+      despachadoPor: turno.usuario?.nombre || sessionUser.nombre || 'N/A',
       registro: `${fechaCreacionFormateada} ${horaCreacionFormateada}`,
       // Datos para QR
       qrData: JSON.stringify({
         id: turno.id,
-        movil: turno.movil.movil,
-        placa: turno.movil.placa,
+        movil: turno.automovil.movil,
+        placa: turno.automovil.placa,
         ruta: turno.ruta?.nombre,
         conductor: turno.conductor.nombre,
         fecha: fechaSalidaFormateada,

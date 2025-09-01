@@ -49,7 +49,9 @@ export default function PropietariosPage() {
     correo: '',
     observaciones: '',
     estado: true,
-    automoviles: [] as number[]
+    automoviles: [] as number[],
+    esConductor: false,
+    licenciaConduccion: ''
   })
 
   useEffect(() => {
@@ -158,7 +160,9 @@ export default function PropietariosPage() {
       correo: propietario.correo || '',
       observaciones: propietario.observaciones || '',
       estado: propietario.estado,
-      automoviles: propietario.automoviles?.map(auto => auto.id) || []
+      automoviles: propietario.automoviles?.map(auto => auto.id) || [],
+      esConductor: false, // En edición no se puede cambiar si es conductor
+      licenciaConduccion: ''
     })
     setIsModalOpen(true)
   }
@@ -204,7 +208,9 @@ export default function PropietariosPage() {
       correo: '',
       observaciones: '',
       estado: true,
-      automoviles: []
+      automoviles: [],
+      esConductor: false,
+      licenciaConduccion: ''
     })
   }
 
@@ -520,8 +526,8 @@ export default function PropietariosPage() {
                   />
                 </div>
 
-                {/* Checkbox activo */}
-                <div>
+                {/* Checkboxes */}
+                <div className="space-y-3">
                   <label className="flex items-center cursor-pointer">
                     <input
                       type="checkbox"
@@ -533,6 +539,37 @@ export default function PropietariosPage() {
                       Propietario activo
                     </span>
                   </label>
+
+                  {!editingPropietario && (
+                    <>
+                      <label className="flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.esConductor}
+                          onChange={(e) => setFormData({ ...formData, esConductor: e.target.checked })}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span className="ml-2 text-sm font-medium text-gray-700">
+                          También es conductor
+                        </span>
+                      </label>
+
+                      {formData.esConductor && (
+                        <div className="ml-6 mt-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Fecha de vencimiento de licencia de conducción *
+                          </label>
+                          <input
+                            type="date"
+                            required={formData.esConductor}
+                            value={formData.licenciaConduccion}
+                            onChange={(e) => setFormData({ ...formData, licenciaConduccion: e.target.value })}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
 
                 {/* Automóviles asignados */}

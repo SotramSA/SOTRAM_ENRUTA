@@ -6,7 +6,7 @@ import Image from "next/image"
 import { Users, Bus, UserCog, Menu, X, Calendar,
   CircleOff, Ban, RefreshCw, Clock, Settings, Route, FileText, Activity, UserCheck
  } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import LogoutButton from "./ui/LogoutBuuton"
 
 interface MenuItem {
@@ -40,8 +40,14 @@ const iconMap = {
 export default function SidebarClient({ menuItems = [] }: SidebarClientProps) {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const isActiveRoute = (href: string) => {
+    if (!mounted) return false
     return pathname === href || pathname.startsWith(href + '/')
   }
 

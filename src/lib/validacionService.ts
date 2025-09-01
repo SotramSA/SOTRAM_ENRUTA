@@ -12,7 +12,7 @@ export interface ValidacionResult {
   listaChequeo?: {
     id: number;
     fecha: Date;
-    nombre: string;
+    items: string;
   };
   licenciaConduccionVencida: boolean;
   licenciaConduccion?: {
@@ -24,14 +24,12 @@ export interface ValidacionResult {
   }>;
   sancionesAutomovil: Array<{
     id: number;
-    fechaInicio: Date;
-    fechaFin: Date;
+    fecha: Date;
     motivo: string;
   }>;
   sancionesConductor: Array<{
     id: number;
-    fechaInicio: Date;
-    fechaFin: Date;
+    fecha: Date;
     motivo: string;
   }>;
   tieneSanciones: boolean;
@@ -156,7 +154,7 @@ export class ValidacionService {
            { conductorId, fecha: { gte: fecha, lt: new Date(fecha.getTime() + 24 * 60 * 60 * 1000) } }
          ]
        },
-       include: { ruta: true, movil: true }
+               include: { ruta: true, automovil: true }
      });
 
      // Verificar conflictos de tiempo (margen de 30 minutos)
@@ -164,7 +162,7 @@ export class ValidacionService {
      for (const turno of turnosExistentes) {
        const diferencia = Math.abs(horaSalida.getTime() - turno.horaSalida.getTime()) / (1000 * 60);
        if (diferencia < margenMinutos) {
-         const movilNombre = turno.movil?.movil || 'Móvil desconocido';
+         const movilNombre = turno.automovil?.movil || 'Móvil desconocido';
          return { 
            valido: false, 
            error: `Conflicto de horario: ${movilNombre} ya tiene un turno a las ${turno.horaSalida.toLocaleTimeString()}` 
@@ -183,35 +181,49 @@ export class ValidacionService {
     const inicioDia = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
     const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000);
 
+    console.log('🔍 Validando planilla:', {
+      movilId,
+      ahora: ahora.toISOString(),
+      inicioDia: inicioDia.toISOString(),
+      finDia: finDia.toISOString()
+    });
+
+    // Buscar planillas directamente por automovilId y fecha
     const planilla = await prisma.planilla.findFirst({
       where: {
-        movilId,
+        automovilId: movilId,
         fecha: {
           gte: inicioDia,
           lt: finDia
-        },
-        activo: true
+        }
       }
     });
 
     if (planilla) {
+      console.log('✅ Planilla encontrada:', {
+        id: planilla.id,
+        fecha: planilla.fecha,
+        automovilId: planilla.automovilId
+      });
+      
       return {
         tienePlanilla: true,
         planilla: {
           id: planilla.id,
           fecha: new Date(planilla.fecha),
-          activo: planilla.activo
+          activo: true // Las planillas siempre están activas si existen
         }
       };
     }
 
+    console.log('❌ No se encontró planilla para el día actual');
     return { tienePlanilla: false };
   }
 
   /**
    * Valida si un móvil tiene lista de chequeo para el día actual
    */
-  static async validarListaChequeo(movilId: number): Promise<{ tieneListaChequeo: boolean; listaChequeo?: { id: number; fecha: Date; nombre: string } }> {
+  static async validarListaChequeo(movilId: number): Promise<{ tieneListaChequeo: boolean; listaChequeo?: { id: number; fecha: Date; items: string } }> {
     const ahora = TimeService.getCurrentTime();
     const inicioDia = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
     const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000);
@@ -225,7 +237,7 @@ export class ValidacionService {
 
     const listaChequeo = await prisma.listaChequeo.findFirst({
       where: {
-        movilId,
+        automovilId: movilId,
         fecha: {
           gte: inicioDia,
           lt: finDia
@@ -240,7 +252,7 @@ export class ValidacionService {
       console.log('✅ Lista de chequeo encontrada:', {
         id: listaChequeo.id,
         fecha: listaChequeo.fecha,
-        nombre: listaChequeo.nombre
+        items: listaChequeo.items
       });
       
       return {
@@ -248,7 +260,7 @@ export class ValidacionService {
         listaChequeo: {
           id: listaChequeo.id,
           fecha: new Date(listaChequeo.fecha),
-          nombre: listaChequeo.nombre
+          items: listaChequeo.items
         }
       };
     }
@@ -315,8 +327,7 @@ export class ValidacionService {
         tarjetaOperacion: true,
         licenciaTransito: true,
         extintor: true,
-        revisionPreventiva: true,
-        revisionAnual: true
+        revisionPreventiva: true
       }
     });
 
@@ -381,13 +392,7 @@ export class ValidacionService {
       });
     }
 
-    // Validar Revisión Anual
-    if (automovil.revisionAnual && new Date(automovil.revisionAnual) < ahora) {
-      documentosVencidos.push({
-        tipo: 'Revisión Anual',
-        fechaVencimiento: new Date(automovil.revisionAnual)
-      });
-    }
+
 
     console.log('📋 Documentos vencidos encontrados:', documentosVencidos.length);
     return { documentosVencidos };
@@ -398,8 +403,7 @@ export class ValidacionService {
    */
   static async validarSancionesAutomovil(movilId: number): Promise<Array<{
     id: number;
-    fechaInicio: Date;
-    fechaFin: Date;
+    fecha: Date;
     motivo: string;
   }>> {
     const ahora = TimeService.getCurrentTime();
@@ -413,112 +417,31 @@ export class ValidacionService {
       finDia: finDia.toISOString()
     });
 
-    // Primero, obtener todas las sanciones del automóvil para debugging
-    const todasLasSanciones = await prisma.sancionAutomovil.findMany({
+    // Obtener sanciones del automóvil para el día actual
+    const sanciones = await prisma.sancionAutomovil.findMany({
       where: {
-        automovilId: movilId
+        automovilId: movilId,
+        fecha: {
+          gte: inicioDia,
+          lt: finDia
+        }
       },
       orderBy: {
-        fechaInicio: 'asc'
+        fecha: 'asc'
       }
     });
 
-    console.log('🔍 Todas las sanciones del automóvil:', todasLasSanciones.map(s => ({
+    console.log('🔍 Sanciones automóvil encontradas:', sanciones.map(s => ({
       id: s.id,
-      fechaInicio: s.fechaInicio,
-      fechaFin: s.fechaFin,
-      motivo: s.motivo,
-      fechaInicioISO: s.fechaInicio.toISOString(),
-      fechaFinISO: s.fechaFin.toISOString(),
-      esUnDia: s.fechaInicio.getTime() === s.fechaFin.getTime()
-    })));
-
-    // Filtrar las sanciones que están activas hoy
-    const sanciones = todasLasSanciones.filter(sancion => {
-      const fechaInicio = new Date(sancion.fechaInicio);
-      const fechaFin = new Date(sancion.fechaFin);
-      
-      console.log('🔍 DEBUG - Sanción original:', {
-        id: sancion.id,
-        motivo: sancion.motivo,
-        fechaInicioOriginal: sancion.fechaInicio,
-        fechaFinOriginal: sancion.fechaFin,
-        fechaInicioISO: sancion.fechaInicio.toISOString(),
-        fechaFinISO: sancion.fechaFin.toISOString()
-      });
-      
-      console.log('🔍 DEBUG - Fechas convertidas:', {
-        fechaInicio: fechaInicio.toISOString(),
-        fechaFin: fechaFin.toISOString(),
-        fechaInicioTime: fechaInicio.getTime(),
-        fechaFinTime: fechaFin.getTime()
-      });
-      
-      // Verificar si la sanción está activa hoy
-      const comienzaHoy = fechaInicio >= inicioDia && fechaInicio < finDia;
-      const terminaHoy = fechaFin >= inicioDia && fechaFin < finDia;
-      const abarcaHoy = fechaInicio < finDia && fechaFin >= inicioDia;
-      
-      console.log('🔍 DEBUG - Rangos de día:', {
-        inicioDia: inicioDia.toISOString(),
-        finDia: finDia.toISOString(),
-        comienzaHoy,
-        terminaHoy,
-        abarcaHoy
-      });
-      
-             // Para sanciones de un solo día, verificar si la fecha coincide exactamente con hoy
-       // Comparar solo las fechas (sin horas) para detectar sanciones de un solo día
-       // Usar UTC para evitar problemas de zona horaria
-       const fechaInicioSolo = new Date(Date.UTC(fechaInicio.getUTCFullYear(), fechaInicio.getUTCMonth(), fechaInicio.getUTCDate()));
-       const fechaFinSolo = new Date(Date.UTC(fechaFin.getUTCFullYear(), fechaFin.getUTCMonth(), fechaFin.getUTCDate()));
-       const inicioDiaUTC = new Date(Date.UTC(inicioDia.getUTCFullYear(), inicioDia.getUTCMonth(), inicioDia.getUTCDate()));
-       const esUnDia = fechaInicioSolo.getTime() === fechaFinSolo.getTime();
-       const esHoy = fechaInicioSolo.getTime() === inicioDiaUTC.getTime();
-       const sancionUnDiaHoy = esUnDia && esHoy;
-       
-       console.log('🔍 DEBUG - Comparación de fechas solo:', {
-         fechaInicioSolo: fechaInicioSolo.toISOString(),
-         fechaFinSolo: fechaFinSolo.toISOString(),
-         fechaInicioSoloTime: fechaInicioSolo.getTime(),
-         fechaFinSoloTime: fechaFinSolo.getTime(),
-         inicioDiaUTC: inicioDiaUTC.toISOString(),
-         inicioDiaUTCTime: inicioDiaUTC.getTime(),
-         esUnDia,
-         esHoy,
-         sancionUnDiaHoy
-       });
-      
-      const estaActiva = comienzaHoy || terminaHoy || abarcaHoy || sancionUnDiaHoy;
-      
-      console.log('🔍 DEBUG - Resultado final:', {
-        id: sancion.id,
-        motivo: sancion.motivo,
-        estaActiva,
-        comienzaHoy,
-        terminaHoy,
-        abarcaHoy,
-        sancionUnDiaHoy
-      });
-      
-      return estaActiva;
-    });
-
-    console.log('🔍 Sanciones encontradas:', sanciones.map(s => ({
-      id: s.id,
-      fechaInicio: s.fechaInicio,
-      fechaFin: s.fechaFin,
-      motivo: s.motivo,
-      fechaInicioISO: s.fechaInicio.toISOString(),
-      fechaFinISO: s.fechaFin.toISOString(),
-      esUnDia: s.fechaInicio.getTime() === s.fechaFin.getTime()
+      fecha: s.fecha,
+      descripcion: s.descripcion,
+      monto: s.monto
     })));
 
     return sanciones.map(sancion => ({
       id: sancion.id,
-      fechaInicio: new Date(sancion.fechaInicio),
-      fechaFin: new Date(sancion.fechaFin),
-      motivo: sancion.motivo
+      fecha: new Date(sancion.fecha),
+      motivo: sancion.descripcion
     }));
   }
 
@@ -527,8 +450,7 @@ export class ValidacionService {
    */
   static async validarSancionesConductor(conductorId: number): Promise<Array<{
     id: number;
-    fechaInicio: Date;
-    fechaFin: Date;
+    fecha: Date;
     motivo: string;
   }>> {
     const ahora = TimeService.getCurrentTime();
@@ -542,112 +464,31 @@ export class ValidacionService {
       finDia: finDia.toISOString()
     });
 
-    // Primero, obtener todas las sanciones del conductor para debugging
-    const todasLasSanciones = await prisma.sancionConductor.findMany({
+    // Obtener sanciones del conductor para el día actual
+    const sanciones = await prisma.sancionConductor.findMany({
       where: {
-        conductorId
+        conductorId,
+        fecha: {
+          gte: inicioDia,
+          lt: finDia
+        }
       },
       orderBy: {
-        fechaInicio: 'asc'
+        fecha: 'asc'
       }
-    });
-
-    console.log('🔍 Todas las sanciones del conductor:', todasLasSanciones.map(s => ({
-      id: s.id,
-      fechaInicio: s.fechaInicio,
-      fechaFin: s.fechaFin,
-      motivo: s.motivo,
-      fechaInicioISO: s.fechaInicio.toISOString(),
-      fechaFinISO: s.fechaFin.toISOString(),
-      esUnDia: s.fechaInicio.getTime() === s.fechaFin.getTime()
-    })));
-
-    // Filtrar las sanciones que están activas hoy
-    const sanciones = todasLasSanciones.filter(sancion => {
-      const fechaInicio = new Date(sancion.fechaInicio);
-      const fechaFin = new Date(sancion.fechaFin);
-      
-      console.log('🔍 DEBUG CONDUCTOR - Sanción original:', {
-        id: sancion.id,
-        motivo: sancion.motivo,
-        fechaInicioOriginal: sancion.fechaInicio,
-        fechaFinOriginal: sancion.fechaFin,
-        fechaInicioISO: sancion.fechaInicio.toISOString(),
-        fechaFinISO: sancion.fechaFin.toISOString()
-      });
-      
-      console.log('🔍 DEBUG CONDUCTOR - Fechas convertidas:', {
-        fechaInicio: fechaInicio.toISOString(),
-        fechaFin: fechaFin.toISOString(),
-        fechaInicioTime: fechaInicio.getTime(),
-        fechaFinTime: fechaFin.getTime()
-      });
-      
-      // Verificar si la sanción está activa hoy
-      const comienzaHoy = fechaInicio >= inicioDia && fechaInicio < finDia;
-      const terminaHoy = fechaFin >= inicioDia && fechaFin < finDia;
-      const abarcaHoy = fechaInicio < finDia && fechaFin >= inicioDia;
-      
-      console.log('🔍 DEBUG CONDUCTOR - Rangos de día:', {
-        inicioDia: inicioDia.toISOString(),
-        finDia: finDia.toISOString(),
-        comienzaHoy,
-        terminaHoy,
-        abarcaHoy
-      });
-      
-             // Para sanciones de un solo día, verificar si la fecha coincide exactamente con hoy
-       // Comparar solo las fechas (sin horas) para detectar sanciones de un solo día
-       // Usar UTC para evitar problemas de zona horaria
-       const fechaInicioSolo = new Date(Date.UTC(fechaInicio.getUTCFullYear(), fechaInicio.getUTCMonth(), fechaInicio.getUTCDate()));
-       const fechaFinSolo = new Date(Date.UTC(fechaFin.getUTCFullYear(), fechaFin.getUTCMonth(), fechaFin.getUTCDate()));
-       const inicioDiaUTC = new Date(Date.UTC(inicioDia.getUTCFullYear(), inicioDia.getUTCMonth(), inicioDia.getUTCDate()));
-       const esUnDia = fechaInicioSolo.getTime() === fechaFinSolo.getTime();
-       const esHoy = fechaInicioSolo.getTime() === inicioDiaUTC.getTime();
-       const sancionUnDiaHoy = esUnDia && esHoy;
-      
-             console.log('🔍 DEBUG CONDUCTOR - Comparación de fechas solo:', {
-         fechaInicioSolo: fechaInicioSolo.toISOString(),
-         fechaFinSolo: fechaFinSolo.toISOString(),
-         fechaInicioSoloTime: fechaInicioSolo.getTime(),
-         fechaFinSoloTime: fechaFinSolo.getTime(),
-         inicioDiaUTC: inicioDiaUTC.toISOString(),
-         inicioDiaUTCTime: inicioDiaUTC.getTime(),
-         esUnDia,
-         esHoy,
-         sancionUnDiaHoy
-       });
-      
-      const estaActiva = comienzaHoy || terminaHoy || abarcaHoy || sancionUnDiaHoy;
-      
-      console.log('🔍 DEBUG CONDUCTOR - Resultado final:', {
-        id: sancion.id,
-        motivo: sancion.motivo,
-        estaActiva,
-        comienzaHoy,
-        terminaHoy,
-        abarcaHoy,
-        sancionUnDiaHoy
-      });
-      
-      return estaActiva;
     });
 
     console.log('🔍 Sanciones conductor encontradas:', sanciones.map(s => ({
       id: s.id,
-      fechaInicio: s.fechaInicio,
-      fechaFin: s.fechaFin,
-      motivo: s.motivo,
-      fechaInicioISO: s.fechaInicio.toISOString(),
-      fechaFinISO: s.fechaFin.toISOString(),
-      esUnDia: s.fechaInicio.getTime() === s.fechaFin.getTime()
+      fecha: s.fecha,
+      descripcion: s.descripcion,
+      monto: s.monto
     })));
 
     return sanciones.map(sancion => ({
       id: sancion.id,
-      fechaInicio: new Date(sancion.fechaInicio),
-      fechaFin: new Date(sancion.fechaFin),
-      motivo: sancion.motivo
+      fecha: new Date(sancion.fecha),
+      motivo: sancion.descripcion
     }));
   }
 

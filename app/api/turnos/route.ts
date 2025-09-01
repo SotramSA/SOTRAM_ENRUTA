@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TurnoService } from '@/src/lib/turnoService';
 import { TimeService } from '@/src/lib/timeService';
+import { getSessionUser } from '@/src/lib/authHelper';
 
 const turnoService = new TurnoService();
 
@@ -52,10 +53,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Obtener el usuario de la sesión
-    // TEMPORAL: Comentando auth() para evitar error en desarrollo
-    // const session = await auth();
-    // const usuarioId = session?.user?.id ? parseInt(session.user.id) : null;
-    const usuarioId = null; // Usar null temporalmente
+    const sessionUser = await getSessionUser(request);
+    const usuarioId = sessionUser?.id || null;
 
     const turno = await turnoService.crearTurno(
       parseInt(movilId),

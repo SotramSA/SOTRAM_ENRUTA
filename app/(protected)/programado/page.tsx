@@ -15,12 +15,12 @@ import * as XLSX from 'xlsx'
 interface Programacion {
   id: number
   fecha: string
-  ruta: string
+  ruta: any
   hora: string
-  movilId: number
+  automovilId: number
   usuarioId?: number
-  disponible: boolean
-  movil: {
+  disponible?: boolean
+  automovil: {
     id: number
     movil: string
     placa: string
@@ -31,6 +31,7 @@ interface Programacion {
 interface ProgramacionView extends Omit<Programacion, 'movilId' | 'movil'> {
   originalMovilId: number
   currentMovil: MovilDisponible | null
+  disponible: boolean // Asegurar que siempre sea boolean, no opcional
 }
 
 interface MovilDisponible {
@@ -107,32 +108,50 @@ export default function ProgramadoPage() {
   }, [selectedDate])
 
   async function fetchAll() {
+    // Reactivamos fetchMovilesDisponibles ya que el error 500 está solucionado
     await Promise.all([fetchProgramaciones(), fetchMovilesDisponibles()])
   }
 
   async function fetchProgramaciones() {
     try {
       setIsLoading(true)
+      console.log('🔍 Iniciando fetchProgramaciones para fecha:', selectedDate)
+      
       const response = await axios.get(`/api/programado?fecha=${selectedDate}`)
+      console.log('✅ Respuesta de API programado:', response.status, response.data)
+      
       const list: Programacion[] = response.data.programaciones || []
-      const view: ProgramacionView[] = list.map(p => ({
-        id: p.id,
-        fecha: p.fecha,
-        ruta: p.ruta,
-        hora: p.hora,
-        usuarioId: p.usuarioId,
-        disponible: p.disponible,
-        originalMovilId: p.movil.id,
-        currentMovil: { id: p.movil.id, movil: p.movil.movil, placa: p.movil.placa }
-      }))
+      console.log('📋 Lista de programaciones obtenida:', list.length, list)
+      
+      const view: ProgramacionView[] = list.map(p => {
+        console.log('🔄 Procesando programación:', p)
+        return {
+          id: p.id,
+          fecha: p.fecha,
+          ruta: p.ruta?.nombre || p.ruta,
+          hora: p.hora,
+          automovilId: p.automovilId,
+          usuarioId: p.usuarioId,
+          disponible: Boolean(p.disponible),
+          automovil: p.automovil,
+          originalMovilId: p.automovil.id,
+          currentMovil: { id: p.automovil.id, movil: p.automovil.movil, placa: p.automovil.placa }
+        }
+      })
+      console.log('📊 Vista de programaciones procesada:', view.length, view)
+      
       setProgramaciones(view)
+      console.log('✅ Programaciones establecidas en el estado')
       
       // Calcular estadísticas de distribución
       calcularEstadisticasDistribucion(view)
-    } catch {
+      console.log('📈 Estadísticas calculadas')
+    } catch (error) {
+      console.error('❌ Error en fetchProgramaciones:', error)
       apiNotifications.fetchError('programaciones')
     } finally {
       setIsLoading(false)
+      console.log('🏁 fetchProgramaciones finalizado')
     }
   }
 
@@ -213,15 +232,21 @@ export default function ProgramadoPage() {
 
   async function fetchMovilesDisponibles() {
     try {
+      console.log('🔍 Iniciando fetchMovilesDisponibles para fecha:', selectedDate)
       const response = await axios.get(`/api/programado/moviles-disponibles?fecha=${selectedDate}`)
-      setPoolMoviles(response.data.moviles || [])
+      console.log('✅ Respuesta de API moviles-disponibles:', response.status, response.data)
+      
+      const movilesDisponibles = response.data.movilesDisponibles || []
+      console.log('📋 Móviles disponibles obtenidos:', movilesDisponibles.length, movilesDisponibles)
+      
+      setPoolMoviles(movilesDisponibles)
       
       // Recalcular estadísticas cuando se actualicen los móviles disponibles
       if (programaciones.length > 0) {
         calcularEstadisticasDistribucion(programaciones)
       }
     } catch (error) {
-      console.error('Error al obtener móviles disponibles:', error)
+      console.error('❌ Error al obtener móviles disponibles:', error)
     }
   }
 
@@ -530,60 +555,53 @@ export default function ProgramadoPage() {
       return acc
     }, {} as Record<string, typeof programaciones>)
 
-    // Helpers de hora: parsear 'HH:MM' o 'HHMM', convertir de UTC a Colombia y formatear 'HH:mm'
-    const parseHHMM = (raw: string): { h: number; m: number } | null => {
-      if (!raw) return null
-      const str = String(raw).trim()
-      // ISO 8601 como '2025-08-10T09:55:00.000Z'
-      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?\.\d{3}Z$/.test(str) || /T/.test(str)) {
-        const d = new Date(str)
-        if (!isNaN(d.getTime())) {
-          // Tomar hora/min en UTC y luego restar 5 horas al convertir más adelante
-          return { h: d.getUTCHours(), m: d.getUTCMinutes() }
-        }
+    // Helpers de hora: parsear número entero HHMM a { h, m }
+    const parseHHMM = (raw: string | number): { h: number; m: number } | null => {
+      if (raw === null || raw === undefined) return null
+      
+      // Si es un número, convertir directamente
+      if (typeof raw === 'number') {
+        const h = Math.floor(raw / 100)
+        const m = raw % 100
+        return (h >= 0 && h <= 23 && m >= 0 && m <= 59) ? { h, m } : null
       }
+      
+      const str = String(raw).trim()
+      
+      // Si contiene ':', parsear como HH:MM
       if (str.includes(':')) {
         const [hh, mm] = str.split(':')
         const h = Number(hh)
         const m = Number(mm)
-        return Number.isFinite(h) && Number.isFinite(m) ? { h, m } : null
+        return (Number.isFinite(h) && Number.isFinite(m) && h >= 0 && h <= 23 && m >= 0 && m <= 59) ? { h, m } : null
       }
-      // Formatos como '935' o '0935' o '1130'
-      const digits = str.replace(/\D/g, '')
-      if (digits.length === 3) {
-        const h = Number(digits.slice(0, 1))
-        const m = Number(digits.slice(1))
-        return Number.isFinite(h) && Number.isFinite(m) ? { h, m } : null
+      
+      // Convertir a número y procesar como HHMM
+      const num = Number(str)
+      if (Number.isFinite(num)) {
+        const h = Math.floor(num / 100)
+        const m = num % 100
+        return (h >= 0 && h <= 23 && m >= 0 && m <= 59) ? { h, m } : null
       }
-      if (digits.length >= 4) {
-        const d = digits.slice(-4) // tomar los últimos 4
-        const h = Number(d.slice(0, 2))
-        const m = Number(d.slice(2))
-        return Number.isFinite(h) && Number.isFinite(m) ? { h, m } : null
-      }
+      
       return null
     }
 
-    const toHoraColombia = (raw: string) => {
+    const toHoraColombia = (raw: string | number) => {
       const hm = parseHHMM(raw)
       if (!hm) return String(raw)
-      try {
-        const base = new Date(Date.UTC(1970, 0, 1, hm.h, hm.m, 0, 0))
-        const col = new Date(base.getTime() - 5 * 60 * 60 * 1000)
-        const hh = String(col.getUTCHours()).padStart(2, '0')
-        const mm = String(col.getUTCMinutes()).padStart(2, '0')
-        return `${hh}:${mm} am`
-      } catch {
-        return `${String(hm.h).padStart(2, '0')}:${String(hm.m).padStart(2, '0')} am`
-      }
+      
+      // Formatear directamente sin conversiones de zona horaria
+      const hh = String(hm.h).padStart(2, '0')
+      const mm = String(hm.m).padStart(2, '0')
+      return `${hh}:${mm} am`
     }
 
-    const toMinutesColombia = (raw: string) => {
+    const toMinutesColombia = (raw: string | number) => {
       const hm = parseHHMM(raw)
       if (!hm) return Number.MAX_SAFE_INTEGER
-      const base = new Date(Date.UTC(1970, 0, 1, hm.h, hm.m, 0, 0))
-      const col = new Date(base.getTime() - 5 * 60 * 60 * 1000)
-      return col.getUTCHours() * 60 + col.getUTCMinutes()
+      // Convertir directamente a minutos sin conversiones de zona horaria
+      return hm.h * 60 + hm.m
     }
 
     // Crear una tabla por despacho
@@ -853,7 +871,65 @@ export default function ProgramadoPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="columns-1 md:columns-3 gap-4 [column-fill:_balance]">
+            <>
+              {/* Panel horizontal de móviles disponibles */}
+              <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-2xl mb-6 overflow-hidden">
+                <CardHeader className="p-4 bg-gradient-to-r from-purple-50 to-pink-50">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 text-white shadow-lg">
+                        <Settings className="w-5 h-5" />
+                      </div>
+                      Móviles Disponibles
+                    </CardTitle>
+                    <Badge className="bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 font-semibold px-3 py-1 rounded-xl">
+                      {visiblePoolMoviles.length}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4">
+                  <div
+                    className="rounded-2xl border-2 border-dashed border-purple-300 p-4 min-h-[100px] bg-gradient-to-r from-purple-50/50 to-pink-50/50 transition-all duration-200 hover:border-purple-400 hover:bg-gradient-to-r hover:from-purple-100/50 hover:to-pink-100/50"
+                    onDragOver={handleDragOver}
+                    onDrop={handleDropOnPool}
+                  >
+                    {visiblePoolMoviles.length === 0 ? (
+                      <div className="text-center py-4">
+                        <div className="p-3 rounded-2xl bg-purple-100 inline-block mb-3">
+                          <Car className="w-6 h-6 text-purple-600" />
+                        </div>
+                        <p className="text-sm font-medium text-gray-600">No hay móviles disponibles</p>
+                        <p className="text-xs text-gray-500 mt-1">Los móviles liberados aparecerán aquí</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+                        {visiblePoolMoviles.map(movil => (
+                          <div
+                            key={movil.id}
+                            className="inline-flex items-center justify-between p-3 rounded-xl bg-white border border-gray-200 cursor-move hover:shadow-lg hover:scale-105 transition-all duration-200 hover:border-purple-300"
+                            draggable
+                            onDragStart={(e) => handleDragStartFromPool(e, movil.id)}
+                            title={`Móvil ${movil.movil} - Arrastra a un horario`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-sm">
+                                <Car className="w-3 h-3" />
+                              </div>
+                              <div className="min-w-0">
+                                <span className="font-semibold text-gray-900 text-sm">{movil.movil}</span>
+                                <div className="text-gray-600 text-xs truncate">({movil.placa})</div>
+                              </div>
+                            </div>
+                            <GripVertical className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="columns-1 md:columns-3 gap-4 [column-fill:_balance]">
               {Object.entries(programacionesAgrupadas).map(([despacho, rutas]) => {
                 const colors = getColorScheme(despacho)
                 return (
@@ -975,64 +1051,8 @@ export default function ProgramadoPage() {
                   )}
                 </Card>
               )})}
-              
-              {/* Panel de móviles disponibles mejorado */}
-              <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-2xl mb-6 overflow-hidden">
-                <CardHeader className="p-4 bg-gradient-to-r from-purple-50 to-pink-50">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg font-bold text-gray-900 flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 text-white shadow-lg">
-                        <Settings className="w-5 h-5" />
-                      </div>
-                      Móviles Disponibles
-                    </CardTitle>
-                    <Badge className="bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 font-semibold px-3 py-1 rounded-xl">
-                      {visiblePoolMoviles.length}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-4">
-                  <div
-                    className="rounded-2xl border-2 border-dashed border-purple-300 p-6 min-h-[120px] bg-gradient-to-r from-purple-50/50 to-pink-50/50 transition-all duration-200 hover:border-purple-400 hover:bg-gradient-to-r hover:from-purple-100/50 hover:to-pink-100/50"
-                    onDragOver={handleDragOver}
-                    onDrop={handleDropOnPool}
-                  >
-                    {visiblePoolMoviles.length === 0 ? (
-                      <div className="text-center py-8">
-                        <div className="p-3 rounded-2xl bg-purple-100 inline-block mb-3">
-                          <Car className="w-6 h-6 text-purple-600" />
-                        </div>
-                        <p className="text-sm font-medium text-gray-600">No hay móviles disponibles</p>
-                        <p className="text-xs text-gray-500 mt-1">Los móviles liberados aparecerán aquí</p>
-                      </div>
-                    ) : (
-                    <div className="grid grid-cols-1 gap-2">
-                        {visiblePoolMoviles.map(movil => (
-                          <div
-                            key={movil.id}
-                            className="inline-flex items-center justify-between p-3 rounded-xl bg-white border border-gray-200 cursor-move hover:shadow-lg hover:scale-105 transition-all duration-200 hover:border-purple-300"
-                            draggable
-                            onDragStart={(e) => handleDragStartFromPool(e, movil.id)}
-                            title={`Móvil ${movil.movil} - Arrastra a un horario`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-sm">
-                                <Car className="w-4 h-4" />
-                              </div>
-                              <div>
-                                <span className="font-semibold text-gray-900">{movil.movil}</span>
-                                <span className="text-gray-600 ml-2 text-sm">({movil.placa})</span>
-                              </div>
-                            </div>
-                            <GripVertical className="w-4 h-4 text-gray-400" />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
             </div>
+            </>
           )}
 
           {/* Modal eliminado: la edición se realiza solo por drag & drop */}

@@ -1,4 +1,4 @@
-import { prisma } from '@/src/lib/prisma';
+import prismaWithRetry from '@/lib/prismaClient';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function PUT(
@@ -35,8 +35,10 @@ export async function PUT(
     }
 
     // Validar que el conductor existe
-    const conductorExistente = await prisma.conductor.findUnique({
-      where: { id }
+    const conductorExistente = await prismaWithRetry.executeWithRetry(async () => {
+      return await prismaWithRetry.conductor.findUnique({
+        where: { id }
+      });
     });
 
     if (!conductorExistente) {
@@ -47,7 +49,8 @@ export async function PUT(
     }
 
     // Actualizar conductor y sus relaciones con automóviles en una transacción
-    const conductorActualizado = await prisma.$transaction(async (tx) => {
+    const conductorActualizado = await prismaWithRetry.executeWithRetry(async () => {
+      return await prismaWithRetry.$transaction(async (tx) => {
       try {
         // Actualizar conductor
         const conductor = await tx.conductor.update({
@@ -85,6 +88,7 @@ export async function PUT(
         throw error; // Re-lanzar el error para manejarlo en el catch externo
       }
     });
+  });
     
     return NextResponse.json(conductorActualizado);
   } catch (error) {
@@ -97,6 +101,8 @@ export async function PUT(
         stack: error instanceof Error ? error.stack : undefined
       })
     }, { status: 500 });
+  } finally {
+    await prismaWithRetry.$disconnect();
   }
 }
 
@@ -109,20 +115,24 @@ export async function DELETE(
     const id = parseInt(idParam);
     
     // Eliminar conductor y sus relaciones en una transacción
-    await prisma.$transaction(async (tx) => {
-      // Eliminar relaciones con automóviles
-      await tx.conductorAutomovil.deleteMany({
-        where: { conductorId: id }
-      });
+    await prismaWithRetry.executeWithRetry(async () => {
+      return await prismaWithRetry.$transaction(async (tx) => {
+        // Eliminar relaciones con automóviles
+        await tx.conductorAutomovil.deleteMany({
+          where: { conductorId: id }
+        });
 
-      // Eliminar conductor
-      await tx.conductor.delete({
-        where: { id }
+        // Eliminar conductor
+        await tx.conductor.delete({
+          where: { id }
+        });
       });
     });
     
     return NextResponse.json({ message: 'Conductor eliminado correctamente' });
   } catch (error) {
     return NextResponse.json({ error: 'Error al eliminar conductor' }, { status: 500 });
+  } finally {
+    await prismaWithRetry.$disconnect();
   }
 } 

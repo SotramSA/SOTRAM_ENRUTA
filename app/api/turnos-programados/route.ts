@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const todosTurnos = await prisma.turno.findMany({
       include: {
         ruta: true,
-        movil: true,
+        automovil: true,
         conductor: true
       },
       orderBy: { horaSalida: 'asc' }
@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
     // Obtener todos los programados
     const todosProgramados = await prisma.programacion.findMany({
       include: {
-        movil: true,
-        usuario: true
+        automovil: true,
+        ruta: true
       },
       orderBy: { hora: 'asc' }
     });
@@ -64,8 +64,8 @@ export async function GET(request: NextRequest) {
         nombre: turno.ruta.nombre 
       } : null,
       movil: { 
-        id: turno.movil.id, 
-        movil: turno.movil.movil 
+        id: turno.automovil.id, 
+        movil: turno.automovil.movil 
       },
       conductor: { 
         id: turno.conductor.id, 
@@ -78,21 +78,30 @@ export async function GET(request: NextRequest) {
     const programadosFormateados = programados.map(prog => ({
       id: prog.id,
       tipo: 'programado' as const,
-      horaSalida: prog.hora, // La hora en programados ya viene como string
+      horaSalida: (() => {
+        if (typeof prog.hora === 'number') {
+          const horas = Math.floor(prog.hora / 100);
+          const minutos = prog.hora % 100;
+          const fechaProgramado = new Date(prog.fecha);
+          const horaDate = new Date(fechaProgramado);
+          horaDate.setHours(horas, minutos, 0, 0);
+          return horaDate.toISOString();
+        }
+        return prog.hora; // Fallback
+      })(),
       ruta: { 
-        id: 0, // Los programados no tienen rutaId, usar 0 temporal
-        nombre: prog.ruta 
+        id: prog.ruta?.id || 0,
+        nombre: prog.ruta?.nombre || 'Sin ruta'
       },
       movil: { 
-        id: prog.movil.id, 
-        movil: prog.movil.movil 
+        id: prog.automovil.id, 
+        movil: prog.automovil.movil 
       },
       conductor: { 
         id: 0, // Los programados no tienen conductor específico
         nombre: 'Programado' 
       },
-      estado: 'PROGRAMADO',
-      disponible: prog.disponible
+      estado: 'PROGRAMADO'
     }));
 
     // Combinar y ordenar por hora

@@ -31,6 +31,19 @@ export function middleware(request: NextRequest) {
   if (!sessionCookie) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
+
+  // Verificar si la sesión ha expirado
+  try {
+    const sessionData = JSON.parse(sessionCookie.value)
+    
+    // Si la cookie existe pero no tiene datos válidos, redirigir a login
+    if (!sessionData || !sessionData.id) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+  } catch (error) {
+    // Si hay error al parsear la sesión, redirigir a login
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
   
   return NextResponse.next()
 }

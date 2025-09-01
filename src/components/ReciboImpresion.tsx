@@ -56,54 +56,57 @@ export default function ReciboImpresion({ data, onPrint }: ReciboImpresionProps)
                   }
                   body {
                     margin: 0;
-                    padding: 10px;
-                    font-family: 'Courier New', monospace;
-                    font-size: 12px;
-                    line-height: 1.2;
+                    padding: 8px;
+                    font-family: 'Arial', sans-serif;
+                    font-size: 14px;
+                    line-height: 1.3;
                   }
                 }
                 body {
                   margin: 0;
-                  padding: 10px;
-                  font-family: 'Courier New', monospace;
-                  font-size: 12px;
-                  line-height: 1.2;
+                  padding: 8px;
+                  font-family: 'Arial', sans-serif;
+                  font-size: 14px;
+                  line-height: 1.3;
                   width: 80mm;
                   max-width: 80mm;
                 }
                 .header {
                   text-align: center;
-                  margin-bottom: 10px;
+                  margin-bottom: 12px;
                 }
                 .logo {
-                  width: 60px;
-                  height: 60px;
-                  margin: 0 auto 5px;
+                  width: 70px;
+                  height: 70px;
+                  margin: 0 auto 8px;
                   display: block;
                 }
                 .company-name {
-                  font-size: 14px;
+                  font-size: 18px;
                   font-weight: bold;
-                  margin-bottom: 5px;
+                  margin-bottom: 8px;
                 }
                 .title {
-                  font-size: 16px;
+                  font-size: 18px;
                   font-weight: bold;
                   text-align: center;
-                  margin: 10px 0;
-                  border-bottom: 1px solid #000;
-                  padding-bottom: 5px;
+                  margin: 12px 0;
+                  border-bottom: 2px solid #000;
+                  padding-bottom: 6px;
                 }
                 .info-row {
                   display: flex;
                   justify-content: space-between;
-                  margin: 3px 0;
+                  margin: 5px 0;
+                  padding: 2px;
                 }
                 .label {
                   font-weight: bold;
+                  font-size: 15px;
                 }
                 .value {
                   text-align: right;
+                  font-size: 15px;
                 }
                 .qr-section {
                   text-align: center;
@@ -116,14 +119,30 @@ export default function ReciboImpresion({ data, onPrint }: ReciboImpresionProps)
                 }
                 .footer {
                   text-align: center;
-                  margin-top: 10px;
-                  font-size: 10px;
+                  margin-top: 12px;
+                  font-size: 12px;
                   border-top: 1px solid #000;
-                  padding-top: 5px;
+                  padding-top: 6px;
                 }
                 .divider {
                   border-top: 1px dashed #000;
                   margin: 5px 0;
+                }
+                .ruta-destacada {
+                  font-size: 24px;
+                  font-weight: bold;
+                  text-align: center;
+                  margin: 10px 0;
+                  padding: 8px;
+                  background-color: #f0f0f0;
+                  border: 2px solid #000;
+                }
+                .hora-salida {
+                  font-size: 20px;
+                  font-weight: bold;
+                  text-align: center;
+                  margin: 8px 0;
+                  padding: 6px;
                 }
               </style>
             </head>
@@ -135,17 +154,22 @@ export default function ReciboImpresion({ data, onPrint }: ReciboImpresionProps)
               
               <div class="title">PLANILLA DE VIAJE No. ${data.id}</div>
               
-              <div class="info-row">
-                <span class="label">Fecha de salida:</span>
-                <span class="value">${data.fechaSalida}</span>
+              <!-- Hora de salida destacada -->
+              <div class="hora-salida">
+                Hora de salida: ${data.horaSalida}
               </div>
               
-              <div class="info-row">
-                <span class="label">Hora de salida:</span>
-                <span class="value">${data.horaSalida}</span>
+              <!-- Ruta destacada -->
+              <div class="ruta-destacada">
+                ${data.ruta}
               </div>
               
               <div class="divider"></div>
+              
+              <div class="info-row">
+                <span class="label">Fecha:</span>
+                <span class="value">${data.fechaSalida}</span>
+              </div>
               
               <div class="info-row">
                 <span class="label">Móvil:</span>
@@ -155,11 +179,6 @@ export default function ReciboImpresion({ data, onPrint }: ReciboImpresionProps)
               <div class="info-row">
                 <span class="label">Placa:</span>
                 <span class="value">${data.placa}</span>
-              </div>
-              
-              <div class="info-row">
-                <span class="label">Ruta:</span>
-                <span class="value">${data.ruta}</span>
               </div>
               
               <div class="divider"></div>
