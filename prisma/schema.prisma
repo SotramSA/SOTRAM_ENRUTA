@@ -133,8 +133,6 @@ model Planilla {
   id          Int       @id @default(autoincrement())
   automovilId Int
   fecha       DateTime
-  horaInicio  DateTime
-  horaFin     DateTime
   observaciones String?
   automovil   Automovil @relation(fields: [automovilId], references: [id])
 }

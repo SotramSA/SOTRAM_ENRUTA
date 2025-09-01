@@ -48,8 +48,6 @@ export async function GET(request: NextRequest) {
     const planillasFormateadas = planillas.map(p => ({
       id: p.id,
       fecha: p.fecha.toISOString().slice(0, 10),
-      horaInicio: p.horaInicio,
-      horaFin: p.horaFin,
       observaciones: p.observaciones,
       automovil: p.automovil
     }))
@@ -101,13 +99,12 @@ export async function POST(request: NextRequest) {
     for (const fecha of fechas) {
       try {
         // Verificar si ya existe una planilla para esta fecha y móvil
+        // Comparar solo fechas, sin horas
+        const fechaObj = new Date(fecha + 'T00:00:00')
         const planillaExistente = await prisma.planilla.findFirst({
           where: {
             automovilId: automovilId,
-            fecha: {
-              gte: new Date(fecha + 'T00:00:00'),
-              lt: new Date(fecha + 'T23:59:59')
-            }
+            fecha: fechaObj
           }
         });
 
@@ -117,13 +114,11 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Crear la planilla directamente
+        // Crear la planilla directamente - solo fecha, sin horas
         await prisma.planilla.create({
           data: {
             automovilId: automovilId,
             fecha: new Date(fecha + 'T00:00:00'),
-            horaInicio: new Date(fecha + 'T06:00:00'),
-            horaFin: new Date(fecha + 'T18:00:00'),
             observaciones: 'Planilla creada automáticamente'
           }
         });

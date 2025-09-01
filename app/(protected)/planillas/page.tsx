@@ -29,9 +29,9 @@ interface Planilla {
 interface SancionAutomovil {
   id: number
   automovilId: number
-  fechaInicio: string
-  fechaFin: string
-  motivo: string
+  fecha: string
+  descripcion: string
+  monto: number
 }
 
 interface FechaSeleccionada {
@@ -64,7 +64,7 @@ export default function PlanillasManager() {
   // TTL para cache: 5 minutos
   const CACHE_TTL = 5 * 60 * 1000
 
-  // Función optimizada para verificar si una fecha está dentro de una sanción
+  // Función optimizada para verificar si una fecha está sancionada (comparación exacta de fecha)
   const verificarSancion = (fecha: string, sanciones: SancionAutomovil[]) => {
     const now = Date.now()
     
@@ -74,14 +74,14 @@ export default function PlanillasManager() {
       return { sancionado: cached.sancionado, motivoSancion: cached.motivoSancion }
     }
 
-    const fechaObj = new Date(fecha)
+    // Comparar solo fechas (YYYY-MM-DD), sin horas
+    const fechaBuscada = fecha.split('T')[0] // Asegurar formato YYYY-MM-DD
     const sancion = sanciones.find(s => {
-      const inicio = new Date(s.fechaInicio)
-      const fin = new Date(s.fechaFin)
-      return fechaObj >= inicio && fechaObj <= fin
+      const fechaSancion = new Date(s.fecha).toISOString().split('T')[0]
+      return fechaBuscada === fechaSancion
     })
     
-    const resultado = sancion ? { sancionado: true, motivoSancion: sancion.motivo } : { sancionado: false, motivoSancion: undefined }
+    const resultado = sancion ? { sancionado: true, motivoSancion: sancion.descripcion } : { sancionado: false, motivoSancion: undefined }
     
     // Guardar en cache con timestamp
     setSancionesCache(prev => new Map(prev.set(fecha, { ...resultado, timestamp: now })))
@@ -337,10 +337,10 @@ const getFechaHoy = () => {
   }
 
   // Función para obtener todas las fechas en un rango
-  const obtenerFechasEnRango = (fechaInicio: string, fechaFin: string): string[] => {
+  const obtenerFechasEnRango = (fechaInicial: string, fechaFinal: string): string[] => {
     const fechas: string[] = []
-    const inicio = new Date(fechaInicio)
-    const fin = new Date(fechaFin)
+    const inicio = new Date(fechaInicial)
+    const fin = new Date(fechaFinal)
     
     // Asegurar que inicio sea la fecha menor
     const fechaMenor = inicio < fin ? inicio : fin
