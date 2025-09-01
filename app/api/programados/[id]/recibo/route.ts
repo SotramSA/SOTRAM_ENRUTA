@@ -59,9 +59,17 @@ export async function GET(
     let horaFormateada = '';
     const hora = programado.hora;
     if (typeof hora === 'number') {
+      // Convertir la hora numérica a formato legible
+      // Si hora = 800, significa 8:00 AM
+      // Si hora = 1430, significa 2:30 PM
       const horas = Math.floor(hora / 100);
       const minutos = hora % 100;
-      horaFormateada = `${horas.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')} a. m.`;
+      
+      // Determinar si es AM o PM
+      const esPM = horas >= 12;
+      const horas12 = horas > 12 ? horas - 12 : (horas === 0 ? 12 : horas);
+      
+      horaFormateada = `${horas12.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')} ${esPM ? 'p. m.' : 'a. m.'}`;
     } else {
       // Fallback si la hora viene en otro formato
       horaFormateada = String(hora);
