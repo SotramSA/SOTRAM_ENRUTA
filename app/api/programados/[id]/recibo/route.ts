@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/src/lib/prisma';
 import { cookies } from 'next/headers';
 
-// Configurar zona horaria para Colombia (UTC-5)
-process.env.TZ = 'America/Bogota';
-
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -78,26 +75,31 @@ export async function GET(
       horaFormateada = String(hora);
     }
 
+    // Obtener zona horaria desde variables de entorno o usar Colombia por defecto
+    const zonaHoraria = process.env.TIMEZONE || 'America/Bogota';
+    
     // Formatear la fecha
     const fechaObj = new Date(programado.fecha);
     const fechaFormateada = fechaObj.toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
-      timeZone: 'UTC'
+      timeZone: zonaHoraria
     });
 
     // Obtener la fecha y hora de registro (cuando se creó el programado)
     const fechaRegistro = new Date().toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
+      timeZone: zonaHoraria
     });
     
     const horaRegistro = new Date().toLocaleTimeString('es-ES', {
       hour: '2-digit',
       minute: '2-digit',
-      hour12: true
+      hour12: true,
+      timeZone: zonaHoraria
     });
 
     const reciboData = {
