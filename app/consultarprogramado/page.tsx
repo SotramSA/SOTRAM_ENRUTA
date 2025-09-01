@@ -9,7 +9,7 @@ interface Programacion {
   id: number;
   fecha: string;
   ruta: string;
-  hora: number; // Cambié de string a number
+  horaNum: number; // Cambié para usar el campo correcto de la API
 }
 
 const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -208,7 +208,7 @@ export default function ConsultarProgramadoPage() {
                       ? programacionPorDia[dia].map(p => `
                           <div class="programacion-item">
                             <span class="ruta">${p.ruta}</span>
-                            <span class="hora">${formatHoraColombia(p.hora)}</span>
+                                                         <span class="hora">${formatHoraColombia(p.horaNum)}</span>
                           </div>
                         `).join('')
                       : '<div class="no-programacion">Sin programación para este día</div>'
@@ -341,7 +341,7 @@ export default function ConsultarProgramadoPage() {
                           {programacionPorDia[dia].map(p => (
                             <li key={p.id} className="text-gray-700">
                               <p><span className="font-semibold">Ruta:</span> {p.ruta}</p>
-                              <p><span className="font-semibold">Hora:</span> {formatHoraColombia(p.hora)}</p>
+                                                             <p><span className="font-semibold">Hora:</span> {formatHoraColombia(p.horaNum)}</p>
                             </li>
                           ))}
                         </ul>

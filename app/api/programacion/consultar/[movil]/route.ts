@@ -159,7 +159,7 @@ export async function GET(
         id: p.id,
         fecha: p.fecha.toISOString(),
         ruta: rutaFinal,
-        hora: horaISO
+        horaNum: p.hora  // Cambié horaISO por horaNum (número)
       }
     });
 
