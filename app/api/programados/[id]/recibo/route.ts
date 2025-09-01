@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/src/lib/prisma';
 import { cookies } from 'next/headers';
 
+// Configurar zona horaria para Colombia (UTC-5)
+process.env.TZ = 'America/Bogota';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
