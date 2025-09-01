@@ -4,10 +4,11 @@ import { cookies } from 'next/headers';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const programadoId = parseInt(params.id);
+    const { id } = await params;
+    const programadoId = parseInt(id);
 
     if (isNaN(programadoId)) {
       return NextResponse.json({ error: 'ID de programado inválido' }, { status: 400 });
@@ -56,13 +57,14 @@ export async function GET(
 
     // Formatear la hora desde el campo numérico
     let horaFormateada = '';
-    if (typeof programado.hora === 'number') {
-      const horas = Math.floor(programado.hora / 100);
-      const minutos = programado.hora % 100;
+    const hora = programado.hora;
+    if (typeof hora === 'number') {
+      const horas = Math.floor(hora / 100);
+      const minutos = hora % 100;
       horaFormateada = `${horas.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')} a. m.`;
     } else {
       // Fallback si la hora viene en otro formato
-      horaFormateada = programado.hora.toString();
+      horaFormateada = String(hora);
     }
 
     // Formatear la fecha
