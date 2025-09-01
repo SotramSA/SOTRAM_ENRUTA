@@ -9,7 +9,7 @@ interface Programacion {
   id: number;
   fecha: string;
   ruta: string;
-  hora: string;
+  hora: number; // Cambié de string a number
 }
 
 const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -41,8 +41,6 @@ export default function ConsultarProgramadoPage() {
       }
 
       if (data.encontrado) {
-        // console.log('Programaciones recibidas:', data.programaciones);
-        // console.log('Rango recibido:', data.rango);
         setProgramaciones(data.programaciones);
       } else {
         setError('No se encontró el móvil ingresado.');
@@ -53,21 +51,16 @@ export default function ConsultarProgramadoPage() {
     setLoading(false);
   };
 
-  const formatHoraColombia = (hora: string | number) => {
-    // La hora viene como número (ej: 450 = 4:50 AM, 1430 = 2:30 PM)
-    const horaNum = typeof hora === 'string' ? parseInt(hora) : hora;
-    
-    if (isNaN(horaNum)) return String(hora);
-    
-    // Extraer horas y minutos
-    const horas = Math.floor(horaNum / 100);
-    const minutos = horaNum % 100;
-    
-    // Formatear en formato 12 horas
-    const esPM = horas >= 12;
-    const horas12 = horas > 12 ? horas - 12 : (horas === 0 ? 12 : horas);
-    
-    return `${horas12.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')} ${esPM ? 'PM' : 'AM'}`;
+  const formatHoraColombia = (hora: number) => {
+    // siempre viene como número de 3 dígitos (ej: 450, 511, 735)
+    const horaStr = hora.toString().padStart(3, "0");
+
+    // separar horas y minutos
+    const h = parseInt(horaStr.slice(0, -2), 10); // primeros 1 o 2 dígitos
+    const m = horaStr.slice(-2); // últimos 2 dígitos
+
+    // devolver en formato 2 dígitos con am fijo
+    return `${h.toString().padStart(2, "0")}:${m} am`;
   };
 
   // Función para obtener el día de la semana
