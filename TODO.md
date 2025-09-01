@@ -33,3 +33,4 @@
 - [ ] **optimize-performance** - Optimizar rendimiento de la aplicación
 - [ ] **add-unit-tests** - Agregar pruebas unitarias para funciones críticas
 - [ ] **improve-error-handling** - Mejorar manejo de errores en toda la aplicación
+update
