@@ -53,48 +53,39 @@ export default function ConsultarProgramadoPage() {
     setLoading(false);
   };
 
-  const formatHoraColombia = (isoString: string) => {
-    try {
-      // Usar la zona horaria de Colombia directamente
-      const fecha = new Date(isoString);
-      const formatted = fecha.toLocaleTimeString('es-CO', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-        timeZone: 'America/Bogota',
-      });
-      return formatted.replace('a. m.', 'AM').replace('p. m.', 'PM');
-    } catch (error) {
-      console.error('Error formateando hora:', error);
-      // Fallback simple sin restar horas
-      const d = new Date(isoString);
-      let hours = d.getHours();
-      const minutes = String(d.getMinutes()).padStart(2, '0');
-      const suffix = hours >= 12 ? 'PM' : 'AM';
-      hours = hours % 12 || 12;
-      const hh = String(hours).padStart(2, '0');
-      return `${hh}:${minutes} ${suffix}`;
-    }
+  const formatHoraColombia = (hora: string | number) => {
+    // La hora viene como número (ej: 450 = 4:50 AM, 1430 = 2:30 PM)
+    const horaNum = typeof hora === 'string' ? parseInt(hora) : hora;
+    
+    if (isNaN(horaNum)) return String(hora);
+    
+    // Extraer horas y minutos
+    const horas = Math.floor(horaNum / 100);
+    const minutos = horaNum % 100;
+    
+    // Formatear en formato 12 horas
+    const esPM = horas >= 12;
+    const horas12 = horas > 12 ? horas - 12 : (horas === 0 ? 12 : horas);
+    
+    return `${horas12.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')} ${esPM ? 'PM' : 'AM'}`;
   };
 
   // Función para obtener el día de la semana
   const getDiaSemana = (fechaString: string): string => {
     try {
-      // Crear fecha y usar zona horaria de Colombia
-      const fecha = new Date(fechaString);
+      // Extraer solo la fecha sin la hora (YYYY-MM-DD)
+      const fechaSolo = fechaString.split('T')[0]; // "2025-08-22"
       
-      // Obtener el día de la semana en zona horaria de Colombia
-      const dia = fecha.toLocaleDateString('es-CO', {
-        weekday: 'long',
-        timeZone: 'America/Bogota'
-      });
+      // Separar año, mes y día
+      const [year, month, day] = fechaSolo.split('-').map(Number);
       
-      // Mapear el nombre del día a nuestro array
-      const diaIndex = diasSemana.findIndex(d => 
-        d.toLowerCase() === dia.toLowerCase()
-      );
+      // Crear fecha específicamente con año, mes (mes-1 porque JavaScript cuenta desde 0), día
+      const fecha = new Date(year, month - 1, day);
       
-      return diaIndex !== -1 ? diasSemana[diaIndex] : 'Desconocido';
+      // Obtener el día de la semana (0 = Domingo, 1 = Lunes, etc.)
+      const dia = fecha.getDay();
+      
+      return diasSemana[dia];
     } catch (error) {
       console.error('Error al procesar fecha:', fechaString, error);
       return 'Desconocido';
