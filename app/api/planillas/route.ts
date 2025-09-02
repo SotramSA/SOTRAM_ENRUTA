@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/src/lib/prisma'
 import { formatDateToYYYYMMDDLocal } from '@/src/lib/utils'
+import { cookies } from 'next/headers'
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,6 +37,13 @@ export async function GET(request: NextRequest) {
             movil: true,
             placa: true
           }
+        },
+        usuario: {
+          select: {
+            id: true,
+            nombre: true,
+            usuario: true
+          }
         }
       },
       orderBy: {
@@ -49,7 +57,9 @@ export async function GET(request: NextRequest) {
       id: p.id,
       fecha: p.fecha.toISOString().slice(0, 10),
       observaciones: p.observaciones,
-      automovil: p.automovil
+      automovil: p.automovil,
+      usuario: p.usuario,
+      fechaCreacion: p.fechaCreacion
     }))
 
     console.log('📅 Planillas devueltas por API:', planillasFormateadas.map(p => ({ id: p.id, fecha: p.fecha })))
@@ -77,6 +87,36 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Obtener el usuario actual de la sesión
+    let usuarioActual = null;
+    try {
+      const cookieStore = await cookies();
+      const sessionCookie = cookieStore.get('session');
+      
+      console.log('🔍 Debug sesión - Cookie encontrada:', !!sessionCookie?.value);
+      
+      if (sessionCookie?.value) {
+        const sessionData = JSON.parse(sessionCookie.value);
+        console.log('🔍 Debug sesión - Datos de sesión:', {
+          hasUser: !!sessionData,
+          userId: sessionData?.id,
+          userName: sessionData?.nombre,
+          fullSession: sessionData
+        });
+        // La sesión ya contiene los datos del usuario directamente
+        usuarioActual = sessionData;
+      }
+    } catch (sessionError) {
+      console.log('❌ Error al obtener el usuario de la sesión:', sessionError);
+      // Continuar sin usuario - las columnas son opcionales
+    }
+
+    console.log('👤 Usuario actual para planillas:', {
+      hasUser: !!usuarioActual,
+      userId: usuarioActual?.id,
+      userName: usuarioActual?.nombre
+    });
 
     // Verificar que el automóvil existe
     const automovil = await prisma.automovil.findUnique({
@@ -115,13 +155,25 @@ export async function POST(request: NextRequest) {
         }
 
         // Crear la planilla directamente - solo fecha, sin horas
-        await prisma.planilla.create({
-          data: {
-            automovilId: automovilId,
-            fecha: new Date(fecha + 'T00:00:00'),
-            observaciones: 'Planilla creada automáticamente'
-          }
+        const planillaData: any = {
+          automovilId: automovilId,
+          fecha: new Date(fecha + 'T00:00:00'),
+          observaciones: 'Planilla creada automáticamente'
+        };
+
+        // Agregar usuario si está disponible
+        if (usuarioActual?.id) {
+          planillaData.usuarioId = usuarioActual.id;
+          console.log(`📝 Creando planilla para fecha ${fecha} con usuario ID: ${usuarioActual.id} (${usuarioActual.nombre})`);
+        } else {
+          console.log(`📝 Creando planilla para fecha ${fecha} SIN usuario asociado`);
+        }
+
+        const nuevaPlanilla = await prisma.planilla.create({
+          data: planillaData
         });
+
+        console.log(`✅ Planilla creada con ID: ${nuevaPlanilla.id}, usuarioId: ${nuevaPlanilla.usuarioId}`);
 
         planillasCreadas++;
         fechasCreadas.push(fecha);

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Search, Calendar, Save, Trash2, ChevronLeft, ChevronRight, Car, AlertTriangle } from 'lucide-react'
+import { Search, Calendar, Save, Trash2, ChevronLeft, ChevronRight, Car, AlertTriangle, FileSpreadsheet } from 'lucide-react'
 import axios from 'axios'
 import { useNotifications, createApiNotifications } from '@/src/lib/notifications'
 import RouteGuard from '@/src/components/RouteGuard'
@@ -63,6 +63,12 @@ export default function PlanillasManager() {
   
   // TTL para cache: 5 minutos
   const CACHE_TTL = 5 * 60 * 1000
+
+  // Estados para modal de descarga Excel
+  const [mostrarModalExcel, setMostrarModalExcel] = useState(false)
+  const [fechaInicioExcel, setFechaInicioExcel] = useState('')
+  const [fechaFinExcel, setFechaFinExcel] = useState('')
+  const [cargandoExcel, setCargandoExcel] = useState(false)
 
   // Función optimizada para verificar si una fecha está sancionada (comparación exacta de fecha)
   const verificarSancion = (fecha: string, sanciones: SancionAutomovil[]) => {
@@ -410,6 +416,56 @@ const getFechaHoy = () => {
     }
   }
 
+  // Función para descargar reporte Excel
+  const handleDescargarExcel = async () => {
+    if (!fechaInicioExcel || !fechaFinExcel) {
+      notifications.error('Por favor selecciona ambas fechas')
+      return
+    }
+
+    if (new Date(fechaInicioExcel) > new Date(fechaFinExcel)) {
+      notifications.error('La fecha de inicio debe ser anterior a la fecha de fin')
+      return
+    }
+
+    setCargandoExcel(true)
+    try {
+      const response = await axios.post('/api/planillas/reporte-excel', {
+        fechaInicio: fechaInicioExcel,
+        fechaFin: fechaFinExcel
+      }, {
+        responseType: 'blob'
+      })
+
+      // Crear URL del blob y descargar
+      const blob = new Blob([response.data], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      
+      // Crear nombre del archivo
+      const fechaInicioStr = fechaInicioExcel.replace(/-/g, '')
+      const fechaFinStr = fechaFinExcel.replace(/-/g, '')
+      link.download = `Reporte_Planillas_${fechaInicioStr}_${fechaFinStr}.xlsx`
+      
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+
+      notifications.success('Reporte Excel descargado correctamente')
+      setMostrarModalExcel(false)
+      
+    } catch (error) {
+      console.error('Error al descargar Excel:', error)
+      notifications.error('Error al generar el reporte Excel')
+    } finally {
+      setCargandoExcel(false)
+    }
+  }
+
   // Guardar cambios
   const handleGuardar = async () => {
     if (!automovilSeleccionado || fechasParaAgregar.length === 0) {
@@ -515,6 +571,13 @@ const getFechaHoy = () => {
                 <p className="text-gray-600 mt-1">Administra las fechas disponibles de trabajo por automóvil</p>
               </div>
               <div className="flex gap-2">
+                <button
+                  onClick={() => setMostrarModalExcel(true)}
+                  className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Descargar Excel
+                </button>
                 <button
                   onClick={() => {
                     console.log('🧹 Limpiando estado y forzando recarga...')
@@ -821,6 +884,93 @@ const getFechaHoy = () => {
             </div>
           )}
         </div>
+
+        {/* Modal para Descarga Excel */}
+        {mostrarModalExcel && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <FileSpreadsheet className="w-5 h-5 text-green-600" />
+                  Descargar Reporte Excel
+                </h3>
+                <button
+                  onClick={() => setMostrarModalExcel(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fecha Inicial
+                  </label>
+                  <input
+                    type="date"
+                    value={fechaInicioExcel}
+                    onChange={(e) => setFechaInicioExcel(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fecha Final
+                  </label>
+                  <input
+                    type="date"
+                    value={fechaFinExcel}
+                    onChange={(e) => setFechaFinExcel(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+                
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <h4 className="text-sm font-medium text-blue-800 mb-1">
+                    ¿Qué incluye el reporte?
+                  </h4>
+                  <ul className="text-xs text-blue-700 space-y-1">
+                    <li>• 📊 Formato de tabla Excel nativo</li>
+                    <li>• 🟢 Verde = Tiene planilla (con usuario)</li>
+                    <li>• 🔴 Rojo = No tiene planilla</li>
+                    <li>• 📏 Ancho automático de columnas</li>
+                    <li>• 🔒 Encabezados y columnas congeladas</li>
+                    <li>• 🖨️ Optimizado para impresión</li>
+                  </ul>
+                </div>
+                
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => setMostrarModalExcel(false)}
+                    disabled={cargandoExcel}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleDescargarExcel}
+                    disabled={cargandoExcel || !fechaInicioExcel || !fechaFinExcel}
+                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {cargandoExcel ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Generando...
+                      </>
+                    ) : (
+                      <>
+                        <FileSpreadsheet className="w-4 h-4" />
+                        Descargar
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </RouteGuard>
   )

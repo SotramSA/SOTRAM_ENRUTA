@@ -20,16 +20,16 @@ export async function GET(
      const cookieStore = await cookies();
      const sessionCookie = cookieStore.get('session');
      
-     let usuarioActual = 'Sistema';
-     if (sessionCookie) {
-       try {
-         const sessionData = JSON.parse(decodeURIComponent(sessionCookie.value));
-         usuarioActual = sessionData.user?.nombre || 'Sistema';
-         console.log('👤 Usuario actual:', usuarioActual);
-       } catch (error) {
-         console.log('⚠️ Error al parsear sesión:', error);
-       }
-     }
+         let usuarioActual = 'Sistema';
+    if (sessionCookie) {
+      try {
+        const sessionData = JSON.parse(sessionCookie.value);
+        usuarioActual = sessionData?.nombre || 'Sistema';
+        console.log('👤 Usuario actual:', usuarioActual);
+      } catch (error) {
+        console.log('⚠️ Error al parsear sesión:', error);
+      }
+    }
 
           // Obtener el programado con todas las relaciones necesarias
      const programado = await prisma.programacion.findUnique({

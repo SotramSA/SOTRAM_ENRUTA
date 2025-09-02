@@ -199,6 +199,26 @@ export class ValidacionService {
       }
     });
 
+    // Debug: Buscar TODAS las planillas para este móvil para comparar
+    const todasLasPlanillas = await prisma.planilla.findMany({
+      where: {
+        automovilId: movilId
+      },
+      orderBy: {
+        fecha: 'desc'
+      },
+      take: 5 // Solo las últimas 5
+    });
+
+    console.log('🔍 DEBUG - Todas las planillas recientes para móvil', movilId, ':', 
+      todasLasPlanillas.map(p => ({
+        id: p.id,
+        fecha: p.fecha.toISOString(),
+        fechaLocal: p.fecha.toLocaleDateString('es-ES'),
+        automovilId: p.automovilId
+      }))
+    );
+
     if (planilla) {
       console.log('✅ Planilla encontrada:', {
         id: planilla.id,

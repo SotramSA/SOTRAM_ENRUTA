@@ -23,12 +23,13 @@ model Usuario {
   tablaSancionAutomovil Boolean @default(false)
   tablaFecha            Boolean @default(false)
   tablaUsuario          Boolean @default(false)
+  turnos                Turno[]
+  planillas             Planilla[]
   tablaConfiguracion    Boolean @default(false)
   tablaInformes         Boolean @default(false)
   tablaPropietarios     Boolean @default(false)
   tablaProgramada       Boolean @default(false)
   programaciones        Programacion[]
-  turnos               Turno[]
 }
 
 model Conductor {
@@ -134,7 +135,10 @@ model Planilla {
   automovilId Int
   fecha       DateTime
   observaciones String?
+  usuarioId   Int?
+  fechaCreacion DateTime? @default(now())
   automovil   Automovil @relation(fields: [automovilId], references: [id])
+  usuario     Usuario?  @relation(fields: [usuarioId], references: [id])
 }
 
 model SancionConductor {
