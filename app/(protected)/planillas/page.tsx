@@ -887,7 +887,7 @@ const getFechaHoy = () => {
 
         {/* Modal para Descarga Excel */}
         {mostrarModalExcel && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-gray-400/40  flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -927,19 +927,7 @@ const getFechaHoy = () => {
                   />
                 </div>
                 
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <h4 className="text-sm font-medium text-blue-800 mb-1">
-                    ¿Qué incluye el reporte?
-                  </h4>
-                  <ul className="text-xs text-blue-700 space-y-1">
-                    <li>• 📊 Formato de tabla Excel nativo</li>
-                    <li>• 🟢 Verde = Tiene planilla (con usuario)</li>
-                    <li>• 🔴 Rojo = No tiene planilla</li>
-                    <li>• 📏 Ancho automático de columnas</li>
-                    <li>• 🔒 Encabezados y columnas congeladas</li>
-                    <li>• 🖨️ Optimizado para impresión</li>
-                  </ul>
-                </div>
+              
                 
                 <div className="flex gap-3 pt-4">
                   <button

@@ -66,7 +66,7 @@ export default function ConsultarProgramadoPage() {
   // Función para obtener el día de la semana
   const getDiaSemana = (fechaString: string): string => {
     try {
-      // Extraer solo la fecha sin la hora (YYYY-MM-DD)
+      // Extraer solo la fecha sin la hora (YYYY-MM-DD)n d
       const fechaSolo = fechaString.split('T')[0]; // "2025-08-22"
       
       // Separar año, mes y día
