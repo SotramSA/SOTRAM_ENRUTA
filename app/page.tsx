@@ -35,20 +35,6 @@ export default function HomePage() {
       iconColor: 'text-green-600',
       buttonColor: 'bg-green-600',
       buttonHover: 'hover:bg-green-700'
-    },
-    {
-      id: 'lista-chequeo-todos',
-      title: 'Lista de Chequeo - Todos',
-      description: 'Gestiona las listas de chequeo para toda la flota de vehículos',
-      icon: CheckSquare,
-      href: '/listachequeo/todos',
-      color: 'purple',
-      bgColor: 'bg-purple-50',
-      borderColor: 'border-purple-200',
-      hoverBgColor: 'hover:bg-purple-100',
-      iconColor: 'text-purple-600',
-      buttonColor: 'bg-purple-600',
-      buttonHover: 'hover:bg-purple-700'
     }
   ]
 
@@ -110,7 +96,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
             {options.map((option) => (
               <Link
                 key={option.id}

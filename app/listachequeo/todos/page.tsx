@@ -6,7 +6,7 @@ import { Input } from '@/src/components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/components/ui/Card';
 import { Alert, AlertDescription } from '@/src/components/ui/alert';
 import { Separator } from '@/src/components/ui/separator';
-import { Home, CheckCircle, Clock, AlertCircle, Car, User } from 'lucide-react';
+import { Home, CheckCircle, Clock, AlertCircle, Car, User, CheckSquare } from 'lucide-react';
 import Link from 'next/link';
 
 interface Automovil {
@@ -102,6 +102,57 @@ export default function ListaChequeoTodosPage() {
       }
     } catch (error) {
       setMensaje('Error al enviar la lista de chequeo');
+      setMensajeTipo('error');
+    }
+    setLoading(false);
+  };
+
+  // Función para crear chequeo masivo de todos los móviles
+  const crearChequeoMasivo = async () => {
+    if (!nombreInspector.trim()) {
+      setMensaje('Por favor ingrese el nombre del inspector antes de crear el chequeo masivo');
+      setMensajeTipo('error');
+      return;
+    }
+
+    // Confirmar la acción
+    if (!confirm('¿Está seguro de que desea crear el chequeo para TODOS los móviles pendientes? Esta acción no se puede deshacer.')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch('/api/listachequeo', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nombreInspector
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (data.chequeosCreados === 0) {
+          setMensaje('✅ Todos los móviles ya tienen su chequeo completado');
+        } else {
+          setMensaje(`✅ Se completaron automáticamente ${data.chequeosCreados} chequeos de ${data.totalMoviles} móviles`);
+        }
+        setMensajeTipo('success');
+        // Recargar la lista de vehículos
+        setTimeout(() => {
+          cargarVehiculos();
+          setMensaje('');
+          setMensajeTipo(null);
+        }, 3000);
+      } else {
+        setMensaje(data.error || 'Error al crear los chequeos masivos');
+        setMensajeTipo('error');
+      }
+    } catch (error) {
+      setMensaje('Error al enviar la solicitud de chequeo masivo');
       setMensajeTipo('error');
     }
     setLoading(false);
@@ -209,18 +260,48 @@ export default function ListaChequeoTodosPage() {
                 />
                 <p className="mt-1 text-xs text-gray-500">Este nombre se registrará para todas las inspecciones que realice</p>
               </div>
-              <div className="flex items-end">
+              <div className="flex items-end gap-2">
                 <Button 
                   onClick={cargarVehiculos}
                   disabled={loading}
+                  variant="outline"
                   className="h-10 w-full sm:w-auto"
                 >
                   {loading ? 'Cargando...' : 'Actualizar Lista'}
+                </Button>
+                <Button 
+                  onClick={crearChequeoMasivo}
+                  disabled={loading || !nombreInspector.trim() || vehiculosPendientes === 0}
+                  className="h-10 w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <CheckSquare className="h-4 w-4 mr-2" />
+                  {loading ? 'Procesando...' : `Chequear Todos (${vehiculosPendientes})`}
                 </Button>
               </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Alerta informativa sobre el chequeo masivo */}
+        {vehiculosPendientes > 0 && nombreInspector.trim() && (
+          <Card className="mb-6 shadow-md border-green-200">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3 p-4 bg-green-50 rounded-lg">
+                <CheckSquare className="h-5 w-5 text-green-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-green-800 mb-1">Chequeo Automático Disponible</h4>
+                  <p className="text-sm text-green-700">
+                    Puede completar automáticamente el chequeo de los <strong>{vehiculosPendientes} móviles pendientes</strong> 
+                    usando el botón "Chequear Todos". Esta acción registrará el chequeo con el inspector: <strong>{nombreInspector}</strong>
+                  </p>
+                  <p className="text-xs text-green-600 mt-1">
+                    💡 Esto es útil cuando todos los móviles han pasado la inspección física y solo necesita registrar los chequeos en el sistema.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Mensajes */}
         {mensaje && (
