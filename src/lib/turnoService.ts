@@ -210,7 +210,19 @@ export class TurnoService {
    * Obtiene huecos existentes de la base de datos SIN limpiar huecos antiguos
    */
   private async obtenerHuecosExistentesSinLimpiar(ahora: Date, movilId: number): Promise<HuecoDisponible[]> {
-    const tiempoMinimoSalida = parseInt(this.configuracion?.valor || '2');
+    // Validar configuración primero
+    if (!this.configuracion) {
+      console.log('⚠️ Configuración no cargada, inicializando...');
+      await this.inicializarConfiguracion();
+    }
+    
+    // Validar y obtener tiempo mínimo con fallback robusto
+    const valorConfig = this.configuracion?.valor;
+    const tiempoMinimoSalida = valorConfig ? parseInt(valorConfig) : 2;
+    
+    // Verificar que sea un número válido
+    const tiempoFinal = isNaN(tiempoMinimoSalida) ? 2 : tiempoMinimoSalida;
+    
     const margenTolerancia = 1; // 1 minuto para ser consistente con crearTurno
     const horaMinima = new Date(ahora);
     horaMinima.setMinutes(horaMinima.getMinutes() + margenTolerancia); // Solo sumar margen pequeño
@@ -218,8 +230,10 @@ export class TurnoService {
     console.log('⏰ Calculando filtro de tiempo:', {
       ahora: this.validarFecha(ahora),
       horaMinima: this.validarFecha(horaMinima),
-      tiempoMinimoSalida,
-      margenTolerancia
+      valorConfiguracion: valorConfig,
+      tiempoMinimoSalida: tiempoFinal,
+      margenTolerancia,
+      configuracionCargada: !!this.configuracion
     });
     
     // Obtener huecos de la base de datos
@@ -257,14 +271,24 @@ export class TurnoService {
     
     // Filtrar huecos que respeten el tiempo mínimo y que no estén asignados
     // NO filtrar por rutas hechas - mostrar TODOS los huecos disponibles
+    // Usar tiempo mínimo más conservador
+    const tiempoMinimoConMargen = new Date(ahora);
+    tiempoMinimoConMargen.setMinutes(tiempoMinimoConMargen.getMinutes() + tiempoFinal);
+    
+    console.log('🕐 Filtro de tiempo aplicado:', {
+      ahora: this.validarFecha(ahora),
+      tiempoMinimoFinal: tiempoFinal,
+      horaLimite: this.validarFecha(tiempoMinimoConMargen)
+    });
+    
     const huecosFiltrados = huecosProcesados
       .filter(hueco => {
         const horaHueco = new Date(hueco.horaSalida);
-        const cumpleTiempoMinimo = horaHueco >= horaMinima;
+        const cumpleTiempoMinimo = horaHueco >= tiempoMinimoConMargen;
         const noAsignado = hueco.activo;
         
         if (!cumpleTiempoMinimo) {
-          console.log(`❌ Hueco descartado por tiempo mínimo: ${hueco.rutaNombre} - ${this.validarFecha(horaHueco)}`);
+          console.log(`❌ Hueco descartado por tiempo mínimo: ${hueco.rutaNombre} - ${this.validarFecha(horaHueco)} (límite: ${this.validarFecha(tiempoMinimoConMargen)})`);
         }
         if (!noAsignado) {
           console.log(`❌ Hueco descartado por estar asignado: ${hueco.rutaNombre} - ${this.validarFecha(horaHueco)}`);
@@ -621,21 +645,28 @@ export class TurnoService {
       // Calcular hora de inicio para rutas A y B basada en el último turno de prioridad 1
       let horaInicio: Date;
       
-      if (ultimoTurnoPrioridad1) {
+      if (ultimoTurnoPrioridad1 && ultimoTurnoPrioridad1.horaSalida) {
         // Si hay un último turno de prioridad 1, calcular desde ese turno + frecuencia de la ruta
         horaInicio = new Date(ultimoTurnoPrioridad1.horaSalida);
-        // Usar la frecuencia de la ruta que NO fue la última (para alternar)
-        const rutaAlternativa = rutasPrioridad1.find(r => r.nombre !== ultimoTurnoPrioridad1.ruta?.nombre);
-        const frecuencia = rutaAlternativa?.frecuenciaActual || 6; // Default 6 minutos
-        horaInicio.setMinutes(horaInicio.getMinutes() + frecuencia);
         
-        console.log('⏰ Calculando hora de inicio para rutas A/B basada en último turno de prioridad 1:', {
-          ultimoTurno: ultimoTurnoPrioridad1.horaSalida.toISOString(),
-          ultimaRuta: ultimoTurnoPrioridad1.ruta?.nombre,
-          rutaAlternativa: rutaAlternativa?.nombre,
-          frecuencia,
-          horaInicio: horaInicio.toISOString()
-        });
+        // Validar que la fecha sea válida
+        if (isNaN(horaInicio.getTime())) {
+          console.error('❌ Error: horaSalida inválida del último turno de prioridad 1:', ultimoTurnoPrioridad1.horaSalida);
+          horaInicio = new Date(ahora);
+        } else {
+          // Usar la frecuencia de la ruta que NO fue la última (para alternar)
+          const rutaAlternativa = rutasPrioridad1.find(r => r.nombre !== ultimoTurnoPrioridad1.ruta?.nombre);
+          const frecuencia = rutaAlternativa?.frecuenciaActual || 6; // Default 6 minutos
+          horaInicio.setMinutes(horaInicio.getMinutes() + frecuencia);
+          
+          console.log('⏰ Calculando hora de inicio para rutas A/B basada en último turno de prioridad 1:', {
+            ultimoTurno: this.validarFecha(ultimoTurnoPrioridad1.horaSalida),
+            ultimaRuta: ultimoTurnoPrioridad1.ruta?.nombre,
+            rutaAlternativa: rutaAlternativa?.nombre,
+            frecuencia,
+            horaInicio: this.validarFecha(horaInicio)
+          });
+        }
         
         // Determinar qué ruta debe ir primero basándose en el último turno de prioridad 1
         const ultimaRutaHecha = ultimoTurnoPrioridad1.ruta?.nombre;
@@ -648,10 +679,12 @@ export class TurnoService {
         }
       } else {
         // Si no hay último turno, usar tiempo mínimo
-        const tiempoMinimoSalida = parseInt(this.configuracion?.valor || '5');
+        const valorConfig = this.configuracion?.valor;
+        const tiempoMinimoSalida = valorConfig ? parseInt(valorConfig) : 5;
+        const tiempoFinal = isNaN(tiempoMinimoSalida) ? 5 : tiempoMinimoSalida;
         const margenAdicional = 1;
         horaInicio = new Date(ahora);
-        horaInicio.setMinutes(horaInicio.getMinutes() + tiempoMinimoSalida + margenAdicional);
+        horaInicio.setMinutes(horaInicio.getMinutes() + tiempoFinal + margenAdicional);
         
         // Aplicar restricción horaria para rutas A y B si hay programados
         if (hayProgramadosHoy) {
@@ -665,22 +698,34 @@ export class TurnoService {
         }
         
         console.log('⏰ Calculando hora de inicio para rutas A/B basada en tiempo mínimo:', {
-          ahora: ahora.toISOString(),
-          tiempoMinimoSalida,
+          ahora: this.validarFecha(ahora),
+          tiempoMinimoSalida: tiempoFinal,
           margenAdicional,
-          horaInicio: horaInicio.toISOString(),
+          horaInicio: this.validarFecha(horaInicio),
           hayProgramados: hayProgramadosHoy,
           restriccionAplicada: hayProgramadosHoy && horaInicio.getHours() >= 7
         });
       }
       
+      // Validación final de horaInicio antes de continuar
+      if (isNaN(horaInicio.getTime())) {
+        console.error('❌ Error: horaInicio es inválida después de todos los cálculos, usando hora actual + tiempo mínimo');
+        const valorConfig = this.configuracion?.valor;
+        const tiempoMinimoSalida = valorConfig ? parseInt(valorConfig) : 5;
+        const tiempoFinal = isNaN(tiempoMinimoSalida) ? 5 : tiempoMinimoSalida;
+        horaInicio = new Date(ahora);
+        horaInicio.setMinutes(horaInicio.getMinutes() + tiempoFinal);
+      }
+      
       // Verificar que la hora de inicio esté en el futuro
       if (horaInicio <= ahora) {
         console.log('⚠️ Hora de inicio está en el pasado, ajustando a hora actual');
-        const tiempoMinimoSalida = parseInt(this.configuracion?.valor || '5');
+        const valorConfig = this.configuracion?.valor;
+        const tiempoMinimoSalida = valorConfig ? parseInt(valorConfig) : 5;
+        const tiempoFinal = isNaN(tiempoMinimoSalida) ? 5 : tiempoMinimoSalida;
         const margenAdicional = 1;
         horaInicio = new Date(ahora);
-        horaInicio.setMinutes(horaInicio.getMinutes() + tiempoMinimoSalida + margenAdicional);
+        horaInicio.setMinutes(horaInicio.getMinutes() + tiempoFinal + margenAdicional);
         
         // Validar que la fecha sea válida antes de llamar toISOString()
         if (isNaN(horaInicio.getTime())) {
@@ -799,18 +844,22 @@ export class TurnoService {
         // Verificar que la hora de inicio esté en el futuro
         if (horaInicioRuta <= ahora) {
           console.log(`⚠️ Hora de inicio para ${ruta.nombre} está en el pasado, ajustando a hora actual`);
-          const tiempoMinimoSalida = parseInt(this.configuracion?.valor || '5');
+          const valorConfig = this.configuracion?.valor;
+        const tiempoMinimoSalida = valorConfig ? parseInt(valorConfig) : 5;
+        const tiempoFinal = isNaN(tiempoMinimoSalida) ? 5 : tiempoMinimoSalida;
           const margenAdicional = 1;
           horaInicioRuta = new Date(ahora);
-          horaInicioRuta.setMinutes(horaInicioRuta.getMinutes() + tiempoMinimoSalida + margenAdicional);
+          horaInicioRuta.setMinutes(horaInicioRuta.getMinutes() + tiempoFinal + margenAdicional);
           console.log(`✅ Nueva hora de inicio para ${ruta.nombre}:`, this.validarFecha(horaInicioRuta));
         }
       } else {
         // Si no hay turnos existentes, usar tiempo mínimo
-        const tiempoMinimoSalida = parseInt(this.configuracion?.valor || '5');
+        const valorConfig = this.configuracion?.valor;
+        const tiempoMinimoSalida = valorConfig ? parseInt(valorConfig) : 5;
+        const tiempoFinal = isNaN(tiempoMinimoSalida) ? 5 : tiempoMinimoSalida;
         const margenAdicional = 1;
         horaInicioRuta = new Date(ahora);
-        horaInicioRuta.setMinutes(horaInicioRuta.getMinutes() + tiempoMinimoSalida + margenAdicional);
+        horaInicioRuta.setMinutes(horaInicioRuta.getMinutes() + tiempoFinal + margenAdicional);
         
         // Aplicar restricción horaria para ruta C si hay programados
         if (hayProgramadosHoy && ruta.nombre === 'C') {
@@ -825,7 +874,7 @@ export class TurnoService {
         
         console.log(`⏰ Calculando hora de inicio para ${ruta.nombre} basada en tiempo mínimo:`, {
           ahora: this.validarFecha(ahora),
-          tiempoMinimoSalida,
+          tiempoMinimoSalida: tiempoFinal,
           margenAdicional,
           horaInicioRuta: this.validarFecha(horaInicioRuta),
           hayProgramados: hayProgramadosHoy,
@@ -916,12 +965,14 @@ export class TurnoService {
     conductorId: number
   ): Promise<HuecoDisponible[]> {
     const huecos: HuecoDisponible[] = [];
-    const tiempoMinimoSalida = parseInt(this.configuracion?.valor || '5'); // Usar tiempo mínimo en lugar de frecuencia
+    const valorConfig = this.configuracion?.valor;
+    const tiempoMinimoSalida = valorConfig ? parseInt(valorConfig) : 5;
+    const tiempoFinal = isNaN(tiempoMinimoSalida) ? 5 : tiempoMinimoSalida;
     
     console.log('🔍 DEBUG generarHuecosParaRuta:', {
       ruta: ruta.nombre,
       ahora: ahora.toISOString(),
-      tiempoMinimoSalida
+      tiempoMinimoSalida: tiempoFinal
     });
     
     // IMPORTANTE: Generar huecos para TODAS las rutas activas
@@ -944,17 +995,17 @@ export class TurnoService {
 
     // Calcular el primer hueco disponible respetando el tiempo mínimo de salida
     const horaInicio = new Date(ahora);
-    horaInicio.setMinutes(horaInicio.getMinutes() + tiempoMinimoSalida);
+    horaInicio.setMinutes(horaInicio.getMinutes() + tiempoFinal);
     
     console.log('⏰ DEBUG horaInicio calculada:', {
       ahora: ahora.toISOString(),
       horaInicio: horaInicio.toISOString(),
-      tiempoMinimoSalida
+      tiempoMinimoSalida: tiempoFinal
     });
     
     console.log('⏰ Generando huecos para ruta:', ruta.nombre, {
       ahora: ahora.toISOString(),
-      tiempoMinimoSalida,
+      tiempoMinimoSalida: tiempoFinal,
       horaInicio: horaInicio.toISOString(),
       turnosExistentes: turnosExistentes.length
     });
@@ -966,7 +1017,7 @@ export class TurnoService {
         const turnoSiguiente = turnosExistentes[i + 1];
         
         const horaHueco = new Date(turnoActual.horaSalida);
-        horaHueco.setMinutes(horaHueco.getMinutes() + tiempoMinimoSalida);
+        horaHueco.setMinutes(horaHueco.getMinutes() + tiempoFinal);
         let esPrimerHueco = true;
         
         // Generar huecos hasta el siguiente turno o hasta completar 10
@@ -984,13 +1035,13 @@ export class TurnoService {
               horaSalida: horaHueco.toISOString(),
               prioridad: prioridadCalculada,
               razon: razonCalculada,
-              frecuenciaCalculada: esPrimerHueco ? tiempoMinimoSalida : ruta.frecuenciaActual
+              frecuenciaCalculada: esPrimerHueco ? tiempoFinal : ruta.frecuenciaActual
             });
           }
           
           // Para el primer hueco usar tiempo mínimo, para los siguientes usar frecuencia
           if (esPrimerHueco) {
-            horaHueco.setMinutes(horaHueco.getMinutes() + tiempoMinimoSalida);
+            horaHueco.setMinutes(horaHueco.getMinutes() + tiempoFinal);
             esPrimerHueco = false;
           } else {
             horaHueco.setMinutes(horaHueco.getMinutes() + ruta.frecuenciaActual);
@@ -1007,7 +1058,7 @@ export class TurnoService {
       if (turnosExistentes.length > 0) {
         // Empezar después del último turno, pero asegurar que esté en el futuro
         horaHueco = new Date(turnosExistentes[turnosExistentes.length - 1].horaSalida);
-        horaHueco.setMinutes(horaHueco.getMinutes() + tiempoMinimoSalida);
+        horaHueco.setMinutes(horaHueco.getMinutes() + tiempoFinal);
         
         console.log('🔍 DEBUG último turno existente:', {
           ultimoTurno: turnosExistentes[turnosExistentes.length - 1].horaSalida,
@@ -1019,13 +1070,13 @@ export class TurnoService {
         if (horaHueco <= ahora) {
           console.log('⚠️ Último turno está en el pasado, usando hora actual');
           horaHueco = new Date(ahora);
-          horaHueco.setMinutes(horaHueco.getMinutes() + tiempoMinimoSalida);
+          horaHueco.setMinutes(horaHueco.getMinutes() + tiempoFinal);
         }
       } else {
         // No hay turnos existentes, empezar desde la hora actual
         console.log('🆕 No hay turnos existentes, usando hora actual');
         horaHueco = new Date(ahora);
-        horaHueco.setMinutes(horaHueco.getMinutes() + tiempoMinimoSalida);
+        horaHueco.setMinutes(horaHueco.getMinutes() + tiempoFinal);
       }
 
       console.log('🎯 DEBUG horaHueco final para generar:', horaHueco.toISOString());
@@ -1043,12 +1094,12 @@ export class TurnoService {
           horaSalida: horaHueco.toISOString(),
           prioridad: prioridadCalculada,
           razon: razonCalculada,
-          frecuenciaCalculada: esPrimerHueco ? tiempoMinimoSalida : ruta.frecuenciaActual
+          frecuenciaCalculada: esPrimerHueco ? tiempoFinal : ruta.frecuenciaActual
         });
         
         // Para el primer hueco usar tiempo mínimo, para los siguientes usar frecuencia
         if (esPrimerHueco) {
-          horaHueco.setMinutes(horaHueco.getMinutes() + tiempoMinimoSalida);
+          horaHueco.setMinutes(horaHueco.getMinutes() + tiempoFinal);
           esPrimerHueco = false;
         } else {
           horaHueco.setMinutes(horaHueco.getMinutes() + ruta.frecuenciaActual);
@@ -1686,16 +1737,18 @@ export class TurnoService {
     console.log('✅ Validación de hora en el pasado: OK');
 
     // Verificar que respete el tiempo mínimo de salida
-    const tiempoMinimoSalida = parseInt(this.configuracion?.valor || '2');
+    const valorConfig = this.configuracion?.valor;
+    const tiempoMinimoSalida = valorConfig ? parseInt(valorConfig) : 2;
+    const tiempoFinal = isNaN(tiempoMinimoSalida) ? 2 : tiempoMinimoSalida;
     const tiempoHastaSalida = (horaSalidaDate.getTime() - ahora.getTime()) / (1000 * 60);
-    console.log('⏱️ Tiempo mínimo de salida:', tiempoMinimoSalida, 'minutos');
+    console.log('⏱️ Tiempo mínimo de salida:', tiempoFinal, 'minutos');
     console.log('⏱️ Tiempo hasta salida:', tiempoHastaSalida, 'minutos');
     
     // Agregar un margen de tolerancia de 1 minuto para compensar el tiempo de procesamiento
     const margenTolerancia = 1; // 1 minuto
-    if (tiempoHastaSalida < (tiempoMinimoSalida - margenTolerancia)) {
+    if (tiempoHastaSalida < (tiempoFinal - margenTolerancia)) {
       console.error('❌ Error: No respeta tiempo mínimo de salida');
-      const tiempoFaltante = tiempoMinimoSalida - tiempoHastaSalida;
+      const tiempoFaltante = tiempoFinal - tiempoHastaSalida;
       
       // Regenerar huecos basados en la hora actual
       console.log('🔄 Regenerando huecos porque el turno no cumple tiempo mínimo...');
@@ -1703,7 +1756,7 @@ export class TurnoService {
       await this.generarNuevosHuecos(ahora, movilId, conductorId);
       
       // En lugar de fallar, lanzar un error especial que indique que se regeneraron huecos
-      throw new Error(`TIEMPO_INSUFICIENTE_HUECOS_REGENERADOS: El turno debe programarse al menos ${tiempoMinimoSalida} minutos después de la hora actual. Faltan ${Math.round(tiempoFaltante)} minutos. Se han regenerado los huecos basados en la hora actual.`);
+      throw new Error(`TIEMPO_INSUFICIENTE_HUECOS_REGENERADOS: El turno debe programarse al menos ${tiempoFinal} minutos después de la hora actual. Faltan ${Math.round(tiempoFaltante)} minutos. Se han regenerado los huecos basados en la hora actual.`);
     }
     console.log('✅ Validación de tiempo mínimo: OK');
 
