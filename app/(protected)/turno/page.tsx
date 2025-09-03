@@ -929,7 +929,8 @@ function TurnoPageContent() {
       }
       return fecha.toLocaleTimeString('es-ES', {
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
+        timeZone: 'America/Bogota'
       });
     } catch (error) {
       console.error('Error formateando hora:', hora, error);
