@@ -128,7 +128,8 @@ export async function GET(request: NextRequest) {
           const hueco = {
             rutaId: prog.ruta?.id || 0,
             rutaNombre,
-            horaSalida: horaProgramado.toISOString(),
+            horaSalida: prog.hora, // Enviar la hora original numérica
+            horaSalidaISO: horaProgramado.toISOString(), // También enviar ISO para comparaciones
             prioridad: 'CUALQUIERA' as const,
             razon: `Programado disponible (${Math.round((horaProgramado.getTime() - ahora.getTime()) / (1000 * 60))} min)`,
             frecuenciaCalculada: 0,
@@ -143,7 +144,8 @@ export async function GET(request: NextRequest) {
           programadosAsignadosList.push({
             id: prog.id,
             tipo: 'programado',
-            horaSalida: horaProgramado.toISOString(),
+            horaSalida: prog.hora, // Enviar la hora original numérica
+            horaSalidaISO: horaProgramado.toISOString(), // También enviar ISO para comparaciones
             ruta: { 
               id: prog.ruta?.id || 0,
               nombre: rutaNombre
