@@ -78,22 +78,27 @@ export async function POST(request: NextRequest) {
     };
     const fechaFormateada = fechaActual.toLocaleDateString('es-CO', opcionesFecha);
 
-    // Formatear hora de salida
+    // Formatear hora de salida (usar la hora exacta sin conversiones de zona horaria)
     const [hours, minutes] = horaSalida.split(':');
-    const horaSalidaObj = new Date();
-    horaSalidaObj.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    const horasNum = parseInt(hours);
+    const minutosNum = parseInt(minutes);
     
-    const opcionesHora = { 
+    // Determinar si es AM o PM
+    const esPM = horasNum >= 12;
+    const horas12 = horasNum > 12 ? horasNum - 12 : (horasNum === 0 ? 12 : horasNum);
+    
+    // Formatear directamente sin conversiones de zona horaria
+    const horaSalidaFormateada = `${horas12.toString().padStart(2, '0')}:${minutosNum.toString().padStart(2, '0')} ${esPM ? 'p. m.' : 'a. m.'}`;
+
+    // Formatear fecha y hora de registro
+    const fechaRegistroFormateada = fechaActual.toLocaleDateString('es-CO', opcionesFecha);
+    const opcionesHoraRegistro = { 
       hour: '2-digit' as const, 
       minute: '2-digit' as const,
       hour12: true,
       timeZone: zonaHoraria
     };
-    const horaSalidaFormateada = horaSalidaObj.toLocaleTimeString('es-CO', opcionesHora);
-
-    // Formatear fecha y hora de registro
-    const fechaRegistroFormateada = fechaActual.toLocaleDateString('es-CO', opcionesFecha);
-    const horaRegistroFormateada = fechaActual.toLocaleTimeString('es-CO', opcionesHora);
+    const horaRegistroFormateada = fechaActual.toLocaleTimeString('es-CO', opcionesHoraRegistro);
 
     // Generar un ID único para el recibo manual (usando timestamp)
     const reciboId = `M${Date.now()}`;
