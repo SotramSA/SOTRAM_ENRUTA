@@ -3,7 +3,7 @@ import { TimeService } from './timeService';
 
 export interface Turno {
   id: number;
-  horaSalida: string;
+  horaSalida: string | number; // string para turnos ISO, number para programados
   ruta: { id: number; nombre: string } | null;
   movil: { id: number; movil: string };
   conductor: { id: number; nombre: string };
@@ -13,7 +13,7 @@ export interface Turno {
 export interface HuecoDisponible {
   rutaId: number;
   rutaNombre: string;
-  horaSalida: string;
+  horaSalida: string | number; // string para turnos ISO, number para programados
   prioridad: 'ROTACION' | 'MISMA_RUTA' | 'CUALQUIERA';
   razon: string;
   frecuenciaCalculada: number;

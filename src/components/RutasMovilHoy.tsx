@@ -6,7 +6,7 @@ import { TimeService } from '@/src/lib/timeService';
 
 interface Turno {
   id: number;
-  horaSalida: string;
+  horaSalida: string | number; // string para turnos ISO, number para programados
   ruta: { id: number; nombre: string } | null;
   movil: { id: number; movil: string };
   conductor: { id: number; nombre: string };
