@@ -34,28 +34,29 @@ export async function GET(
       return NextResponse.json({ error: 'Turno no encontrado' }, { status: 404 });
     }
 
-    // Formatear fechas en hora colombiana
-    const fechaSalida = new Date(turno.fecha);
-    fechaSalida.setHours(turno.horaSalida.getHours());
-    fechaSalida.setMinutes(turno.horaSalida.getMinutes());
+    // Obtener zona horaria desde variables de entorno o usar Colombia por defecto
+    const zonaHoraria = process.env.TIMEZONE || 'America/Bogota';
     
-    const fechaCreacion = turno.horaCreacion ? new Date(turno.horaCreacion) : new Date();
-
-    // Formatear fecha de salida
+    // Formatear fecha de salida (solo fecha, sin hora)
+    const fechaSalida = new Date(turno.fecha);
     const opcionesFecha = { 
       day: '2-digit' as const, 
       month: 'long' as const, 
-      year: 'numeric' as const 
+      year: 'numeric' as const,
+      timeZone: zonaHoraria
     };
     const fechaSalidaFormateada = fechaSalida.toLocaleDateString('es-CO', opcionesFecha);
 
-    // Formatear hora de salida
+    // Formatear hora de salida (usar directamente la hora del turno)
     const opcionesHora = { 
       hour: '2-digit' as const, 
       minute: '2-digit' as const,
-      hour12: true 
+      hour12: true,
+      timeZone: zonaHoraria
     };
-    const horaSalidaFormateada = fechaSalida.toLocaleTimeString('es-CO', opcionesHora);
+    const horaSalidaFormateada = turno.horaSalida.toLocaleTimeString('es-CO', opcionesHora);
+    
+    const fechaCreacion = turno.horaCreacion ? new Date(turno.horaCreacion) : new Date();
 
     // Formatear fecha y hora de creación
     const fechaCreacionFormateada = fechaCreacion.toLocaleDateString('es-CO', opcionesFecha);

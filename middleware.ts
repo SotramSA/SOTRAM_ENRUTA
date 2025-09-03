@@ -21,7 +21,15 @@ export function middleware(request: NextRequest) {
   
   // Permitir acceso a rutas públicas
   if (publicRoutes.some(route => pathname.startsWith(route))) {
-    return NextResponse.next()
+    const response = NextResponse.next()
+    
+    // Propagar el header de tiempo simulado si existe
+    const simulatedTimeHeader = request.headers.get('x-simulated-time')
+    if (simulatedTimeHeader) {
+      response.headers.set('x-simulated-time', simulatedTimeHeader)
+    }
+    
+    return response
   }
   
   // Verificar si hay una sesión válida
@@ -45,7 +53,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
   
-  return NextResponse.next()
+  const response = NextResponse.next()
+  
+  // Propagar el header de tiempo simulado si existe
+  const simulatedTimeHeader = request.headers.get('x-simulated-time')
+  if (simulatedTimeHeader) {
+    response.headers.set('x-simulated-time', simulatedTimeHeader)
+  }
+  
+  return response
 }
 
 export const config = {
