@@ -83,8 +83,16 @@ export async function GET(request: NextRequest) {
           const horas = Math.floor(prog.hora / 100);
           const minutos = prog.hora % 100;
           const fechaProgramado = new Date(prog.fecha);
-          const horaDate = new Date(fechaProgramado);
-          horaDate.setHours(horas, minutos, 0, 0);
+          // Crear la fecha usando componentes para evitar conversiones de zona horaria
+          const horaDate = new Date(
+            fechaProgramado.getFullYear(),
+            fechaProgramado.getMonth(),
+            fechaProgramado.getDate(),
+            horas,
+            minutos,
+            0,
+            0
+          );
           return horaDate.toISOString();
         }
         return prog.hora; // Fallback

@@ -86,14 +86,30 @@ export async function GET(request: NextRequest) {
           const horas = Math.floor(prog.hora / 100);
           const minutos = prog.hora % 100;
           
+          // Crear la fecha usando los componentes de la fecha del programado
+          // para evitar conversiones de zona horaria
           const fechaProgramado = new Date(prog.fecha);
-          horaProgramado = new Date(fechaProgramado);
-          horaProgramado.setHours(horas, minutos, 0, 0);
+          horaProgramado = new Date(
+            fechaProgramado.getFullYear(),
+            fechaProgramado.getMonth(),
+            fechaProgramado.getDate(),
+            horas,
+            minutos,
+            0,
+            0
+          );
         } else {
           // Fallback por si viene en otro formato
           const fechaProgramado = new Date(prog.fecha);
-          horaProgramado = new Date(fechaProgramado);
-          horaProgramado.setHours(7, 0, 0, 0); // Hora por defecto
+          horaProgramado = new Date(
+            fechaProgramado.getFullYear(),
+            fechaProgramado.getMonth(),
+            fechaProgramado.getDate(),
+            7, // Hora por defecto
+            0,
+            0,
+            0
+          );
         }
 
         const rutaNombre = prog.ruta?.nombre || 'Sin ruta';
