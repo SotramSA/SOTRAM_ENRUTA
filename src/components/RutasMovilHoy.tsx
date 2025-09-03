@@ -96,12 +96,37 @@ export default function RutasMovilHoy({ movilId, movilNombre }: RutasMovilHoyPro
     }
   };
 
-  const formatHora = (horaSalida: string) => {
-    return new Date(horaSalida).toLocaleTimeString('es-ES', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const formatHora = (hora: string | number) => {
+    try {
+      // Si es un número (formato de programados), formatear directamente
+      if (typeof hora === 'number') {
+        const horas = Math.floor(hora / 100);
+        const minutos = hora % 100;
+        
+        // Determinar si es AM o PM
+        const esPM = horas >= 12;
+        const horas12 = horas > 12 ? horas - 12 : (horas === 0 ? 12 : horas);
+        
+        return `${horas12.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')} ${esPM ? 'p. m.' : 'a. m.'}`;
+      }
+      
+      // Si es un string (formato ISO), convertir a Date
+      const fecha = new Date(hora);
+      if (isNaN(fecha.getTime())) {
+        return 'Hora inválida';
+      }
+      return fecha.toLocaleTimeString('es-ES', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'America/Bogota'
+      });
+    } catch (error) {
+      console.error('Error formateando hora:', hora, error);
+      return 'Error';
+    }
   };
+
+
 
   if (loading) {
     return (

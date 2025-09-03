@@ -2016,25 +2016,9 @@ export class TurnoService {
 
     // Convertir programados al formato esperado
     const programadosFormateados = programadosHoy.map(prog => {
-      // Convertir la hora del programado (número) a Date
-      let horaProgramado: Date;
-      if (typeof prog.hora === 'number') {
-        // La hora se guarda como número (ej: 450 = 04:50)
-        const horas = Math.floor(prog.hora / 100);
-        const minutos = prog.hora % 100;
-        
-        const fechaProgramado = new Date(prog.fecha);
-        horaProgramado = new Date(fechaProgramado);
-        horaProgramado.setHours(horas, minutos, 0, 0);
-      } else {
-        // Fallback por si viene en otro formato
-        horaProgramado = new Date(prog.fecha);
-        horaProgramado.setHours(7, 0, 0, 0); // Hora por defecto
-      }
-
       return {
         id: prog.id,
-        horaSalida: horaProgramado.toISOString(),
+        horaSalida: prog.hora, // Enviar la hora original numérica para evitar problemas de zona horaria
         ruta: { id: prog.ruta?.id || 0, nombre: prog.ruta?.nombre || 'Sin ruta' },
         movil: { id: prog.automovil.id, movil: prog.automovil.movil },
         conductor: { id: 0, nombre: 'Programado' },
@@ -2045,7 +2029,35 @@ export class TurnoService {
 
     // Combinar y ordenar por hora
     const todasLasRutas = [...turnosFormateados, ...programadosFormateados]
-      .sort((a, b) => new Date(a.horaSalida).getTime() - new Date(b.horaSalida).getTime());
+      .sort((a, b) => {
+        // Convertir ambos valores a Date para comparar correctamente
+        let fechaA: Date;
+        let fechaB: Date;
+        
+        if (typeof a.horaSalida === 'number') {
+          // Es programado con hora numérica
+          const horasA = Math.floor(a.horaSalida / 100);
+          const minutosA = a.horaSalida % 100;
+          fechaA = new Date();
+          fechaA.setHours(horasA, minutosA, 0, 0);
+        } else {
+          // Es turno con hora ISO
+          fechaA = new Date(a.horaSalida);
+        }
+        
+        if (typeof b.horaSalida === 'number') {
+          // Es programado con hora numérica
+          const horasB = Math.floor(b.horaSalida / 100);
+          const minutosB = b.horaSalida % 100;
+          fechaB = new Date();
+          fechaB.setHours(horasB, minutosB, 0, 0);
+        } else {
+          // Es turno con hora ISO
+          fechaB = new Date(b.horaSalida);
+        }
+        
+        return fechaA.getTime() - fechaB.getTime();
+      });
 
     console.log('✅ Rutas combinadas y ordenadas:', {
       movilId,

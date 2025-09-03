@@ -404,13 +404,13 @@ export class ValidacionService {
       });
     }
 
-    // Validar Revisión Preventiva
-    if (automovil.revisionPreventiva && new Date(automovil.revisionPreventiva) < ahora) {
-      documentosVencidos.push({
-        tipo: 'Revisión Preventiva',
-        fechaVencimiento: new Date(automovil.revisionPreventiva)
-      });
-    }
+    // Validar Revisión Preventiva - DESHABILITADO POR SOLICITUD DEL USUARIO
+    // if (automovil.revisionPreventiva && new Date(automovil.revisionPreventiva) < ahora) {
+    //   documentosVencidos.push({
+    //     tipo: 'Revisión Preventiva',
+    //     fechaVencimiento: new Date(automovil.revisionPreventiva)
+    //   });
+    // }
 
 
 
