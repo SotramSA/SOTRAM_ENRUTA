@@ -39,18 +39,6 @@ export interface ValidacionResult {
 
 export class ValidacionService {
   /**
-   * Convierte una fecha a cadena YYYY-MM-DD asumiendo zona America/Bogota (UTC-5, sin DST)
-   */
-  private static toYYYYMMDDBogota(date: Date): string {
-    const utcMs = date.getTime();
-    const bogotaOffsetMs = 5 * 60 * 60 * 1000; // UTC-5
-    const adjusted = new Date(utcMs - bogotaOffsetMs);
-    const y = adjusted.getUTCFullYear();
-    const m = (adjusted.getUTCMonth() + 1).toString().padStart(2, '0');
-    const d = adjusted.getUTCDate().toString().padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  }
-  /**
    * Valida que un móvil esté disponible para un turno
    */
   static async validarMovilDisponible(movilId: number, fecha: Date): Promise<{ valido: boolean; error?: string }> {
@@ -259,32 +247,44 @@ export class ValidacionService {
    */
   static async validarListaChequeo(movilId: number): Promise<{ tieneListaChequeo: boolean; listaChequeo?: { id: number; fecha: Date; items: string } }> {
     const ahora = TimeService.getCurrentTime();
+    const inicioDia = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000);
 
-    // Obtener el último registro y comparar solo por FECHA (día), ignorando la hora
-    const ultimo = await prisma.listaChequeo.findFirst({
-      where: { automovilId: movilId },
-      orderBy: { fecha: 'desc' }
+    console.log('🔍 Validando lista de chequeo:', {
+      movilId,
+      ahora: ahora.toISOString(),
+      inicioDia: inicioDia.toISOString(),
+      finDia: finDia.toISOString()
     });
 
-    if (ultimo) {
-      // Normalizar a YYYY-MM-DD en zona Bogota para evitar diferencias de entorno (Vercel/Local)
-      const hoyStr = ValidacionService.toYYYYMMDDBogota(ahora);
-      const regStr = ValidacionService.toYYYYMMDDBogota(new Date(ultimo.fecha));
-
-      const esDeHoy = hoyStr === regStr;
-
-      console.log('🔍 Comparación lista chequeo por fecha (solo día):', { hoyStr, regStr, esDeHoy });
-
-      if (esDeHoy) {
-        return {
-          tieneListaChequeo: true,
-          listaChequeo: {
-            id: ultimo.id,
-            fecha: new Date(ultimo.fecha),
-            items: ultimo.items
-          }
-        };
+    const listaChequeo = await prisma.listaChequeo.findFirst({
+      where: {
+        automovilId: movilId,
+        fecha: {
+          gte: inicioDia,
+          lt: finDia
+        }
+      },
+      orderBy: {
+        fecha: 'desc'
       }
+    });
+
+    if (listaChequeo) {
+      console.log('✅ Lista de chequeo encontrada:', {
+        id: listaChequeo.id,
+        fecha: listaChequeo.fecha,
+        items: listaChequeo.items
+      });
+      
+      return {
+        tieneListaChequeo: true,
+        listaChequeo: {
+          id: listaChequeo.id,
+          fecha: new Date(listaChequeo.fecha),
+          items: listaChequeo.items
+        }
+      };
     }
 
     console.log('❌ No se encontró lista de chequeo para el día actual');
