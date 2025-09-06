@@ -24,13 +24,18 @@ export function AutoComplete({
   className
 }: AutoCompleteProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [filteredOptions, setFilteredOptions] = useState(options);
+  const [filteredOptions, setFilteredOptions] = useState(options || []);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Filtrar opciones basado en el valor del input
   useEffect(() => {
+    if (!options || !Array.isArray(options)) {
+      setFilteredOptions([]);
+      return;
+    }
+    
     if (!value.trim()) {
       setFilteredOptions(options);
     } else {
@@ -109,7 +114,7 @@ export function AutoComplete({
     inputRef.current?.focus();
   };
 
-  const selectedOption = options.find(option => option.label === value);
+  const selectedOption = options?.find(option => option.label === value);
 
   return (
     <div className={cn("relative", className)} ref={dropdownRef}>

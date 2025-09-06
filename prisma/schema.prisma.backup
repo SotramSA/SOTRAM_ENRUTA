@@ -76,6 +76,7 @@ model Automovil {
   turno                 Turno[]
   planillas             Planilla[]
   programaciones        Programacion[]
+  programacionesSustituto Programacion[] @relation("ProgramacionSustituto")
 }
 
 model AutomovilPropietario {
@@ -144,18 +145,18 @@ model Planilla {
 model SancionConductor {
   id          Int       @id @default(autoincrement())
   conductorId Int
-  fechaInicio DateTime
-  fechaFin    DateTime
+  fecha       DateTime
   descripcion String
+  monto       Float
   conductor   Conductor @relation(fields: [conductorId], references: [id])
 }
 
 model SancionAutomovil {
   id          Int       @id @default(autoincrement())
   automovilId Int
-  fechaInicio DateTime
-  fechaFin    DateTime
+  fecha       DateTime
   descripcion String
+  monto       Float
   automovil   Automovil @relation(fields: [automovilId], references: [id])
 }
 

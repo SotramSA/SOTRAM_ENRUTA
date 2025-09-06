@@ -8,9 +8,13 @@ export async function PUT(
   try {
     const { id: idParam } = await params;
     const id = parseInt(idParam);
-    const { conductorId, fecha, descripcion } = await request.json();
+    const body = await request.json();
+    const conductorId = body.conductorId;
+    const fechaInicio = body.fechaInicio;
+    const fechaFin = body.fechaFin;
+    const descripcion = (body.descripcion ?? body.motivo ?? '').toString();
     
-    if (!conductorId || !fecha || !descripcion) {
+    if (!conductorId || !fechaInicio || !fechaFin || !descripcion) {
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
     }
 
@@ -32,11 +36,11 @@ export async function PUT(
       return NextResponse.json({ error: 'Conductor no encontrado o inactivo' }, { status: 400 });
     }
 
-    // Verificar que la fecha es válida
-    const fechaObj = new Date(fecha);
-    
-    if (isNaN(fechaObj.getTime())) {
-      return NextResponse.json({ error: 'Fecha inválida' }, { status: 400 });
+    // Verificar que las fechas son válidas
+    const fechaInicioObj = new Date(fechaInicio);
+    const fechaFinObj = new Date(fechaFin);
+    if (isNaN(fechaInicioObj.getTime()) || isNaN(fechaFinObj.getTime())) {
+      return NextResponse.json({ error: 'Fechas inválidas' }, { status: 400 });
     }
 
     // Actualizar la sanción
@@ -44,7 +48,8 @@ export async function PUT(
       where: { id },
       data: {
         conductorId,
-        fecha: fechaObj,
+        fechaInicio: fechaInicioObj,
+        fechaFin: fechaFinObj,
         descripcion: descripcion.trim()
       },
               include: {

@@ -6,6 +6,7 @@ export async function GET() {
     console.log('Probando conexión a sancionAutomovil...');
     
     const sanciones = await prisma.sancionAutomovil.findMany({
+      orderBy: [{ fechaInicio: 'desc' }],
       include: {
         automovil: {
           select: {
@@ -22,7 +23,7 @@ export async function GET() {
     return NextResponse.json({
       sanciones: sanciones.map(s => ({
         ...s,
-        fecha: s.fecha.toISOString().slice(0, 10)
+        motivo: s.descripcion
       })),
       total: sanciones.length,
       totalPages: 1,
@@ -40,9 +41,14 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { automovilId, fecha, descripcion, monto } = await request.json();
-    
-    if (!automovilId || !fecha || !descripcion || !monto) {
+    const body = await request.json();
+    console.log('POST /api/sancionAutomovil body:', body);
+    const automovilId = body.automovilId;
+    const fechaInicio = body.fechaInicio;
+    const fechaFin = body.fechaFin;
+    const descripcion = (body.descripcion ?? body.motivo ?? '').toString();
+
+    if (!automovilId || !fechaInicio || !fechaFin || !descripcion) {
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
     }
 
@@ -59,9 +65,9 @@ export async function POST(request: NextRequest) {
     const nuevaSancion = await prisma.sancionAutomovil.create({
       data: {
         automovilId,
-        fecha: new Date(fecha),
-        descripcion: descripcion.trim(),
-        monto: parseFloat(monto.toString())
+        fechaInicio: new Date(fechaInicio),
+        fechaFin: new Date(fechaFin),
+        descripcion: descripcion.trim()
       },
       include: {
         automovil: {

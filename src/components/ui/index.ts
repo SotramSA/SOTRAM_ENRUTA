@@ -11,4 +11,5 @@ export { Switch } from './Switch';
 export { TimeController } from './TimeController';
 export { ValidationMessage } from './ValidationMessage';
 export { Alert, AlertDescription } from './alert';
-export { Separator } from './separator'; 
+export { Separator } from './separator';
+export { default as ModalConfirmarReciboProgramado } from './ModalConfirmarReciboProgramado'; 

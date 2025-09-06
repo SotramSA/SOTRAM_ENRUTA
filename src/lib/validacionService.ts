@@ -24,12 +24,14 @@ export interface ValidacionResult {
   }>;
   sancionesAutomovil: Array<{
     id: number;
-    fecha: Date;
+    fechaInicio: Date;
+    fechaFin: Date;
     motivo: string;
   }>;
   sancionesConductor: Array<{
     id: number;
-    fecha: Date;
+    fechaInicio: Date;
+    fechaFin: Date;
     motivo: string;
   }>;
   tieneSanciones: boolean;
@@ -423,7 +425,8 @@ export class ValidacionService {
    */
   static async validarSancionesAutomovil(movilId: number): Promise<Array<{
     id: number;
-    fecha: Date;
+    fechaInicio: Date;
+    fechaFin: Date;
     motivo: string;
   }>> {
     const ahora = TimeService.getCurrentTime();
@@ -437,30 +440,31 @@ export class ValidacionService {
       finDia: finDia.toISOString()
     });
 
-    // Obtener sanciones del automóvil para el día actual
+    // Obtener sanciones del automóvil que intersecten el día actual
     const sanciones = await prisma.sancionAutomovil.findMany({
       where: {
         automovilId: movilId,
-        fecha: {
-          gte: inicioDia,
-          lt: finDia
-        }
+        AND: [
+          { fechaInicio: { lte: finDia } },
+          { fechaFin: { gte: inicioDia } }
+        ]
       },
       orderBy: {
-        fecha: 'asc'
+        fechaInicio: 'asc'
       }
     });
 
     console.log('🔍 Sanciones automóvil encontradas:', sanciones.map(s => ({
       id: s.id,
-      fecha: s.fecha,
-      descripcion: s.descripcion,
-      monto: s.monto
+      fechaInicio: s.fechaInicio,
+      fechaFin: s.fechaFin,
+      descripcion: s.descripcion
     })));
 
     return sanciones.map(sancion => ({
       id: sancion.id,
-      fecha: new Date(sancion.fecha),
+      fechaInicio: new Date(sancion.fechaInicio),
+      fechaFin: new Date(sancion.fechaFin),
       motivo: sancion.descripcion
     }));
   }
@@ -470,7 +474,8 @@ export class ValidacionService {
    */
   static async validarSancionesConductor(conductorId: number): Promise<Array<{
     id: number;
-    fecha: Date;
+    fechaInicio: Date;
+    fechaFin: Date;
     motivo: string;
   }>> {
     const ahora = TimeService.getCurrentTime();
@@ -488,26 +493,27 @@ export class ValidacionService {
     const sanciones = await prisma.sancionConductor.findMany({
       where: {
         conductorId,
-        fecha: {
-          gte: inicioDia,
-          lt: finDia
-        }
+        AND: [
+          { fechaInicio: { lte: finDia } },
+          { fechaFin: { gte: inicioDia } }
+        ]
       },
       orderBy: {
-        fecha: 'asc'
+        fechaInicio: 'asc'
       }
     });
 
     console.log('🔍 Sanciones conductor encontradas:', sanciones.map(s => ({
       id: s.id,
-      fecha: s.fecha,
-      descripcion: s.descripcion,
-      monto: s.monto
+      fechaInicio: s.fechaInicio,
+      fechaFin: s.fechaFin,
+      descripcion: s.descripcion
     })));
 
     return sanciones.map(sancion => ({
       id: sancion.id,
-      fecha: new Date(sancion.fecha),
+      fechaInicio: new Date(sancion.fechaInicio),
+      fechaFin: new Date(sancion.fechaFin),
       motivo: sancion.descripcion
     }));
   }

@@ -9,13 +9,17 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const search = searchParams.get('search') || '';
     const activo = searchParams.get('activo');
+    const movil = searchParams.get('movil'); // Búsqueda específica por número de móvil
 
     const skip = (page - 1) * limit;
 
     // Construir la consulta con búsqueda insensible a mayúsculas y minúsculas y filtro de activo
     const where: any = {};
     
-    if (search) {
+    // Si se busca un móvil específico, priorizar esa búsqueda
+    if (movil) {
+      where.movil = { equals: movil, mode: 'insensitive' };
+    } else if (search) {
       where.OR = [
         { movil: { contains: search, mode: 'insensitive' } },
         { placa: { contains: search, mode: 'insensitive' } }

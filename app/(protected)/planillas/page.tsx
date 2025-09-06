@@ -29,9 +29,9 @@ interface Planilla {
 interface SancionAutomovil {
   id: number
   automovilId: number
-  fecha: string
-  descripcion: string
-  monto: number
+  fechaInicio: string
+  fechaFin: string
+  motivo: string
 }
 
 interface FechaSeleccionada {
@@ -73,25 +73,36 @@ export default function PlanillasManager() {
   // Función optimizada para verificar si una fecha está sancionada (comparación exacta de fecha)
   const verificarSancion = (fecha: string, sanciones: SancionAutomovil[]) => {
     const now = Date.now()
-    
-    // Verificar cache primero con TTL
+
+    // Cache con TTL
     const cached = sancionesCache.get(fecha)
     if (cached && (now - cached.timestamp) < CACHE_TTL) {
       return { sancionado: cached.sancionado, motivoSancion: cached.motivoSancion }
     }
 
-    // Comparar solo fechas (YYYY-MM-DD), sin horas
-    const fechaBuscada = fecha.split('T')[0] // Asegurar formato YYYY-MM-DD
-    const sancion = sanciones.find(s => {
-      const fechaSancion = new Date(s.fecha).toISOString().split('T')[0]
-      return fechaBuscada === fechaSancion
-    })
-    
-    const resultado = sancion ? { sancionado: true, motivoSancion: sancion.descripcion } : { sancionado: false, motivoSancion: undefined }
-    
-    // Guardar en cache con timestamp
+    // Comparar por rango [fechaInicio, fechaFin]
+    const fechaRef = new Date(fecha)
+    let encontrada: SancionAutomovil | undefined
+
+    if (!isNaN(fechaRef.getTime())) {
+      encontrada = sanciones.find(s => {
+        if (!s?.fechaInicio || !s?.fechaFin) return false
+        const ini = new Date(s.fechaInicio)
+        const fin = new Date(s.fechaFin)
+        if (isNaN(ini.getTime()) || isNaN(fin.getTime())) return false
+        // Normalizar a 00:00 para comparación por día
+        const ref = new Date(fechaRef.getFullYear(), fechaRef.getMonth(), fechaRef.getDate())
+        const iniDay = new Date(ini.getFullYear(), ini.getMonth(), ini.getDate())
+        const finDay = new Date(fin.getFullYear(), fin.getMonth(), fin.getDate())
+        return iniDay <= ref && ref <= finDay
+      })
+    }
+
+    const resultado = encontrada
+      ? { sancionado: true, motivoSancion: encontrada.motivo }
+      : { sancionado: false, motivoSancion: undefined }
+
     setSancionesCache(prev => new Map(prev.set(fecha, { ...resultado, timestamp: now })))
-    
     return resultado
   }
 

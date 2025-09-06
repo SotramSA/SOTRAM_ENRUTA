@@ -14,6 +14,13 @@ export async function GET(
       return NextResponse.json({ error: 'ID de programado inválido' }, { status: 400 });
     }
 
+    // Obtener parámetros adicionales para personalizar el recibo
+    const { searchParams } = new URL(request.url);
+    const movilNumero = searchParams.get('movil');
+    const conductorId = searchParams.get('conductorId');
+    const conductorNombre = searchParams.get('conductorNombre');
+    const movilOriginal = searchParams.get('movilOriginal');
+
          console.log('🖨️ Generando recibo para programado:', programadoId);
 
      // Obtener el usuario actual desde la sesión
@@ -102,17 +109,39 @@ export async function GET(
       timeZone: zonaHoraria
     });
 
+    // Determinar datos del móvil y conductor según los parámetros
+    let movilFinal = movilNumero || programado.automovil.movil;
+    let conductorFinal = conductorNombre || 'Programado';
+    let placaFinal = programado.automovil.placa || 'falta por placa';
+    
+    // Si el móvil cambió, necesitamos obtener la placa del nuevo móvil
+    if (movilNumero && movilNumero !== programado.automovil.movil) {
+      try {
+        const nuevoMovil = await prisma.automovil.findFirst({
+          where: { movil: movilNumero }
+        });
+        if (nuevoMovil) {
+          placaFinal = nuevoMovil.placa || 'falta por placa';
+        }
+      } catch (error) {
+        console.log('⚠️ Error al obtener placa del nuevo móvil:', error);
+      }
+    }
+
     const reciboData = {
       id: programado.id,
       horaSalida: horaFormateada,
       fechaSalida: fechaFormateada,
       ruta: programado.ruta?.nombre || 'Sin ruta',
-      movil: programado.automovil.movil,
-      placa: programado.automovil.placa || 'falta por placa',
-      conductor: 'Programado', // Los programados no tienen conductor específico
-             despachadoPor: usuarioActual,
+      movil: movilFinal,
+      placa: placaFinal,
+      conductor: conductorFinal,
+      despachadoPor: usuarioActual,
       registro: `${fechaRegistro} ${horaRegistro}`,
-      tipo: 'programado'
+      tipo: 'programado',
+      // Campos adicionales para casos de sustitución
+      movilOriginal: movilOriginal, // Solo si es diferente
+      esSustitucion: !!movilOriginal // Indica si es una sustitución
     };
 
     console.log('📄 Datos del recibo generados:', reciboData);

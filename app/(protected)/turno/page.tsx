@@ -17,7 +17,8 @@ import {
   TimeController,
   AutoComplete,
   Modal,
-  ValidationMessage
+  ValidationMessage,
+  ModalConfirmarReciboProgramado
 } from '@/src/components/ui';
 import { Clock, Car, User, Route, Plus, RotateCcw, CheckCircle, AlertCircle, ChevronDown, ChevronRight, X, Trash2, Printer } from 'lucide-react';
 import { useNotifications } from '@/src/lib/notifications';
@@ -79,6 +80,10 @@ function TurnoPageContent() {
     impresionDirecta: boolean;
     nombreImpresora: string | null;
   } | null>(null);
+
+  // Estados para el modal de confirmar recibo programado
+  const [showModalReciboProgramado, setShowModalReciboProgramado] = useState(false);
+  const [programadoParaRecibo, setProgramadoParaRecibo] = useState<any>(null);
 
   useEffect(() => {
     cargarDatosIniciales();
@@ -877,27 +882,25 @@ function TurnoPageContent() {
     if (validacion.tieneSanciones) {
       const detalles: string[] = [];
 
-      // Agregar detalles de sanciones del automóvil
+      // Agregar detalles de sanciones del automóvil (mostrar rango)
       if (validacion.sancionesAutomovil.length > 0) {
         validacion.sancionesAutomovil.forEach(sancion => {
-          // Asegurar que la fecha sea un objeto Date válido
-          const fecha = sancion.fecha instanceof Date ? sancion.fecha : new Date(sancion.fecha);
-          
-          const fechaTexto = fecha.toLocaleDateString('es-ES', { timeZone: 'UTC' });
-          
-          detalles.push(`🚗 Automóvil: ${sancion.motivo} (${fechaTexto})`);
+          const ini = sancion.fechaInicio instanceof Date ? sancion.fechaInicio : new Date(sancion.fechaInicio);
+          const fin = sancion.fechaFin instanceof Date ? sancion.fechaFin : new Date(sancion.fechaFin);
+          const iniTxt = isNaN(ini.getTime()) ? 'N/A' : ini.toLocaleDateString('es-ES', { timeZone: 'UTC' });
+          const finTxt = isNaN(fin.getTime()) ? 'N/A' : fin.toLocaleDateString('es-ES', { timeZone: 'UTC' });
+          detalles.push(`🚗 Automóvil: ${sancion.motivo} (del ${iniTxt} al ${finTxt})`);
         });
       }
 
-      // Agregar detalles de sanciones del conductor
+      // Agregar detalles de sanciones del conductor (mostrar rango)
       if (validacion.sancionesConductor.length > 0) {
         validacion.sancionesConductor.forEach(sancion => {
-          // Asegurar que la fecha sea un objeto Date válido
-          const fecha = sancion.fecha instanceof Date ? sancion.fecha : new Date(sancion.fecha);
-          
-          const fechaTexto = fecha.toLocaleDateString('es-ES', { timeZone: 'UTC' });
-          
-          detalles.push(`👤 Conductor: ${sancion.motivo} (${fechaTexto})`);
+          const ini = sancion.fechaInicio instanceof Date ? sancion.fechaInicio : new Date(sancion.fechaInicio);
+          const fin = sancion.fechaFin instanceof Date ? sancion.fechaFin : new Date(sancion.fechaFin);
+          const iniTxt = isNaN(ini.getTime()) ? 'N/A' : ini.toLocaleDateString('es-ES', { timeZone: 'UTC' });
+          const finTxt = isNaN(fin.getTime()) ? 'N/A' : fin.toLocaleDateString('es-ES', { timeZone: 'UTC' });
+          detalles.push(`👤 Conductor: ${sancion.motivo} (del ${iniTxt} al ${finTxt})`);
         });
       }
 
@@ -958,6 +961,13 @@ function TurnoPageContent() {
         <span class="value">${reciboData.conductor}</span>
       </div>` : '';
 
+    // Si es una sustitución, agregar información del móvil original
+    const sustitucionInfo = reciboData.esSustitucion ? `
+      <div class="info-row" style="background-color: #fff3cd; border: 1px solid #ffc107; padding: 4px; margin: 4px 0;">
+        <span class="label">⚠️ Móvil Original:</span>
+        <span class="value">${reciboData.movilOriginal}</span>
+      </div>` : '';
+
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -990,7 +1000,7 @@ function TurnoPageContent() {
   <div class="ruta-destacada">${reciboData.ruta}</div>
   <div class="info-row"><span class="label">Fecha:</span><span class="value">${reciboData.fechaSalida}</span></div>
   <div class="info-row"><span class="label">Móvil:</span><span class="value">${reciboData.movil}</span></div>
-  <div class="info-row"><span class="label">Placa:</span><span class="value">${reciboData.placa}</span></div>${conductorRow}
+  <div class="info-row"><span class="label">Placa:</span><span class="value">${reciboData.placa}</span></div>${sustitucionInfo}${conductorRow}
   <div class="info-row"><span class="label">Despachado por:</span><span class="value">${reciboData.despachadoPor}</span></div>
   <div class="info-row"><span class="label">Registro:</span><span class="value">${reciboData.registro}</span></div>
   <div class="footer">EnRuta 2025</div>
@@ -1025,9 +1035,37 @@ function TurnoPageContent() {
     }
   };
 
-  const imprimirReciboProgramado = async (programadoId: number) => {
+  const abrirModalReciboProgramado = (programado: any) => {
+    setProgramadoParaRecibo(programado);
+    setShowModalReciboProgramado(true);
+  };
+
+  const cerrarModalReciboProgramado = () => {
+    setShowModalReciboProgramado(false);
+    setProgramadoParaRecibo(null);
+  };
+
+  const confirmarReciboProgramado = async (datos: {
+    movilNumero: string;
+    conductorId: number;
+    conductorNombre: string;
+    esDiferente: boolean;
+    movilOriginal?: string;
+  }) => {
     try {
-      const response = await fetch(`/api/programados/${programadoId}/recibo`);
+      // Construir URL con parámetros
+      const params = new URLSearchParams({
+        movil: datos.movilNumero,
+        conductorId: datos.conductorId.toString(),
+        conductorNombre: datos.conductorNombre
+      });
+
+      // Si es un móvil diferente, agregar el móvil original
+      if (datos.esDiferente && datos.movilOriginal) {
+        params.append('movilOriginal', datos.movilOriginal);
+      }
+
+      const response = await fetch(`/api/programados/${programadoParaRecibo.id}/recibo?${params.toString()}`);
       if (response.ok) {
         const reciboData = await response.json();
         if (reciboData) {
@@ -1505,7 +1543,7 @@ function TurnoPageContent() {
                                   <Button
                                     onClick={() => {
                                       if ((turno as any).tipo === 'programado') {
-                                        imprimirReciboProgramado(turno.id);
+                                        abrirModalReciboProgramado(turno);
                                       } else {
                                         imprimirRecibo(turno.id);
                                       }
@@ -1570,6 +1608,13 @@ function TurnoPageContent() {
         variant="danger"
       />
 
+      {/* Modal para confirmar datos del recibo programado */}
+      <ModalConfirmarReciboProgramado
+        isOpen={showModalReciboProgramado}
+        onClose={cerrarModalReciboProgramado}
+        programado={programadoParaRecibo}
+        onConfirmar={confirmarReciboProgramado}
+      />
 
     </div>
   );

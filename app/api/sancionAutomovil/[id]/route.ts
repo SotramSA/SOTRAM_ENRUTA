@@ -8,9 +8,14 @@ export async function PUT(
   try {
     const { id: idParam } = await params;
     const id = parseInt(idParam);
-    const { automovilId, fecha, descripcion } = await request.json();
+    const body = await request.json();
+    console.log('PUT /api/sancionAutomovil body:', body);
+    const automovilId = body.automovilId;
+    const fechaInicio = body.fechaInicio;
+    const fechaFin = body.fechaFin;
+    const descripcion = (body.descripcion ?? body.motivo ?? '').toString();
     
-    if (!automovilId || !fecha || !descripcion) {
+    if (!automovilId || !fechaInicio || !fechaFin || !descripcion) {
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
     }
 
@@ -32,11 +37,11 @@ export async function PUT(
       return NextResponse.json({ error: 'Automóvil no encontrado o inactivo' }, { status: 400 });
     }
 
-    // Verificar que la fecha es válida
-    const fechaObj = new Date(fecha);
-    
-    if (isNaN(fechaObj.getTime())) {
-      return NextResponse.json({ error: 'Fecha inválida' }, { status: 400 });
+    // Verificar que las fechas son válidas
+    const fechaInicioObj = new Date(fechaInicio);
+    const fechaFinObj = new Date(fechaFin);
+    if (isNaN(fechaInicioObj.getTime()) || isNaN(fechaFinObj.getTime())) {
+      return NextResponse.json({ error: 'Fechas inválidas' }, { status: 400 });
     }
 
     // Actualizar la sanción
@@ -44,7 +49,8 @@ export async function PUT(
       where: { id },
       data: {
         automovilId,
-        fecha: fechaObj,
+        fechaInicio: fechaInicioObj,
+        fechaFin: fechaFinObj,
         descripcion: descripcion.trim()
       },
       include: {
@@ -60,7 +66,11 @@ export async function PUT(
     
     return NextResponse.json(sancionActualizada);
   } catch (error) {
-    return NextResponse.json({ error: 'Error al actualizar sanción' }, { status: 500 });
+    console.error('Error en sancionAutomovil PUT:', error);
+    return NextResponse.json({ 
+      error: 'Error al actualizar sanción',
+      details: error instanceof Error ? error.message : 'Error desconocido'
+    }, { status: 500 });
   }
 }
 

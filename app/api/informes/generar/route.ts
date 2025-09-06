@@ -210,122 +210,146 @@ export async function POST(request: NextRequest) {
     // Crear el libro de Excel
     const workbook = new ExcelJS.Workbook()
 
-    // Para cada ruta, crear una hoja
-    Object.entries(turnosPorRuta).forEach(([rutaNombre, datosRuta]) => {
-      console.log(`Creando hoja: "${rutaNombre}" con ${datosRuta.turnos.length} turnos y ${datosRuta.programados.length} programados`)
-      // Crear la hoja
-      const worksheet = workbook.addWorksheet(rutaNombre)
+    // Helper: convertir hora de Programacion a Date y string legible (maneja número como 800 -> 08:00)
+    const obtenerHoraProgramado = (programado: any): { legible: string; fechaHora: Date } => {
+      const zona = 'America/Bogota'
+      let fechaHora = new Date(0)
+      let legible = 'N/A'
 
-      // Configurar columnas
-      worksheet.columns = [
-        { header: 'Tipo', key: 'tipo', width: 12 },
-        { header: 'Hora Salida', key: 'horaSalida', width: 15 },
-        { header: 'Móvil', key: 'movil', width: 12 },
-        { header: 'Placa', key: 'placa', width: 15 },
-        { header: 'Conductor', key: 'conductor', width: 30 }
-      ]
+      try {
+        const fechaBase = new Date(programado.fecha)
+        const year = fechaBase.getFullYear()
+        const month = fechaBase.getMonth()
+        const day = fechaBase.getDate()
 
-      // Estilo para el encabezado
-      const headerRow = worksheet.getRow(1)
-      headerRow.font = { bold: true, color: { argb: 'FFFFFF' } }
-      headerRow.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: '4472C4' }
-      }
-
-      // Crear array con todos los datos para ordenar por hora de salida
-      const todosLosDatos: Array<{
-        tipo: string;
-        horaSalida: string;
-        movil: string;
-        placa: string;
-        conductor: string;
-        horaSalidaDate: Date;
-      }> = []
-
-      // Agregar datos de turnos
-      datosRuta.turnos.forEach(turno => {
-        const horaSalida = turno.horaSalida 
-          ? new Date(turno.horaSalida).toLocaleTimeString('es-CO', { 
-              timeZone: 'America/Bogota',
-              hour: '2-digit', 
-              minute: '2-digit'
-            })
-          : 'N/A'
-        
-        todosLosDatos.push({
-          tipo: 'TURNO',
-          horaSalida: horaSalida,
-          movil: turno.automovil.movil,
-          placa: turno.automovil.placa,
-          conductor: turno.conductor.nombre,
-          horaSalidaDate: turno.horaSalida ? new Date(turno.horaSalida) : new Date(0)
-        })
-      })
-
-      // Agregar datos de programados
-      datosRuta.programados.forEach(programado => {
-        // Convertir la hora del programado y ajustar a hora colombiana
-        let horaColombiana = 'N/A'
-        let horaSalidaDate = new Date(0)
-        
-        if (programado.hora) {
-          try {
-            // La hora está en formato ISO completo, convertir a Date
-            const fechaHora = new Date(programado.hora)
-            
-            // Verificar que la fecha sea válida
-            if (!isNaN(fechaHora.getTime())) {
-              // Convertir a hora colombiana usando toLocaleString
-              horaColombiana = fechaHora.toLocaleTimeString('es-CO', {
-                timeZone: 'America/Bogota',
-                hour: '2-digit',
-                minute: '2-digit'
-              })
-              horaSalidaDate = fechaHora
+        if (typeof programado.hora === 'number') {
+          const horas = Math.floor(programado.hora / 100)
+          const minutos = programado.hora % 100
+          fechaHora = new Date(year, month, day, horas, minutos, 0, 0)
+        } else if (typeof programado.hora === 'string') {
+          // Intentar HH:mm
+          const m = programado.hora.match(/^(\d{1,2}):(\d{2})$/)
+          if (m) {
+            const horas = parseInt(m[1], 10)
+            const minutos = parseInt(m[2], 10)
+            fechaHora = new Date(year, month, day, horas, minutos, 0, 0)
+          } else {
+            // Intentar parsear como fecha completa
+            const d = new Date(programado.hora)
+            if (!isNaN(d.getTime())) {
+              fechaHora = d
             }
-          } catch (error) {
-            console.error('Error procesando hora del programado:', programado.hora, error)
-            horaColombiana = 'N/A'
           }
+        } else if (programado.hora instanceof Date) {
+          fechaHora = programado.hora
         }
 
-        todosLosDatos.push({
-          tipo: 'PROGRAMADO',
-          horaSalida: horaColombiana,
-          movil: programado.automovil.movil,
-          placa: programado.automovil.placa,
-          conductor: 'N/A',
-          horaSalidaDate: horaSalidaDate
-        })
+        if (!isNaN(fechaHora.getTime())) {
+          legible = fechaHora.toLocaleTimeString('es-CO', {
+            timeZone: zona,
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        }
+      } catch (e) {
+        console.error('Error convirtiendo hora de programado:', programado?.hora, e)
+      }
+
+      return { legible, fechaHora }
+    }
+
+    // Para cada ruta, crear una hoja con dos tablas: Programados y Turnos
+    Object.entries(turnosPorRuta).forEach(([rutaNombre, datosRuta]) => {
+      console.log(`Creando hoja: "${rutaNombre}" con ${datosRuta.turnos.length} turnos y ${datosRuta.programados.length} programados`)
+      const worksheet = workbook.addWorksheet(rutaNombre)
+
+      let currentRow = 1
+
+      // ======= Tabla de PROGRAMADOS =======
+      // Título
+      worksheet.mergeCells(currentRow, 1, currentRow, 4)
+      const tituloProg = worksheet.getCell(currentRow, 1)
+      tituloProg.value = 'PROGRAMADOS'
+      tituloProg.font = { bold: true }
+      currentRow += 1
+
+      // Encabezados Programados (sin Conductor)
+      worksheet.getRow(currentRow).values = ['Hora Salida', 'Móvil', 'Placa', '']
+      worksheet.getRow(currentRow).font = { bold: true, color: { argb: 'FFFFFF' } }
+      worksheet.getRow(currentRow).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '70AD47' } }
+      worksheet.getColumn(1).width = 15
+      worksheet.getColumn(2).width = 12
+      worksheet.getColumn(3).width = 15
+      worksheet.getColumn(4).width = 2
+      const headerProgRowIndex = currentRow
+      currentRow += 1
+
+      // Datos Programados
+      const programadosDatos = datosRuta.programados.map((p) => {
+        const { legible, fechaHora } = obtenerHoraProgramado(p)
+        return {
+          horaSalida: legible,
+          movil: p.automovil.movil,
+          placa: p.automovil.placa,
+          fechaHora
+        }
+      }).sort((a, b) => a.fechaHora.getTime() - b.fechaHora.getTime())
+
+      programadosDatos.forEach(d => {
+        worksheet.getRow(currentRow).values = [d.horaSalida, d.movil, d.placa]
+        currentRow += 1
       })
 
-      // Ordenar por hora de salida
-      todosLosDatos.sort((a, b) => a.horaSalidaDate.getTime() - b.horaSalidaDate.getTime())
-
-      // Agregar filas ordenadas al Excel
-      todosLosDatos.forEach(dato => {
-        worksheet.addRow({
-          tipo: dato.tipo,
-          horaSalida: dato.horaSalida,
-          movil: dato.movil,
-          placa: dato.placa,
-          conductor: dato.conductor
+      // Bordes para tabla de programados
+      for (let r = headerProgRowIndex; r < currentRow; r++) {
+        worksheet.getRow(r).eachCell((cell) => {
+          cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }
         })
+      }
+
+      // Espacio entre tablas
+      currentRow += 1
+
+      // ======= Tabla de TURNOS =======
+      worksheet.mergeCells(currentRow, 1, currentRow, 5)
+      const tituloTurnos = worksheet.getCell(currentRow, 1)
+      tituloTurnos.value = 'TURNOS'
+      tituloTurnos.font = { bold: true }
+      currentRow += 1
+
+      // Encabezados Turnos (incluye Conductor)
+      worksheet.getRow(currentRow).values = ['Hora Salida', 'Móvil', 'Placa', 'Conductor', '']
+      worksheet.getRow(currentRow).font = { bold: true, color: { argb: 'FFFFFF' } }
+      worksheet.getRow(currentRow).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '4472C4' } }
+      worksheet.getColumn(1).width = 15
+      worksheet.getColumn(2).width = 12
+      worksheet.getColumn(3).width = 15
+      worksheet.getColumn(4).width = 30
+      worksheet.getColumn(5).width = 2
+      const headerTurnoRowIndex = currentRow
+      currentRow += 1
+
+      const turnosOrdenados = datosRuta.turnos.map(t => ({
+        horaSalida: t.horaSalida ? new Date(t.horaSalida) : new Date(0),
+        movil: t.automovil.movil,
+        placa: t.automovil.placa,
+        conductor: t.conductor?.nombre || 'N/A'
+      })).sort((a, b) => a.horaSalida.getTime() - b.horaSalida.getTime())
+
+      turnosOrdenados.forEach(t => {
+        const horaStr = t.horaSalida.getTime() > 0
+          ? t.horaSalida.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit' })
+          : 'N/A'
+        worksheet.getRow(currentRow).values = [horaStr, t.movil, t.placa, t.conductor]
+        currentRow += 1
       })
 
-      // Aplicar bordes a todas las celdas
-      worksheet.eachRow((row, rowNumber) => {
-        row.eachCell((cell) => {
-          cell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' }
-          }
+      // Bordes para tabla de turnos
+      for (let r = headerTurnoRowIndex; r < currentRow; r++) {
+        worksheet.getRow(r).eachCell((cell) => {
+          cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }
         })
-      })
+      }
     })
 
     // Generar el archivo

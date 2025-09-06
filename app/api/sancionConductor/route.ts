@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
         skip,
         take: limit,
         orderBy: [
-          { fecha: 'desc' }, // Más recientes primero
+          { fechaInicio: 'desc' }, // Más recientes primero
           { conductor: { nombre: 'asc' } } // Luego por nombre del conductor
         ],
         include: {
@@ -45,7 +45,10 @@ export async function GET(request: NextRequest) {
     const totalPages = Math.ceil(total / limit);
 
     return NextResponse.json({
-      sanciones,
+      sanciones: sanciones.map(s => ({
+        ...s,
+        motivo: s.descripcion
+      })),
       total,
       totalPages,
       page,
@@ -58,9 +61,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { conductorId, fecha, descripcion, monto } = await request.json();
-    
-    if (!conductorId || !fecha || !descripcion || !monto) {
+    const body = await request.json();
+    console.log('POST /api/sancionConductor body:', body);
+    const conductorId = body.conductorId;
+    const fechaInicio = body.fechaInicio;
+    const fechaFin = body.fechaFin;
+    const descripcion = (body.descripcion ?? body.motivo ?? '').toString();
+
+    if (!conductorId || !fechaInicio || !fechaFin || !descripcion) {
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
     }
 
@@ -73,18 +81,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Conductor no encontrado o inactivo' }, { status: 400 });
     }
 
-    // Verificar que el monto es válido
-    if (typeof monto !== 'number' || monto < 0) {
-      return NextResponse.json({ error: 'El monto debe ser un número positivo' }, { status: 400 });
-    }
-
     // Crear la sanción
     const nuevaSancion = await prisma.sancionConductor.create({
       data: {
         conductorId,
-        fecha: new Date(fecha),
-        descripcion: descripcion.trim(),
-        monto: monto
+        fechaInicio: new Date(fechaInicio),
+        fechaFin: new Date(fechaFin),
+        descripcion: descripcion.trim()
       },
       include: {
         conductor: {
@@ -99,6 +102,10 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json(nuevaSancion, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: 'Error al crear sanción' }, { status: 500 });
+    console.error('Error en sancionConductor POST:', error);
+    return NextResponse.json({ 
+      error: 'Error al crear sanción',
+      details: error instanceof Error ? error.message : 'Error desconocido'
+    }, { status: 500 });
   }
 } 
