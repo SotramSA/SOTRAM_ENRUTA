@@ -39,6 +39,18 @@ export interface ValidacionResult {
 
 export class ValidacionService {
   /**
+   * Convierte una fecha a cadena YYYY-MM-DD asumiendo zona America/Bogota (UTC-5, sin DST)
+   */
+  private static toYYYYMMDDBogota(date: Date): string {
+    const utcMs = date.getTime();
+    const bogotaOffsetMs = 5 * 60 * 60 * 1000; // UTC-5
+    const adjusted = new Date(utcMs - bogotaOffsetMs);
+    const y = adjusted.getUTCFullYear();
+    const m = (adjusted.getUTCMonth() + 1).toString().padStart(2, '0');
+    const d = adjusted.getUTCDate().toString().padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  /**
    * Valida que un móvil esté disponible para un turno
    */
   static async validarMovilDisponible(movilId: number, fecha: Date): Promise<{ valido: boolean; error?: string }> {
@@ -255,10 +267,9 @@ export class ValidacionService {
     });
 
     if (ultimo) {
-      // Normalizar a fecha local Colombia para comparación de día
-      const zona = 'America/Bogota';
-      const hoyStr = ahora.toLocaleDateString('es-CO', { timeZone: zona, year: 'numeric', month: '2-digit', day: '2-digit' });
-      const regStr = new Date(ultimo.fecha).toLocaleDateString('es-CO', { timeZone: zona, year: 'numeric', month: '2-digit', day: '2-digit' });
+      // Normalizar a YYYY-MM-DD en zona Bogota para evitar diferencias de entorno (Vercel/Local)
+      const hoyStr = ValidacionService.toYYYYMMDDBogota(ahora);
+      const regStr = ValidacionService.toYYYYMMDDBogota(new Date(ultimo.fecha));
 
       const esDeHoy = hoyStr === regStr;
 
