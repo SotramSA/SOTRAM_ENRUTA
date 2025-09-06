@@ -247,44 +247,33 @@ export class ValidacionService {
    */
   static async validarListaChequeo(movilId: number): Promise<{ tieneListaChequeo: boolean; listaChequeo?: { id: number; fecha: Date; items: string } }> {
     const ahora = TimeService.getCurrentTime();
-    const inicioDia = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
-    const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000);
 
-    console.log('🔍 Validando lista de chequeo:', {
-      movilId,
-      ahora: ahora.toISOString(),
-      inicioDia: inicioDia.toISOString(),
-      finDia: finDia.toISOString()
+    // Obtener el último registro y comparar solo por FECHA (día), ignorando la hora
+    const ultimo = await prisma.listaChequeo.findFirst({
+      where: { automovilId: movilId },
+      orderBy: { fecha: 'desc' }
     });
 
-    const listaChequeo = await prisma.listaChequeo.findFirst({
-      where: {
-        automovilId: movilId,
-        fecha: {
-          gte: inicioDia,
-          lt: finDia
-        }
-      },
-      orderBy: {
-        fecha: 'desc'
+    if (ultimo) {
+      // Normalizar a fecha local Colombia para comparación de día
+      const zona = 'America/Bogota';
+      const hoyStr = ahora.toLocaleDateString('es-CO', { timeZone: zona, year: 'numeric', month: '2-digit', day: '2-digit' });
+      const regStr = new Date(ultimo.fecha).toLocaleDateString('es-CO', { timeZone: zona, year: 'numeric', month: '2-digit', day: '2-digit' });
+
+      const esDeHoy = hoyStr === regStr;
+
+      console.log('🔍 Comparación lista chequeo por fecha (solo día):', { hoyStr, regStr, esDeHoy });
+
+      if (esDeHoy) {
+        return {
+          tieneListaChequeo: true,
+          listaChequeo: {
+            id: ultimo.id,
+            fecha: new Date(ultimo.fecha),
+            items: ultimo.items
+          }
+        };
       }
-    });
-
-    if (listaChequeo) {
-      console.log('✅ Lista de chequeo encontrada:', {
-        id: listaChequeo.id,
-        fecha: listaChequeo.fecha,
-        items: listaChequeo.items
-      });
-      
-      return {
-        tieneListaChequeo: true,
-        listaChequeo: {
-          id: listaChequeo.id,
-          fecha: new Date(listaChequeo.fecha),
-          items: listaChequeo.items
-        }
-      };
     }
 
     console.log('❌ No se encontró lista de chequeo para el día actual');
