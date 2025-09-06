@@ -28,14 +28,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Crear el registro de lista de chequeo
+    // Crear el registro de lista de chequeo: guardar solo FECHA (00:00:00) en zona Bogotá
+    const ahora = new Date();
+    const y = ahora.getFullYear();
+    const m = ahora.getMonth();
+    const d = ahora.getDate();
+    const fechaBogota = new Date(y, m, d, 0, 0, 0, 0);
+
     const listaChequeo = await prisma.listaChequeo.create({
       data: {
         automovilId: automovil.id,
-        fecha: new Date(),
+        fecha: fechaBogota,
         inspector: nombreInspector,
         items: JSON.stringify({
-          fechaInspeccion: new Date().toISOString(),
+          fechaInspeccion: fechaBogota.toISOString(),
           estado: 'completado'
         })
       }
@@ -90,10 +96,8 @@ export async function PUT(request: NextRequest) {
       include: {
         listaChequeo: {
           where: {
-            fecha: {
-              gte: hoy,
-              lt: mañana
-            }
+            // comparar por rango fecha truncada
+            fecha: { gte: hoy, lt: mañana }
           }
         }
       }
@@ -114,13 +118,16 @@ export async function PUT(request: NextRequest) {
     // Crear chequeos para todos los móviles pendientes
     const chequeosCreados = await Promise.all(
       automovilesSinChequeo.map(async (automovil) => {
+        // Guardar solo fecha 00:00:00 del día actual
+        const now = new Date();
+        const fechaBogota = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
         return await prisma.listaChequeo.create({
           data: {
             automovilId: automovil.id,
-            fecha: new Date(),
+            fecha: fechaBogota,
             inspector: nombreInspector,
             items: JSON.stringify({
-              fechaInspeccion: new Date().toISOString(),
+              fechaInspeccion: fechaBogota.toISOString(),
               estado: 'completado',
               creacionMasiva: true
             })
