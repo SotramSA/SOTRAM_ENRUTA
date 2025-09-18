@@ -10,12 +10,12 @@ import {
   Card, CardContent, CardHeader, CardTitle,
   Badge
 } from '@/src/components/ui'
-import * as XLSX from 'xlsx'
+// import * as XLSX from 'xlsx' // Removed: not used in this file
 
 interface Programacion {
   id: number
   fecha: string
-  ruta: any
+  ruta: { id: number; nombre: string } | null
   hora: string
   automovilId: number
   usuarioId?: number
@@ -40,28 +40,46 @@ interface MovilDisponible {
   placa: string
 }
 
-// Definición de rutas y horarios
+// Definición de rutas y horarios (actualizado con datos exactos del Excel)
 const RUTAS_HORARIOS = {
   'Despacho A': [
+    // Horarios matutinos
     '05:00', '05:10', '05:20', '05:28', '05:36', '05:44', '05:52',
-    '06:00', '06:10', '06:20', '06:30', '06:40', '06:50', '07:00'
+    '06:00', '06:10', '06:20', '06:30', '06:40', '06:50', '07:00',
+    // Horarios vespertinos  
+    '17:00', '17:12', '17:24', '17:36', '17:48', '18:00', '18:12', '18:24', 
+    '18:36', '18:48', '19:00', '19:12', '19:24', '19:36', '19:48', 
+    '20:00', '20:12', '20:24'
   ],
   'Despacho B': [
+    // Horarios matutinos
     '04:55', '05:05', '05:15', '05:25', '05:33', '05:41', '05:49', '05:57',
     '06:05', '06:15', '06:25', '06:35', '06:45', '06:55'
   ],
   'Despacho C': [
+    // Horarios matutinos
     '05:00', '05:10', '05:20', '05:30', '05:40', '05:50',
-    '06:00', '06:10', '06:30', '06:50', '07:10', '07:30', '07:50', '08:10'
+    '06:00', '06:10', '06:30', '06:50', '07:10', '07:30', '07:50', '08:10',
+    // Horarios vespertinos
+    '19:00', '19:20', '19:40', '20:00', '20:20'
   ],
   'DESPACHO D. RUT7 CORZO LORETO': [
+    // Horarios matutinos
     '04:50', '04:57', '05:04', '05:11'
   ],
+  'DESPACHO D RUT4 PAMPA-CORZO': [
+    // Horarios matutinos  
+    '04:50', '05:00', '05:10'
+  ],
   'DESPACHO E RUT7 CORZO': [
+    // Horarios matutinos
     '04:55', '05:05', '05:15'
   ],
-  'DESPACHO D RUT4 PAMPA-CORZO': [
-    '04:50', '05:00', '05:10'
+  'Despacho Puente piedra': [
+    // Horarios matutinos
+    '05:51', '06:27', '06:45',
+    // Horarios vespertinos
+    '17:00', '17:30', '18:00'
   ]
 }
 
@@ -94,13 +112,7 @@ export default function ProgramadoPage() {
   // Estados para drag & drop y cambios ya no son necesarios porque calculamos diferencias sobre programaciones
   const [isSavingChanges, setIsSavingChanges] = useState(false)
   const [openCards, setOpenCards] = useState<Record<string, boolean>>({})
-  const [estadisticasDistribucion, setEstadisticasDistribucion] = useState<{
-    totalMoviles: number
-    movilesAsignados: number
-    movilesEnDescanso: number
-    distribucion: Record<string, number>
-    equidad: number
-  } | null>(null)
+  // Statistics are now handled differently - removed unused state
 
   useEffect(() => {
     fetchAll()
@@ -128,7 +140,7 @@ export default function ProgramadoPage() {
         return {
           id: p.id,
           fecha: p.fecha,
-          ruta: p.ruta?.nombre || p.ruta,
+          ruta: p.ruta,
           hora: p.hora,
           automovilId: p.automovilId,
           usuarioId: p.usuarioId,
@@ -143,9 +155,7 @@ export default function ProgramadoPage() {
       setProgramaciones(view)
       console.log('✅ Programaciones establecidas en el estado')
       
-      // Calcular estadísticas de distribución
-      calcularEstadisticasDistribucion(view)
-      console.log('📈 Estadísticas calculadas')
+      console.log('📈 Programaciones cargadas exitosamente')
     } catch (error) {
       console.error('❌ Error en fetchProgramaciones:', error)
       apiNotifications.fetchError('programaciones')
@@ -155,43 +165,7 @@ export default function ProgramadoPage() {
     }
   }
 
-  function calcularEstadisticasDistribucion(programaciones: ProgramacionView[]) {
-    if (programaciones.length === 0) {
-      setEstadisticasDistribucion(null)
-      return
-    }
-
-    // Contar asignaciones por móvil
-    const distribucion: Record<string, number> = {}
-    const movilesAsignados = new Set<number>()
-    
-    programaciones.forEach(p => {
-      if (p.currentMovil) {
-        const movilId = p.currentMovil.id.toString()
-        distribucion[movilId] = (distribucion[movilId] || 0) + 1
-        movilesAsignados.add(p.currentMovil.id)
-      }
-    })
-
-    // Obtener total de móviles disponibles
-    const totalMoviles = poolMoviles.length + movilesAsignados.size
-    const movilesEnDescanso = totalMoviles - movilesAsignados.size
-
-    // Calcular índice de equidad (0-100)
-    const asignaciones = Object.values(distribucion)
-    const promedio = asignaciones.reduce((sum, count) => sum + count, 0) / asignaciones.length
-    const varianza = asignaciones.reduce((sum, count) => sum + Math.pow(count - promedio, 2), 0) / asignaciones.length
-    const desviacionEstandar = Math.sqrt(varianza)
-    const equidad = Math.max(0, 100 - (desviacionEstandar / promedio) * 100)
-
-    setEstadisticasDistribucion({
-      totalMoviles,
-      movilesAsignados: movilesAsignados.size,
-      movilesEnDescanso,
-      distribucion,
-      equidad: Math.round(equidad)
-    })
-  }
+  // Statistics calculation removed - handled differently now
 
   async function generarProgramacion() {
     try {
@@ -199,15 +173,12 @@ export default function ProgramadoPage() {
       const response = await axios.post('/api/programado/generar', { fecha: selectedDate })
       apiNotifications.createSuccess('Programación')
       
-      // Mostrar estadísticas de distribución si están disponibles
-      if (response.data.estadisticas) {
-        const stats = response.data.estadisticas
-        const distribucion = Object.entries(stats.distribucion)
-          .map(([movilId, count]) => `Móvil ${movilId}: ${count} rutas`)
-          .join(', ')
-        
-        
-      }
+        // Mostrar estadísticas de distribución si están disponibles
+        if (response.data.estadisticas) {
+          const stats = response.data.estadisticas
+          console.log('📊 Estadísticas de distribución:', stats)
+          // Stats are logged for debugging; UI shows them in other components
+        }
       
       fetchAll()
     } catch {
@@ -241,10 +212,7 @@ export default function ProgramadoPage() {
       
       setPoolMoviles(movilesDisponibles)
       
-      // Recalcular estadísticas cuando se actualicen los móviles disponibles
-      if (programaciones.length > 0) {
-        calcularEstadisticasDistribucion(programaciones)
-      }
+      console.log('📋 Móviles disponibles actualizados')
     } catch (error) {
       console.error('❌ Error al obtener móviles disponibles:', error)
     }
@@ -269,35 +237,55 @@ export default function ProgramadoPage() {
   function formatHora(hora: string) {
     try {
       const str = String(hora)
+      
+      // Función auxiliar para formatear hora con AM/PM correcto
+      const formatWithAmPm = (hours: number, minutes: number) => {
+        const hh = String(hours).padStart(2, '0')
+        const mm = String(minutes).padStart(2, '0')
+        const ampm = hours >= 12 ? 'pm' : 'am'
+        return `${hh}:${mm} ${ampm}`
+      }
+      
       // Si viene en ISO (contiene 'T'), tomar UTC, restar 5h y formatear HH:mm
       if (str.includes('T')) {
         const d = new Date(str)
         if (!isNaN(d.getTime())) {
           const base = new Date(Date.UTC(1970, 0, 1, d.getUTCHours(), d.getUTCMinutes(), 0, 0))
           const col = new Date(base.getTime() - 5 * 60 * 60 * 1000)
-          const hh = String(col.getUTCHours()).padStart(2, '0')
-          const mm = String(col.getUTCMinutes()).padStart(2, '0')
-          return `${hh}:${mm} am`
+          return formatWithAmPm(col.getUTCHours(), col.getUTCMinutes())
         }
       }
-      // Si viene como HH:MM, devolver con sufijo
+      
+      // Si viene como HH:MM, extraer horas y minutos
       if (/^\d{1,2}:\d{2}$/.test(str)) {
-        const [hh, mm] = str.split(':')
-        return `${hh.padStart(2, '0')}:${mm} am`
+        const [hh, mm] = str.split(':').map(Number)
+        return formatWithAmPm(hh, mm)
       }
-      // Si viene como HMM o HHMM
+      
+      // Si viene como HMM o HHMM (formato numérico)
       const digits = str.replace(/\D/g, '')
       if (digits.length === 3) {
-        const h = digits.slice(0, 1)
-        const m = digits.slice(1)
-        return `${h.padStart(2, '0')}:${m} am`
+        const h = parseInt(digits.slice(0, 1))
+        const m = parseInt(digits.slice(1))
+        return formatWithAmPm(h, m)
       }
       if (digits.length >= 4) {
         const d4 = digits.slice(-4)
-        const h = d4.slice(0, 2)
-        const m = d4.slice(2)
-        return `${h}:${m} am`
+        const h = parseInt(d4.slice(0, 2))
+        const m = parseInt(d4.slice(2))
+        return formatWithAmPm(h, m)
       }
+      
+      // Fallback: intentar parsear como número directo
+      const num = parseInt(str)
+      if (!isNaN(num)) {
+        const h = Math.floor(num / 100)
+        const m = num % 100
+        if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+          return formatWithAmPm(h, m)
+        }
+      }
+      
       return `${str} am`
     } catch {
       return `${hora} am`
@@ -316,10 +304,11 @@ export default function ProgramadoPage() {
     const grouped: { [key: string]: ProgramacionView[] } = {}
     
     programaciones.forEach(programacion => {
-      if (!grouped[programacion.ruta]) {
-        grouped[programacion.ruta] = []
+      const rutaKey = programacion.ruta?.nombre || 'Sin ruta'
+      if (!grouped[rutaKey]) {
+        grouped[rutaKey] = []
       }
-      grouped[programacion.ruta].push(programacion)
+      grouped[rutaKey].push(programacion)
     })
 
     return grouped
@@ -386,8 +375,7 @@ export default function ProgramadoPage() {
         source.currentMovil = target.currentMovil
         target.currentMovil = temp
         
-        // Recalcular estadísticas después del cambio
-        setTimeout(() => calcularEstadisticasDistribucion(next), 0)
+        // Mobile assignments updated
         return next
       })
     } else if (data.type === 'pool') {
@@ -405,8 +393,7 @@ export default function ProgramadoPage() {
           return dedupeById(nextPool)
         })
         
-        // Recalcular estadísticas después del cambio
-        setTimeout(() => calcularEstadisticasDistribucion(next), 0)
+        // Mobile assignments updated
         return next
       })
     }
@@ -427,14 +414,12 @@ export default function ProgramadoPage() {
       setPoolMoviles(pool => dedupeById([...pool, { id: moved.id, movil: moved.movil, placa: moved.placa }]))
       
       // Recalcular estadísticas después del cambio
-      setTimeout(() => calcularEstadisticasDistribucion(next), 0)
+      // Mobile assignments updated
       return next
     })
   }
 
-  function hasEmptySlots() {
-    return programaciones.some(p => !p.currentMovil)
-  }
+  // Function removed: hasEmptySlots - not used
 
   function getPendingCount() {
     return programaciones.filter(p => (p.currentMovil ? p.currentMovil.id : -1) !== p.originalMovilId).length
@@ -550,8 +535,9 @@ export default function ProgramadoPage() {
 
     // Agrupar programaciones por despacho/ruta
     const programacionesPorDespacho = programaciones.reduce((acc, prog) => {
-      if (!acc[prog.ruta]) acc[prog.ruta] = []
-      acc[prog.ruta].push(prog)
+      const rutaKey = prog.ruta?.nombre || 'Sin ruta'
+      if (!acc[rutaKey]) acc[rutaKey] = []
+      acc[rutaKey].push(prog)
       return acc
     }, {} as Record<string, typeof programaciones>)
 
@@ -641,7 +627,6 @@ export default function ProgramadoPage() {
 
       // Centrar contenido de la tabla (encabezados y datos)
       const headerRow = currentRow
-      const dataStart = currentRow + 1
       const dataEnd = currentRow + filas.length
       for (let r = headerRow; r <= dataEnd; r++) {
         for (let c = 1; c <= 2; c++) {

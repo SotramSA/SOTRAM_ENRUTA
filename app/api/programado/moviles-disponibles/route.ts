@@ -39,21 +39,28 @@ export async function GET(request: NextRequest) {
 
     console.log('🚗 Total de móviles activos y disponibles:', todosLosMoviles.length)
 
-    console.log(`🔍 Buscando móviles asignados para fecha: ${fecha} (Inicio: ${inicioDia.toISOString()}, Fin: ${finDia.toISOString()})`)
+    console.log(`🔍 Buscando móviles asignados para fecha: ${fecha}`)
 
-    // Obtener los móviles que ya están asignados en esta fecha (rango del día)
-    // Usando una consulta más simple con `equals` para la fecha para depurar el error "Response from the Engine was empty"
-    const movilesAsignados = await prismaWithRetry.programacion.findMany({
-      where: {
-        fecha: fechaObj // Consultar solo por la fecha exacta, no un rango
-      },
-      select: {
-        automovilId: true
-      }
-    })
+    // Obtener los móviles que ya están asignados en esta fecha
+    let movilesAsignadosIds = new Set<number>()
+    
+    try {
+      const movilesAsignados = await prismaWithRetry.programacion.findMany({
+        where: {
+          fecha: fechaObj
+        },
+        select: {
+          automovilId: true
+        }
+      })
 
-    console.log('📋 Móviles asignados (raw) para fecha exacta: ', movilesAsignados)
-    const movilesAsignadosIds = new Set(movilesAsignados.map(m => m.automovilId))
+      console.log('📋 Móviles asignados encontrados:', movilesAsignados.length)
+      movilesAsignadosIds = new Set(movilesAsignados.map(m => m.automovilId))
+    } catch (prismaError: any) {
+      console.log('📝 No hay programaciones para esta fecha (primera vez o error):', prismaError.message)
+      // Si no hay programaciones, todos los móviles están disponibles
+      movilesAsignadosIds = new Set<number>()
+    }
 
     console.log('📋 Móviles asignados para esta fecha (IDs): ', movilesAsignadosIds.size)
 

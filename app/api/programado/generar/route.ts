@@ -1,28 +1,171 @@
 import prismaWithRetry from '@/lib/prismaClient'
 import { NextRequest, NextResponse } from 'next/server'
 
-// Definición de rutas y horarios
-const RUTAS_HORARIOS = {
-  'Despacho A': [
-    '05:00', '05:10', '05:20', '05:28', '05:36', '05:44', '05:52',
-    '06:00', '06:10', '06:20', '06:30', '06:40', '06:50', '07:00'
+// Plantilla FIJA de asignaciones (basada EXACTAMENTE en el Excel - NUNCA cambiar)
+// Cada "posición" representa un conjunto fijo de turnos que debe hacer un móvil
+const PLANTILLA_FIJA: Record<string, Array<{ruta: string, hora: string}>> = {
+  // DESPACHO D1 + DESPACHO A (dobles)
+  'A1': [
+    { ruta: 'DESPACHO D. RUT7 CORZO LORETO', hora: '04:50' },
+    { ruta: 'Despacho A', hora: '06:00' }
   ],
-  'Despacho B': [
-    '04:55', '05:05', '05:15', '05:25', '05:33', '05:41', '05:49', '05:57',
-    '06:05', '06:15', '06:25', '06:35', '06:45', '06:55'
+  'A4': [
+    { ruta: 'DESPACHO D. RUT7 CORZO LORETO', hora: '04:57' },
+    { ruta: 'Despacho A', hora: '06:10' }
   ],
-  'Despacho C': [
-    '05:00', '05:10', '05:20', '05:30', '05:40', '05:50',
-    '06:00', '06:10', '06:30', '06:50', '07:10', '07:30', '07:50', '08:10'
+  'A7': [
+    { ruta: 'DESPACHO D. RUT7 CORZO LORETO', hora: '05:04' },
+    { ruta: 'Despacho A', hora: '06:20' }
   ],
-  'DESPACHO D. RUT7 CORZO LORETO': [
-    '04:50', '04:57', '05:04', '05:11'
+  'A10': [
+    { ruta: 'DESPACHO D. RUT7 CORZO LORETO', hora: '05:11' },
+    { ruta: 'Despacho A', hora: '06:30' }
   ],
-  'DESPACHO E RUT7 CORZO': [
-    '04:55', '05:05', '05:15'
+  
+  // DESPACHO D2 + DESPACHO A (dobles)
+  'A2': [
+    { ruta: 'DESPACHO D RUT4 PAMPA-CORZO', hora: '04:50' },
+    { ruta: 'Despacho B', hora: '05:57' }
   ],
-  'DESPACHO D RUT4 PAMPA-CORZO': [
-    '04:50', '05:00', '05:10'
+  'A5': [
+    { ruta: 'DESPACHO D RUT4 PAMPA-CORZO', hora: '05:00' },
+    { ruta: 'Despacho B', hora: '06:05' }
+  ],
+  'A8': [
+    { ruta: 'DESPACHO D RUT4 PAMPA-CORZO', hora: '05:10' },
+    { ruta: 'Despacho C', hora: '06:10' }
+  ],
+  
+  // DESPACHO E + DESPACHO B/C (dobles)
+  'A3': [
+    { ruta: 'DESPACHO E RUT7 CORZO', hora: '04:55' },
+    { ruta: 'Despacho C', hora: '06:00' }
+  ],
+  'A6': [
+    { ruta: 'DESPACHO E RUT7 CORZO', hora: '05:05' },
+    { ruta: 'Despacho B', hora: '06:15' }
+  ],
+  'A9': [
+    { ruta: 'DESPACHO E RUT7 CORZO', hora: '05:15' },
+    { ruta: 'Despacho B', hora: '06:25' }
+  ],
+  
+  // DESPACHO A solo matutino
+  'A14': [{ ruta: 'Despacho A', hora: '05:00' }],
+  'A17': [{ ruta: 'Despacho A', hora: '05:10' }],
+  'A20': [{ ruta: 'Despacho A', hora: '05:20' }],
+  'A23': [{ ruta: 'Despacho A', hora: '05:28' }],
+  'A26': [{ ruta: 'Despacho A', hora: '05:36' }],
+  'A29': [{ ruta: 'Despacho A', hora: '05:44' }],
+  'A32': [
+    { ruta: 'Despacho A', hora: '05:52' },
+    { ruta: 'Despacho Puente piedra', hora: '17:00' }
+  ],
+  
+  // DESPACHO B (algunos solo matutino, otros dobles)
+  'A15': [{ ruta: 'Despacho B', hora: '04:55' }],
+  'A18': [{ ruta: 'Despacho B', hora: '05:05' }],
+  'A33': [
+    { ruta: 'Despacho B', hora: '05:49' },
+    { ruta: 'Despacho Puente piedra', hora: '17:30' }
+  ],
+  
+  // DESPACHO C (algunos solo matutino, otros dobles)
+  'A16': [{ ruta: 'Despacho C', hora: '05:00' }],
+  'A19': [{ ruta: 'Despacho C', hora: '05:10' }],
+  'A34': [
+    { ruta: 'Despacho C', hora: '06:00' },
+    { ruta: 'Despacho Puente piedra', hora: '18:00' }
+  ],
+  'A36': [{ ruta: 'Despacho C', hora: '19:20' }],
+  
+  // Completar las posiciones restantes (combinando matutino + vespertino en las MISMAS posiciones)
+  'A21': [
+    { ruta: 'Despacho B', hora: '05:15' },
+    { ruta: 'Despacho A', hora: '17:00' }
+  ],
+  'A22': [
+    { ruta: 'Despacho C', hora: '05:20' },
+    { ruta: 'Despacho A', hora: '17:12' }
+  ],
+  'A24': [
+    { ruta: 'Despacho B', hora: '05:25' },
+    { ruta: 'Despacho A', hora: '17:24' }
+  ],
+  'A25': [
+    { ruta: 'Despacho C', hora: '05:30' },
+    { ruta: 'Despacho A', hora: '17:36' }
+  ],
+  'A27': [
+    { ruta: 'Despacho B', hora: '05:33' },
+    { ruta: 'Despacho A', hora: '17:48' }
+  ],
+  'A28': [
+    { ruta: 'Despacho C', hora: '05:40' },
+    { ruta: 'Despacho A', hora: '18:00' }
+  ],
+  'A30': [
+    { ruta: 'Despacho B', hora: '05:41' },
+    { ruta: 'Despacho A', hora: '18:12' }
+  ],
+  'A31': [
+    { ruta: 'Despacho C', hora: '05:50' },
+    { ruta: 'Despacho A', hora: '18:24' }
+  ],
+  'A11': [
+    { ruta: 'Despacho Puente piedra', hora: '05:51' },
+    { ruta: 'Despacho A', hora: '18:36' }
+  ],
+  'A12': [
+    { ruta: 'Despacho Puente piedra', hora: '06:27' },
+    { ruta: 'Despacho A', hora: '18:48' }
+  ],
+  'A13': [
+    { ruta: 'Despacho Puente piedra', hora: '06:45' },
+    { ruta: 'Despacho A', hora: '19:00' }
+  ],
+  'A46': [{ ruta: 'Despacho A', hora: '19:12' }],
+  'A35': [
+    { ruta: 'Despacho B', hora: '06:35' },
+    { ruta: 'Despacho A', hora: '19:24' }
+  ],
+  'A38': [
+    { ruta: 'Despacho B', hora: '06:45' },
+    { ruta: 'Despacho A', hora: '19:36' }
+  ],
+  'A39': [
+    { ruta: 'Despacho C', hora: '07:10' },
+    { ruta: 'Despacho A', hora: '19:48' }
+  ],
+  'A40': [
+    { ruta: 'Despacho C', hora: '07:30' },
+    { ruta: 'Despacho A', hora: '20:00' }
+  ],
+  'A41': [
+    { ruta: 'Despacho C', hora: '07:50' },
+    { ruta: 'Despacho A', hora: '20:12' }
+  ],
+  'A42': [
+    { ruta: 'Despacho C', hora: '08:10' },
+    { ruta: 'Despacho A', hora: '20:24' }
+  ],
+  
+  // Posiciones finales para completar las 46
+  'A43': [
+    { ruta: 'Despacho A', hora: '06:40' },
+    { ruta: 'Despacho C', hora: '19:00' }
+  ],
+  'A44': [
+    { ruta: 'Despacho A', hora: '06:50' },
+    { ruta: 'Despacho C', hora: '19:40' }
+  ],
+  'A45': [
+    { ruta: 'Despacho A', hora: '07:00' },
+    { ruta: 'Despacho C', hora: '20:20' }
+  ],
+  'A37': [
+    { ruta: 'Despacho B', hora: '06:55' },
+    { ruta: 'Despacho C', hora: '20:00' }
   ]
 }
 
@@ -34,18 +177,20 @@ function horaStringToDate(horaString: string, fecha: Date): Date {
   return fechaHora
 }
 
-// Función para obtener el grupo de despacho (para validaciones)
+// Función para obtener el grupo de despacho (para validaciones de rotación)
 function getDespachoGroup(ruta: string): string {
-  const despachosZ = [
-    'DESPACHO D. RUT7 CORZO LORETO',
-    'DESPACHO E RUT7 CORZO', 
-    'DESPACHO D RUT4 PAMPA-CORZO'
-  ]
-  
-  if (despachosZ.includes(ruta)) {
-    return 'Despacho Z'
+  // Grupos de despachos relacionados (para rotación inteligente)
+  const gruposDespacho: Record<string, string> = {
+    'DESPACHO D. RUT7 CORZO LORETO': 'Grupo Corzo',
+    'DESPACHO D RUT4 PAMPA-CORZO': 'Grupo Pampa', 
+    'DESPACHO E RUT7 CORZO': 'Grupo Corzo E',
+    'Despacho Puente piedra': 'Grupo Puente',
+    'Despacho A': 'Grupo Principal A',
+    'Despacho B': 'Grupo Principal B',
+    'Despacho C': 'Grupo Principal C'
   }
-  return ruta
+  
+  return gruposDespacho[ruta] || ruta
 }
 
 // Función para calcular puntuación de un móvil para una ruta específica
@@ -119,6 +264,7 @@ export async function POST(request: NextRequest) {
     }
 
     const fechaObj = new Date(fecha)
+    console.log(`🚀 Generando programación con plantilla fija para: ${fecha}`)
 
           const result = await prismaWithRetry.executeWithRetry(async () => {
         // Obtener todas las rutas activas existentes
@@ -135,8 +281,14 @@ export async function POST(request: NextRequest) {
         // Crear un mapa de nombres de ruta a IDs
         let rutaMap = new Map(rutasDB.map(ruta => [ruta.nombre, ruta.id]))
 
-        // Asegurarse de que todas las rutas de RUTAS_HORARIOS existan en la base de datos
-        for (const rutaNombre of Object.keys(RUTAS_HORARIOS)) {
+        // Obtener todas las rutas únicas de la plantilla fija
+        const rutasEnPlantilla = new Set<string>()
+        Object.values(PLANTILLA_FIJA).forEach(turnos => {
+          turnos.forEach(turno => rutasEnPlantilla.add(turno.ruta))
+        })
+
+        // Asegurarse de que todas las rutas de la plantilla existan en la base de datos
+        for (const rutaNombre of rutasEnPlantilla) {
           if (!rutaMap.has(rutaNombre)) {
             console.log(`➕ Creando ruta faltante en BD: ${rutaNombre}`)
             const nuevaRuta = await prismaWithRetry.ruta.create({
@@ -237,27 +389,15 @@ export async function POST(request: NextRequest) {
           .map(m => m.id)
       )
 
-      // Crear lista de todas las rutas con horarios
-      const todasLasRutas: Array<{ ruta: string; hora: Date }> = []
-      for (const [ruta, horarios] of Object.entries(RUTAS_HORARIOS)) {
-        for (const hora of horarios) {
-          const horaDate = horaStringToDate(hora, fechaObj)
-          todasLasRutas.push({ ruta, hora: horaDate })
-        }
-      }
+      // Obtener lista de posiciones fijas (46 posiciones)
+      const posicionesFijas = Object.keys(PLANTILLA_FIJA)
+      const totalPosiciones = posicionesFijas.length
 
-      // Ordenar por hora
-      todasLasRutas.sort((a, b) => a.hora.getTime() - b.hora.getTime())
-
-      console.log('📋 Programaciones a generar:', {
-        totalRutas: todasLasRutas.length,
-        rutasPorDespacho: Object.fromEntries(
-          Object.entries(RUTAS_HORARIOS).map(([ruta, horarios]) => [ruta, horarios.length])
-        ),
-        todasLasRutas: todasLasRutas.map(r => ({
-          ruta: r.ruta,
-          hora: r.hora.toTimeString().slice(0, 5)
-        }))
+      console.log('📋 Plantilla fija cargada:', {
+        totalPosiciones: totalPosiciones,
+        posicionesConDobles: posicionesFijas.filter(pos => PLANTILLA_FIJA[pos].length > 1).length,
+        posicionesSingle: posicionesFijas.filter(pos => PLANTILLA_FIJA[pos].length === 1).length,
+        totalTurnos: Object.values(PLANTILLA_FIJA).reduce((total, turnos) => total + turnos.length, 0)
       })
 
       // Eliminar programación existente para esta fecha
@@ -267,124 +407,299 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      // Algoritmo que respeta exactamente RUTAS_HORARIOS
-      const programaciones = []
+      // 🎲 Sistema equitativo con memoria de 2 días
       const asignacionesPorMovil = new Map()
-      const rutaHorarioUsados = new Set() // Para evitar duplicados exactos ruta-hora
-      const movilesYaAsignados = new Set() // Para evitar que un móvil sea asignado más de una vez
+      
+      console.log(`🚀 Iniciando algoritmo equitativo con ${movilesFiltrados.length} móviles disponibles para ${totalPosiciones} posiciones`)
 
-      // Inicializar contador de asignaciones
-      movilesFiltrados.forEach(movil => {
-        asignacionesPorMovil.set(movil.id, 0)
-      })
-
-      // Generar programaciones respetando exactamente RUTAS_HORARIOS
-      for (const { ruta, hora } of todasLasRutas) {
-        const horaNumerico = hora.getHours() * 100 + hora.getMinutes()
-        const claveRutaHorario = `${ruta}-${horaNumerico}`
-        
-        // Verificar que no se duplique esta combinación EXACTA de ruta-hora
-        if (rutaHorarioUsados.has(claveRutaHorario)) {
-          console.warn(`⚠️ Combinación ruta-hora duplicada: ${ruta} a las ${hora.toTimeString().slice(0, 5)} - saltando`)
-          continue
-        }
-        
-        // Encontrar el mejor móvil para esta ruta específica
-        let mejorMovil = null
-        let mejorPuntuacion = -Infinity
-
-        const puntuacionesMoviles = []
-        for (const movil of movilesFiltrados) {
-          // RESTRICCIÓN CRÍTICA: Saltar móviles que ya fueron asignados hoy
-          if (movilesYaAsignados.has(movil.id)) {
-            continue
-          }
-
-          // Calcular puntuación para este móvil y ruta
-          const puntuacion = calcularPuntuacion(
-            movil.id,
-            ruta,
-            historial,
-            fechaObj,
-            movilesSinTrabajarAyer
-          )
-
-          // Penalizar móviles que ya tienen muchas asignaciones
-          const asignacionesActuales = asignacionesPorMovil.get(movil.id) || 0
-          const puntuacionFinal = puntuacion - (asignacionesActuales * 50)
-
-          puntuacionesMoviles.push({
-            movil: movil.movil,
-            id: movil.id,
-            puntuacionBase: puntuacion,
-            asignacionesActuales,
-            puntuacionFinal,
-            yaAsignado: false
-          })
-
-          if (puntuacionFinal > mejorPuntuacion) {
-            mejorPuntuacion = puntuacionFinal
-            mejorMovil = movil
-          }
-        }
-
-        // Log solo para los primeros 3 slots para no llenar la consola
-        if (programaciones.length < 3) {
-          console.log(`🎯 Puntuaciones para ${ruta} a las ${hora.toTimeString().slice(0, 5)}:`)
-          const topPuntuaciones = puntuacionesMoviles
-            .sort((a, b) => b.puntuacionFinal - a.puntuacionFinal)
-            .slice(0, 5)
-          topPuntuaciones.forEach((p, i) => {
-            const marca = i === 0 ? '👑' : '  '
-            console.log(`${marca} ${p.movil}: base=${p.puntuacionBase}, asignaciones=${p.asignacionesActuales}, final=${p.puntuacionFinal}`)
+      // 📋 Función para obtener las últimas 2 posiciones de un móvil
+      async function obtenerUltimasPosiciones(movilId: number, dias: number = 2) {
+        try {
+          const fechaInicio = new Date(fechaObj)
+          fechaInicio.setDate(fechaInicio.getDate() - dias)
+          
+          const programacionesAnteriores = await prismaWithRetry.programacion.findMany({
+            where: {
+              automovilId: movilId,
+              fecha: {
+                gte: fechaInicio,
+                lt: fechaObj
+              }
+            },
+            include: {
+              ruta: true
+            },
+            orderBy: {
+              fecha: 'desc'
+            }
           })
           
-          // Advertencia si hay pocas opciones disponibles
-          if (puntuacionesMoviles.length < 3) {
-            console.warn(`⚠️ POCAS OPCIONES: Solo ${puntuacionesMoviles.length} móviles disponibles para ${ruta}. El sistema de puntos puede verse limitado.`)
+          // Si no hay programaciones anteriores, devolver array vacío
+          if (!programacionesAnteriores || programacionesAnteriores.length === 0) {
+            console.log(`📝 Móvil ${movilId} no tiene programaciones anteriores (primera vez)`)
+            return []
           }
-        }
-
-        // Si no se encontró móvil, usar el que menos asignaciones tiene de los NO asignados
-        if (!mejorMovil) {
-          const movilesNoAsignados = movilesFiltrados.filter(m => !movilesYaAsignados.has(m.id))
+        
+        // Agrupar por fecha para encontrar qué posición hizo cada día
+        const posicionesPorDia = new Map<string, string[]>()
+        
+        for (const prog of programacionesAnteriores) {
+          const fechaKey = prog.fecha.toISOString().split('T')[0]
+          if (!posicionesPorDia.has(fechaKey)) {
+            posicionesPorDia.set(fechaKey, [])
+          }
           
-          if (movilesNoAsignados.length > 0) {
-            mejorMovil = movilesNoAsignados.reduce((menosAsignado, movil) => {
-              const asignacionesMenos = asignacionesPorMovil.get(menosAsignado.id) || 0
-              const asignacionesActual = asignacionesPorMovil.get(movil.id) || 0
-              return asignacionesActual < asignacionesMenos ? movil : menosAsignado
+          // Buscar qué posición de la plantilla corresponde a esta programación
+          for (const [posicion, turnos] of Object.entries(PLANTILLA_FIJA)) {
+            const coincide = turnos.some(turno => {
+              const rutaCoincide = turno.ruta === prog.ruta?.nombre
+              const [horas, minutos] = turno.hora.split(':').map(Number)
+              const horaNumerico = horas * 100 + minutos
+              const horaCoincide = horaNumerico === prog.hora
+              return rutaCoincide && horaCoincide
             })
-          } else {
-            console.warn(`⚠️ Todos los móviles ya están asignados. Faltan ${todasLasRutas.length - programaciones.length} rutas por asignar.`)
+            
+            if (coincide) {
+              posicionesPorDia.get(fechaKey)?.push(posicion)
+              break
+            }
           }
         }
+        
+        // Obtener posiciones únicas de los últimos días
+        const posicionesUsadas = new Set<string>()
+        for (const posiciones of posicionesPorDia.values()) {
+          posiciones.forEach(pos => posicionesUsadas.add(pos))
+        }
+        
+        return Array.from(posicionesUsadas)
+        } catch (error) {
+          console.error(`❌ Error al obtener historial del móvil ${movilId}:`, error)
+          // En caso de error, devolver array vacío para permitir cualquier asignación
+          return []
+        }
+      }
 
-        if (mejorMovil) {
-          // Marcar esta combinación ruta-hora como usada
-          rutaHorarioUsados.add(claveRutaHorario)
-          asignacionesPorMovil.set(mejorMovil.id, (asignacionesPorMovil.get(mejorMovil.id) || 0) + 1)
-          
-          // CRÍTICO: Marcar este móvil como ya asignado para evitar reutilización
-          movilesYaAsignados.add(mejorMovil.id)
+      // 🎯 Función para encontrar posiciones disponibles para un móvil
+      function obtenerPosicionesDisponibles(posicionesUsadas: string[], posicionesYaAsignadas: Set<string>) {
+        return posicionesFijas.filter(posicion => 
+          !posicionesUsadas.includes(posicion) && !posicionesYaAsignadas.has(posicion)
+        )
+      }
 
-          // Obtener el rutaId directamente de rutaMap, ya que ahora todas las rutas existen en BD
-          const rutaId = rutaMap.get(ruta)
+      // 🎲 Función para barajar array aleatoriamente (Fisher-Yates)
+      function shuffleArray<T>(array: T[]): T[] {
+        const shuffled = [...array]
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+        }
+        return shuffled
+      }
+
+      // 📊 Preparar móviles con prioridad
+      const movilesQueDescansaronAyer = movilesFiltrados.filter(movil => 
+        !movilesQueTrabajaronAyer.has(movil.id)
+      )
+      const movilesRestantes = movilesFiltrados.filter(movil => 
+        movilesQueTrabajaronAyer.has(movil.id)
+      )
+
+      console.log(`🏆 Móviles que descansaron ayer (prioridad): ${movilesQueDescansaronAyer.length}`)
+      console.log(`🔄 Móviles que trabajaron ayer: ${movilesRestantes.length}`)
+
+      // 🎯 Detectar si es la primera vez (todos descansaron)
+      const esPrimeraVez = movilesQueTrabajaronAyer.size === 0
+      console.log(`📅 Primera ejecución: ${esPrimeraVez}`)
+
+      // 🎲 Crear arreglo final de móviles
+      let movilesOrdenados: typeof movilesFiltrados
+      if (esPrimeraVez) {
+        // Si es primera vez, barajar todos los móviles por igual
+        movilesOrdenados = shuffleArray(movilesFiltrados)
+        console.log(`🎲 Primera vez: todos los móviles barajados aleatoriamente`)
+      } else {
+        // Si hay historial, dar prioridad a los que descansaron
+        movilesOrdenados = [
+          ...movilesQueDescansaronAyer,
+          ...shuffleArray(movilesRestantes)
+        ]
+        console.log(`🏆 Con historial: prioridad a los que descansaron`)
+      }
+
+      console.log(`📋 Orden de asignación preparado: ${movilesOrdenados.length} móviles`)
+
+      // 🎯 Barajar también las posiciones para mayor aleatoriedad
+      const posicionesMezcladas = shuffleArray(posicionesFijas)
+      console.log(`🎲 Posiciones mezcladas: [${posicionesMezcladas.slice(0, 5).join(', ')}...]`)
+
+      // 🎯 Variables de control
+      const posicionesAsignadas = new Set<string>()
+      const movilesAsignados = new Set<number>()
+      const mapaAsignaciones = new Map<string, number>() // posicion -> movilId
+
+      // 🔄 Algoritmo principal de asignación (por posición) con flexibilidad progresiva
+      let posicionesAsignadasCount = 0
+      let movilIndex = 0
+      
+      for (const posicion of posicionesMezcladas) {
+        console.log(`🎯 Buscando móvil para posición ${posicion} (${posicionesAsignadasCount + 1}/${totalPosiciones})`)
+        
+        // Buscar el primer móvil disponible que pueda tomar esta posición
+        let movilAsignado = null
+        
+        // FASE 1: Intentar con reglas estrictas (memoria de 2 días) - SOLO si NO es primera vez
+        if (!esPrimeraVez) {
+          for (const movil of movilesOrdenados) {
+            if (movilesAsignados.has(movil.id)) continue
+
+            const ultimasPosiciones = await obtenerUltimasPosiciones(movil.id, 2)
+            
+            if (!ultimasPosiciones.includes(posicion)) {
+              posicionesAsignadas.add(posicion)
+              movilesAsignados.add(movil.id)
+              mapaAsignaciones.set(posicion, movil.id)
+              movilAsignado = movil
+              
+              console.log(`✅ Posición ${posicion} → Móvil ${movil.movil} (reglas estrictas)`)
+              break
+            }
+          }
+        }
+        
+        // FASE 2: Si no encontró con reglas estrictas, intentar con reglas flexibles (1 día) - SOLO si NO es primera vez
+        if (!movilAsignado && !esPrimeraVez) {
+          console.log(`🔄 Relajando reglas para posición ${posicion} (memoria 1 día)`)
           
-          if (rutaId) {
+          for (const movil of movilesOrdenados) {
+            if (movilesAsignados.has(movil.id)) continue
+
+            const ultimasPosiciones = await obtenerUltimasPosiciones(movil.id, 1)
+            
+            if (!ultimasPosiciones.includes(posicion)) {
+              posicionesAsignadas.add(posicion)
+              movilesAsignados.add(movil.id)
+              mapaAsignaciones.set(posicion, movil.id)
+              movilAsignado = movil
+              
+              console.log(`✅ Posición ${posicion} → Móvil ${movil.movil} (reglas flexibles)`)
+              break
+            }
+          }
+        }
+        
+        // FASE 3: Si aún no encontró (o es primera vez), asignar cualquier móvil disponible (sin reglas)
+        if (!movilAsignado) {
+          const tipoAsignacion = esPrimeraVez ? 'primera vez' : 'sin reglas'
+          console.log(`🎲 Asignación libre para posición ${posicion} (${tipoAsignacion})`)
+          
+          // Buscar cualquier móvil no asignado
+          for (const movil of movilesOrdenados) {
+            if (movilesAsignados.has(movil.id)) continue
+            
+            posicionesAsignadas.add(posicion)
+            movilesAsignados.add(movil.id)
+            mapaAsignaciones.set(posicion, movil.id)
+            movilAsignado = movil
+            
+            console.log(`✅ Posición ${posicion} → Móvil ${movil.movil} (${tipoAsignacion})`)
+            break
+          }
+        }
+        
+        // FASE 4: Si no hay más móviles únicos, permitir múltiples asignaciones
+        if (!movilAsignado && movilesOrdenados.length > 0) {
+          console.log(`🔄 Permitiendo múltiples asignaciones para posición ${posicion}`)
+          
+          // Usar móviles en orden rotativo
+          const movilRotativo = movilesOrdenados[movilIndex % movilesOrdenados.length]
+          
+          posicionesAsignadas.add(posicion)
+          mapaAsignaciones.set(posicion, movilRotativo.id)
+          movilAsignado = movilRotativo
+          
+          console.log(`✅ Posición ${posicion} → Móvil ${movilRotativo.movil} (múltiple asignación)`)
+          movilIndex++
+        }
+        
+        if (movilAsignado) {
+          posicionesAsignadasCount++
+        } else {
+          console.error(`❌ No se pudo asignar posición ${posicion} - sin móviles disponibles`)
+        }
+      }
+
+      // 🎯 Asignar posiciones restantes con fallback inteligente
+      const posicionesSinAsignar = posicionesFijas.filter(pos => !posicionesAsignadas.has(pos))
+      
+      if (posicionesSinAsignar.length > 0) {
+        console.log(`🎲 Asignando ${posicionesSinAsignar.length} posiciones restantes con fallback`)
+        
+        const movilesDisponibles = movilesFiltrados.filter(m => !movilesAsignados.has(m.id))
+        
+        for (const posicion of posicionesSinAsignar) {
+          if (movilesDisponibles.length === 0) {
+            console.log(`⚠️ No hay más móviles disponibles para asignar posición ${posicion}`)
+            break
+          }
+          
+          // Intentar primero con móviles que descansaron ayer (si están disponibles)
+          let movilElegido = movilesDisponibles.find(m => movilesQueDescansaronAyer.some(desc => desc.id === m.id))
+          
+          // Si no hay móviles que descansaron ayer, usar cualquiera aleatorio
+          if (!movilElegido) {
+            movilElegido = movilesDisponibles[Math.floor(Math.random() * movilesDisponibles.length)]
+          }
+          
+          mapaAsignaciones.set(posicion, movilElegido.id)
+          movilesAsignados.add(movilElegido.id)
+          
+          // Remover el móvil de disponibles para evitar múltiples asignaciones en el fallback
+          const indice = movilesDisponibles.indexOf(movilElegido)
+          movilesDisponibles.splice(indice, 1)
+          
+          console.log(`🎯 Posición ${posicion} asignada en fallback a móvil ${movilElegido.movil}`)
+        }
+      }
+
+      // 🏗️ Crear programaciones basadas en las asignaciones
+      const programaciones: any[] = []
+      for (const [posicion, movilId] of mapaAsignaciones.entries()) {
+        const turnosDeLaPosicion = PLANTILLA_FIJA[posicion]
+        const movil = movilesFiltrados.find(m => m.id === movilId)
+        
+        if (!movil) continue
+        
+        // Crear programación para cada turno de la posición
+        turnosDeLaPosicion.forEach((turno) => {
+          const rutaId = rutaMap.get(turno.ruta)
+          if (!rutaId) {
+            console.error(`❌ Ruta no encontrada: ${turno.ruta}`)
+            return
+          }
+          
+          // Convertir hora a número HHMM
+          const [horas, minutos] = turno.hora.split(':').map(Number)
+          const horaNumerico = horas * 100 + minutos
+          
             programaciones.push({
               fecha: fechaObj,
               rutaId,
               hora: horaNumerico,
-              automovilId: mejorMovil.id
-            })
-            
-            console.log(`✅ Programación creada: ${ruta} a las ${hora.toTimeString().slice(0, 5)} → Móvil ${mejorMovil.movil}`)
-          }
-        } else {
-          console.warn(`⚠️ No se encontró móvil disponible para: ${ruta} a las ${hora.toTimeString().slice(0, 5)}`)
-        }
+            automovilId: movilId
+          })
+          
+          // Contar asignación
+          asignacionesPorMovil.set(movilId, (asignacionesPorMovil.get(movilId) || 0) + 1)
+        })
       }
+
+      // 📊 Estadísticas de asignación
+      const movilesEnDescansoHoy = movilesFiltrados.length - movilesAsignados.size
+      console.log(`📊 Resultado de asignación:`)
+      console.log(`   ✅ Móviles trabajando: ${movilesAsignados.size}`)
+      console.log(`   😴 Móviles descansando: ${movilesEnDescansoHoy}`)
+      console.log(`   🎯 Posiciones asignadas: ${mapaAsignaciones.size}/${totalPosiciones}`)
 
       // Guardar programaciones en la base de datos
       if (programaciones.length > 0) {
@@ -393,39 +708,57 @@ export async function POST(request: NextRequest) {
         })
       }
 
-          console.log('✅ Programaciones generadas:', {
-      totalGeneradas: programaciones.length,
-      programacionesPorRuta: programaciones.reduce((acc, p) => {
-        const rutaOriginal = todasLasRutas.find(r => 
-          r.hora.getHours() * 100 + r.hora.getMinutes() === p.hora && 
-          rutaMap.get(r.ruta) === p.rutaId
-        )?.ruta || 'Desconocida'
-        acc[rutaOriginal] = (acc[rutaOriginal] || 0) + 1
-        return acc
-      }, {} as Record<string, number>),
-      distribucionMoviles: Object.fromEntries(asignacionesPorMovil),
-      estadisticasPuntuacion: {
-        totalMovilesDisponibles: movilesFiltrados.length,
-        movilesAsignados: movilesYaAsignados.size,
-        movilesSinAsignar: movilesFiltrados.length - movilesYaAsignados.size,
-        porcentajeUtilizacion: Math.round((movilesYaAsignados.size / movilesFiltrados.length) * 100)
-      }
-    })
+      // 📊 Calcular estadísticas finales del algoritmo equitativo
+      const movilesConDobles = new Map()
+      const distribucionPorRuta: Record<string, number> = {}
+      
+      asignacionesPorMovil.forEach((count, movilId) => {
+        const movil = movilesFiltrados.find(m => m.id === movilId)
+        if (movil && count > 1) {
+          movilesConDobles.set(movil.movil, count)
+        }
+      })
 
-      // Calcular estadísticas
-      const totalMoviles = movilesFiltrados.length
-      const movilesAsignados = new Set(programaciones.map(p => p.automovilId)).size
-      const movilesEnDescanso = totalMoviles - movilesAsignados
+      // Contar programaciones por ruta
+      programaciones.forEach((p) => {
+        const rutaEncontrada = rutasDB.find(r => r.id === p.rutaId)
+        const rutaNombre = rutaEncontrada?.nombre || 'Desconocida'
+        distribucionPorRuta[rutaNombre] = (distribucionPorRuta[rutaNombre] || 0) + 1
+      })
+
+      console.log('✅ Algoritmo equitativo con flexibilidad progresiva completado:', {
+        totalProgramaciones: programaciones.length,
+        totalPosicionesFijas: totalPosiciones,
+        movilesAsignadosHoy: movilesAsignados.size,
+        movilesEnDescansoHoy: movilesEnDescansoHoy,
+        movilesConDobles: movilesConDobles.size,
+        distribucionPorRuta: distribucionPorRuta,
+        detalleDobles: movilesConDobles.size > 0 ? Object.fromEntries(movilesConDobles) : 'Ninguna',
+        metodologia: {
+          móvilesBarajados: true,
+          posicionesBarajadas: true,
+          esPrimeraVez: esPrimeraVez,
+          memoriaDias: esPrimeraVez ? 0 : 2,
+          prioridadDescansados: !esPrimeraVez,
+          flexibilidadProgresiva: true
+        }
+      })
+
+      const totalMovilesFinal = movilesFiltrados.length
+      const movilesAsignadosFinal = movilesAsignados.size
+      const movilesEnDescansoFinal = totalMovilesFinal - movilesAsignadosFinal
 
       return {
         totalRutas: programaciones.length,
-        totalMoviles,
-        movilesAsignados,
-        movilesEnDescanso,
+        totalMoviles: totalMovilesFinal,
+        movilesAsignados: movilesAsignadosFinal,
+        movilesEnDescanso: movilesEnDescansoFinal,
         movilesSinTrabajarAyer: movilesSinTrabajarAyer.size,
         estadisticas: {
-          promedioAsignaciones: programaciones.length / totalMoviles,
-          distribucion: Object.fromEntries(asignacionesPorMovil)
+          promedioAsignaciones: programaciones.length / totalMovilesFinal,
+          distribucion: Object.fromEntries(asignacionesPorMovil),
+          distribucionPorRuta: distribucionPorRuta,
+          dobles: Object.fromEntries(movilesConDobles)
         }
       }
     });

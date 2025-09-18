@@ -59,8 +59,11 @@ export default function ConsultarProgramadoPage() {
     const h = parseInt(horaStr.slice(0, -2), 10); // primeros 1 o 2 dígitos
     const m = horaStr.slice(-2); // últimos 2 dígitos
 
-    // devolver en formato 2 dígitos con am fijo
-    return `${h.toString().padStart(2, "0")}:${m} am`;
+    // determinar AM/PM automáticamente
+    const ampm = h >= 12 ? 'pm' : 'am';
+
+    // devolver en formato 2 dígitos con AM/PM correcto
+    return `${h.toString().padStart(2, "0")}:${m} ${ampm}`;
   };
 
   // Función para obtener el día de la semana
