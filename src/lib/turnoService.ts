@@ -2096,7 +2096,7 @@ export class TurnoService {
       where: {
         movilId,
         fecha: { gte: new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate()), lt: new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate() + 1) },
-        horaSalida: { lte: ahoraBogotaDate }, // Solo turnos que ya ocurrieron o están ocurriendo
+        // horaSalida: { lte: ahoraBogotaDate }, // Se elimina este filtro para mostrar todas las rutas del día
         estado: { in: ['PENDIENTE', 'EN_CURSO', 'COMPLETADO'] }
       },
       include: {
@@ -2134,75 +2134,37 @@ export class TurnoService {
       fechaHoy
     });
 
-    // Convertir turnos al formato esperado
-    const turnosFormateados = turnosHoy.map(turno => ({
-      id: turno.id,
-      horaSalida: turno.horaSalida.toISOString(),
-      ruta: turno.ruta ? { id: turno.ruta.id, nombre: turno.ruta.nombre } : null,
-      movil: { id: turno.automovil.id, movil: turno.automovil.movil },
-      conductor: { id: turno.conductor.id, nombre: turno.conductor.nombre },
-      estado: turno.estado || 'PENDIENTE',
-      tipo: 'turno' as const
-    }));
-
-    // Convertir programados al formato esperado
-    const programadosFormateados = programadosHoy.map(prog => {
-      return {
-        id: prog.id,
-        horaSalida: prog.hora, // Enviar la hora original numérica para evitar problemas de zona horaria
-        ruta: { id: prog.ruta?.id || 0, nombre: prog.ruta?.nombre || 'Sin ruta' },
-        movil: { id: prog.automovil.id, movil: prog.automovil.movil },
-        conductor: { id: 0, nombre: 'Programado' },
-        estado: 'PROGRAMADO',
-        tipo: 'programado' as const
-      };
-    });
-
-    // Combinar y ordenar por hora
-    const todasLasRutas = [...turnosFormateados, ...programadosFormateados]
-      .sort((a, b) => {
-        // Convertir ambos valores a Date para comparar correctamente
-        let fechaA: Date;
-        let fechaB: Date;
-        
-        if (typeof a.horaSalida === 'number') {
-          // Es programado con hora numérica
-          const horasA = Math.floor(a.horaSalida / 100);
-          const minutosA = a.horaSalida % 100;
-          fechaA = new Date();
-          fechaA.setHours(horasA, minutosA, 0, 0);
-        } else {
-          // Es turno con hora ISO
-          fechaA = new Date(a.horaSalida);
-        }
-        
-        if (typeof b.horaSalida === 'number') {
-          // Es programado con hora numérica
-          const horasB = Math.floor(b.horaSalida / 100);
-          const minutosB = b.horaSalida % 100;
-          fechaB = new Date();
-          fechaB.setHours(horasB, minutosB, 0, 0);
-        } else {
-          // Es turno con hora ISO
-          fechaB = new Date(b.horaSalida);
-        }
-        
-        return fechaA.getTime() - fechaB.getTime();
-      });
-
-    console.log('✅ Rutas combinadas y ordenadas:', {
-      movilId,
-      totalRutas: todasLasRutas.length,
-      rutas: todasLasRutas.map(r => ({
-        hora: r.horaSalida,
-        ruta: r.ruta?.nombre,
-        conductor: r.conductor.nombre,
-        estado: r.estado,
-        tipo: r.tipo
+    // Combinar turnos y programados
+    const eventosCombinados: Turno[] = [
+      ...todosTurnos.map(t => ({ // Mapear a la interfaz Turno
+        id: t.id,
+        horaSalida: t.horaSalida.toISOString(),
+        ruta: t.ruta ? { id: t.ruta.id, nombre: t.ruta.nombre } : null,
+        movil: { id: t.automovil.id, movil: t.automovil.movil },
+        conductor: { id: t.conductor.id, nombre: t.conductor.nombre },
+        tipo: 'turno',
+        estado: t.estado || 'PENDIENTE' as 'PENDIENTE'
+      })),
+      ...todosProgramados.map(p => ({
+        id: p.id,
+        // Asegurarse de que horaSalida sea Date en el formato ISO, para que el frontend lo interprete correctamente
+        horaSalida: new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate(), Math.floor(p.hora / 100), p.hora % 100).toISOString(),
+        ruta: p.ruta ? { id: p.ruta.id, nombre: p.ruta.nombre } : null,
+        movil: p.automovil ? { id: p.automovil.id, movil: p.automovil.movil } : { id: 0, movil: 'N/A' }, // Asume que un programado tiene un movil asignado
+        conductor: { id: 0, nombre: 'Programado' }, // Asigna un conductor por defecto para programados
+        tipo: 'programado',
+        estado: 'PENDIENTE' // Los programados siempre están pendientes en esta vista
       }))
+    ];
+
+    // Ordenar todos los eventos por horaSalida
+    eventosCombinados.sort((a, b) => {
+      const horaA = typeof a.horaSalida === 'string' ? new Date(a.horaSalida) : this.convertirNumeroHoraADate(a.horaSalida as number, ahora);
+      const horaB = typeof b.horaSalida === 'string' ? new Date(b.horaSalida) : this.convertirNumeroHoraADate(b.horaSalida as number, ahora);
+      return horaA.getTime() - horaB.getTime();
     });
 
-    return todasLasRutas;
+    return eventosCombinados;
   }
 
   /**
