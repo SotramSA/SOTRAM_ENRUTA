@@ -129,6 +129,13 @@ export class TurnoService {
     // Combinar huecos de turnos con huecos de programados
     huecosExistentes = [...huecosExistentes, ...huecosProgramados];
 
+    // Obtener todas las rutas activas para poder evaluar sus propiedades (prioridad, unaVezDia)
+    const rutas = await prisma.ruta.findMany({
+      where: { activo: true },
+      orderBy: { nombre: 'asc' }
+    });
+    const hayProgramadosHoy = await this.verificarProgramadosHoy(ahora); // Obtener este estado aquí
+
     // Verificar si necesitamos generar más huecos
     const huecosPorRuta = huecosExistentes.reduce((acc, hueco) => {
       if (!acc[hueco.rutaNombre]) {
@@ -140,15 +147,32 @@ export class TurnoService {
     
     console.log('📊 Huecos disponibles por ruta:', huecosPorRuta);
     
-    // Verificar si alguna ruta tiene menos de 5 huecos (umbral para regenerar)
+    // Verificar si necesitamos generar más huecos
     const rutasConPocosHuecos = Object.entries(huecosPorRuta)
-      .filter(([ruta, cantidad]) => cantidad < 5)
+      .filter(([ruta, cantidad]) => cantidad < 5) // Umbral original para prioridad 1
+      .map(([ruta]) => ruta);
+
+    // Para rutas de prioridad 0 (como C), queremos garantizar que siempre haya suficientes huecos si hay programados hoy.
+    // Asumimos que para estas rutas, siempre generamos 10 huecos.
+    const rutasPrioridad0ConPocosHuecos = Object.entries(huecosPorRuta)
+      .filter(([rutaNombre, cantidad]) => {
+        const rutaObj = rutas.find(r => r.nombre === rutaNombre);
+        return rutaObj?.prioridad === 0 && cantidad < 10; // Para prioridad 0, verificar si tenemos menos de 10
+      })
       .map(([ruta]) => ruta);
     
-    if (huecosExistentes.length === 0 || rutasConPocosHuecos.length > 0) {
+    // FORZAR regeneración si:
+    // 1. No hay huecos existentes.
+    // 2. Hay rutas (prioridad 1) con pocos huecos (<5).
+    // 3. Hay programados hoy Y rutas de prioridad 0 (Despacho C) tienen menos de 10 huecos (su target).
+    if (huecosExistentes.length === 0 || 
+        rutasConPocosHuecos.length > 0 || 
+        (hayProgramadosHoy && rutasPrioridad0ConPocosHuecos.length > 0)) {
       console.log('🔄 Necesitamos generar más huecos:', {
         totalHuecos: huecosExistentes.length,
         rutasConPocosHuecos,
+        rutasPrioridad0ConPocosHuecos,
+        hayProgramadosHoy,
         huecosPorRuta
       });
       
@@ -170,7 +194,7 @@ export class TurnoService {
       }
 
       console.log('🔄 Generando huecos adicionales...');
-      await this.generarNuevosHuecos(ahora, movilId, conductorId);
+      await this.generarNuevosHuecos(ahora, movilId, conductorId, rutas); // Pasar rutas
       
       // Obtener huecos nuevamente SIN limpiar (para evitar eliminar los que acabamos de generar)
       huecosExistentes = await this.obtenerHuecosExistentesSinLimpiar(ahora, movilId);
@@ -365,21 +389,21 @@ export class TurnoService {
   /**
    * Genera nuevos huecos y los almacena en la base de datos
    */
-  private async generarNuevosHuecos(ahora: Date, movilId: number, conductorId: number): Promise<void> {
+  private async generarNuevosHuecos(ahora: Date, movilId: number, conductorId: number, rutas?: any[]): Promise<void> {
     console.log('🔄 Generando nuevos huecos GLOBALES...');
     
-    // Obtener todas las rutas activas
-    const rutas = await prisma.ruta.findMany({
+    // Obtener todas las rutas activas si no se pasaron como argumento
+    const rutasActivas = rutas || await prisma.ruta.findMany({
       where: { activo: true },
       orderBy: { nombre: 'asc' }
     });
 
-    console.log('📋 Rutas activas encontradas:', rutas.map(r => r.nombre));
+    console.log('📋 Rutas activas encontradas:', rutasActivas.map(r => r.nombre));
 
     // Generar huecos alternados respetando las frecuencias de las rutas
     // Los huecos son GLOBALES, no específicos de un móvil/conductor
     console.log('🎯 LLAMANDO A generarHuecosAlternados CON VALIDACIONES HORARIAS...');
-    const huecos = await this.generarHuecosAlternados(rutas, ahora, movilId, conductorId);
+    const huecos = await this.generarHuecosAlternados(rutasActivas, ahora, movilId, conductorId);
     console.log('🎯 RETORNADO DE generarHuecosAlternados, huecos generados:', huecos.length);
     
     // Almacenar huecos en la base de datos
@@ -1250,6 +1274,7 @@ export class TurnoService {
           where: {
             movilId,
             fecha: { gte: inicioDia, lt: finDia },
+            horaSalida: { lte: this.getHoraBogota(ahora).date }, // Solo turnos que ya ocurrieron o están ocurriendo
             ruta: { prioridad: 1 } // Solo rutas A y B
           },
           include: { ruta: true },
@@ -1259,6 +1284,7 @@ export class TurnoService {
           where: {
             automovilId: movilId,
             fecha: { gte: inicioDia, lt: finDia },
+            hora: { lte: this.convertirDateANumeroHora(this.getHoraBogota(ahora).date) }, // Solo programados que ya ocurrieron o están ocurriendo
             ruta: { nombre: { in: ['Despacho A', 'Despacho B'] } } // Programados equivalentes a A y B
           },
           include: { ruta: true },
@@ -1271,7 +1297,7 @@ export class TurnoService {
 
       if (ultimoTurno && ultimoProgramado) {
         const horaUltimoTurno = new Date(ultimoTurno.horaSalida);
-        const horaUltimoProgramado = new Date(ultimoProgramado.hora);
+        const horaUltimoProgramado = this.convertirNumeroHoraADate(ultimoProgramado.hora, ultimoProgramado.fecha); // Convertir número hora a Date
         
         if (horaUltimoTurno > horaUltimoProgramado) {
           ultimoEvento = {
@@ -1295,7 +1321,7 @@ export class TurnoService {
       } else if (ultimoProgramado) {
         ultimoEvento = {
           ruta: ultimoProgramado.ruta?.nombre === 'Despacho A' ? 'A' : 'B',
-          hora: new Date(ultimoProgramado.hora),
+          hora: this.convertirNumeroHoraADate(ultimoProgramado.hora, ultimoProgramado.fecha),
           tipo: 'programado'
         };
       }
@@ -1332,14 +1358,14 @@ export class TurnoService {
     }
     
     if (ruta.prioridad === 1) {
+      const ahoraBogotaDate = this.getHoraBogota(ahora).date;
+
       // Verificar si este móvil ya hizo esta ruta en su último turno (SOLO rutas A y B)
       const ultimoTurnoMovil = await prisma.turno.findFirst({
         where: {
           movilId,
-          fecha: {
-            gte: new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate()),
-            lt: new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() + 1)
-          },
+          fecha: { gte: new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate()), lt: new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() + 1) },
+          horaSalida: { lte: ahoraBogotaDate }, // Solo turnos que ya ocurrieron o están ocurriendo
           ruta: {
             prioridad: 1 // Solo considerar rutas A y B para la rotación
           }
@@ -1437,36 +1463,37 @@ export class TurnoService {
     const ahora = TimeService.getCurrentTime();
     const fechaHoy = ahora.toISOString().split('T')[0];
     
+    // Obtener la hora actual de Bogotá para filtrar eventos futuros
+    const ahoraBogotaDate = this.getHoraBogota(ahora).date;
+
     // Obtener turnos del día
     const todosTurnosHoy = await prisma.turno.findMany({
       where: {
         movilId,
+        fecha: { gte: new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate()), lt: new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate() + 1) },
+        horaSalida: { lte: ahoraBogotaDate }, // Solo turnos que ya ocurrieron o están ocurriendo
         estado: { in: ['COMPLETADO', 'EN_CURSO', 'PENDIENTE'] }
       },
       include: { ruta: true },
       orderBy: { horaSalida: 'desc' }
     });
     
-    // Filtrar turnos de hoy
-    const turnosHoy = todosTurnosHoy.filter(turno => {
-      const fechaTurno = new Date(turno.fecha).toISOString().split('T')[0];
-      return fechaTurno === fechaHoy;
-    });
+    // Los turnos ya están filtrados por fecha y hora
+    const turnosHoy = todosTurnosHoy;
     
     // Obtener programados del día para este móvil
     const todosProgramadosHoy = await prisma.programacion.findMany({
       where: {
-        automovilId: movilId
+        automovilId: movilId,
+        fecha: { gte: new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate()), lt: new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate() + 1) },
+        hora: { lte: this.convertirDateANumeroHora(ahoraBogotaDate) } // Solo programados que ya ocurrieron o están ocurriendo
       },
       include: { ruta: true },
       orderBy: { hora: 'desc' }
     });
     
-    // Filtrar programados de hoy
-    const programadosHoy = todosProgramadosHoy.filter(prog => {
-      const fechaProgramado = new Date(prog.fecha).toISOString().split('T')[0];
-      return fechaProgramado === fechaHoy;
-    });
+    // Los programados ya están filtrados por fecha y hora
+    const programadosHoy = todosProgramadosHoy;
     
     // Combinar rutas hechas de turnos y programados
     const rutasHechasTurnos = turnosHoy.map(t => t.ruta?.nombre).filter(Boolean);
@@ -1474,27 +1501,15 @@ export class TurnoService {
       const nombreRuta = p.ruta?.nombre || '';
       console.log('🔍 Mapeando programado:', { ruta: p.ruta, nombreRuta, id: p.id });
       
-      // Mapear nombres de programados a nombres de rutas
-      if (nombreRuta === 'DESPACHO D. RUT7 CORZO LORETO' || 
-          nombreRuta === 'DESPACHO E RUT7 CORZO' || 
-          nombreRuta === 'DESPACHO D RUT4 PAMPA-CORZO') {
-        console.log('✅ Programado mapeado a C (rutas específicas):', nombreRuta);
+      // Mapear nombres de programados a nombres cortos para comparación
+      if (nombreRuta.includes('Despacho D') || nombreRuta.includes('DESPACHO D') || nombreRuta.includes('Despacho E')) {
         return 'C'; // Estos programados son equivalentes a Despacho C
       }
       
       // Mapear variaciones de nombres de despachos
-      if (nombreRuta === 'Despacho A' || nombreRuta === 'DESPACHO A' || nombreRuta === 'Despacho Despacho A') return 'A';
-      if (nombreRuta === 'Despacho B' || nombreRuta === 'DESPACHO B' || nombreRuta === 'Despacho Despacho B') return 'B';
-      if (nombreRuta === 'Despacho C' || nombreRuta === 'DESPACHO C' || nombreRuta === 'Despacho Despacho C') {
-        console.log('✅ Programado mapeado a C (despacho directo):', nombreRuta);
-        return 'C';
-      }
-      
-      // Si contiene "Despacho C" en cualquier parte del nombre
-      if (nombreRuta && nombreRuta.includes('Despacho C')) {
-        console.log('✅ Programado mapeado a C (contiene "Despacho C"):', nombreRuta);
-        return 'C';
-      }
+      if (nombreRuta.includes('Despacho A') || nombreRuta.includes('DESPACHO A')) return 'A';
+      if (nombreRuta.includes('Despacho B') || nombreRuta.includes('DESPACHO B')) return 'B';
+      if (nombreRuta.includes('Despacho C') || nombreRuta.includes('DESPACHO C')) return 'C';
       
       console.log('❓ Programado no mapeado:', nombreRuta);
       return nombreRuta;
@@ -1503,45 +1518,56 @@ export class TurnoService {
     const rutasHechasNombres = [...rutasHechasTurnos, ...rutasHechasProgramados];
     
     // Encontrar la última ruta A o B (para alternancia) considerando turnos y programados
-    const ultimoTurnoAB = turnosHoy.find(t => {
+    let ultimoEventoAB: { ruta: string; hora: Date; tipo: 'turno' | 'programado' } | null = null;
+
+    // Obtener el último turno A o B que ya ocurrió
+    const ultimoTurnoABObj = turnosHoy.find(t => {
       const nombreRuta = t.ruta?.nombre || '';
-      const rutaMapeada = nombreRuta === 'Despacho A' || nombreRuta === 'DESPACHO A' || nombreRuta === 'Despacho Despacho A' ? 'A' :
-                          nombreRuta === 'Despacho B' || nombreRuta === 'DESPACHO B' || nombreRuta === 'Despacho Despacho B' ? 'B' : null;
-      return rutaMapeada === 'A' || rutaMapeada === 'B';
+      return nombreRuta.includes('Despacho A') || nombreRuta.includes('Despacho B');
     });
-    
-    const ultimaRutaABTurno = ultimoTurnoAB ? (() => {
-      const nombreRuta = ultimoTurnoAB.ruta?.nombre || '';
-      return nombreRuta === 'Despacho A' || nombreRuta === 'DESPACHO A' || nombreRuta === 'Despacho Despacho A' ? 'A' : 'B';
-    })() : null;
-    const ultimaRutaABProgramado = programadosHoy.find(p => {
+
+    // Obtener el último programado A o B que ya ocurrió
+    const ultimoProgramadoABObj = programadosHoy.find(p => {
       const nombreRuta = p.ruta?.nombre || '';
-      const rutaMapeada = nombreRuta === 'Despacho A' || nombreRuta === 'DESPACHO A' || nombreRuta === 'Despacho Despacho A' ? 'A' :
-                          nombreRuta === 'Despacho B' || nombreRuta === 'DESPACHO B' || nombreRuta === 'Despacho Despacho B' ? 'B' : null;
-      return rutaMapeada === 'A' || rutaMapeada === 'B';
+      return nombreRuta.includes('Despacho A') || nombreRuta.includes('Despacho B');
     });
-    
-    // Determinar cuál fue la última (turnos y programados combinados)
-    let ultimaRutaAB = ultimaRutaABTurno;
-    if (ultimaRutaABProgramado) {
-      const nombreRuta = ultimaRutaABProgramado.ruta?.nombre || '';
-      const rutaProgramadaMapeada = nombreRuta === 'Despacho A' || nombreRuta === 'DESPACHO A' || nombreRuta === 'Despacho Despacho A' ? 'A' : 'B';
-      
-      // Si hay ambos, comparar horarios para ver cuál fue el último
-      if (ultimaRutaABTurno && ultimoTurnoAB) {
-        const horaTurno = new Date(ultimoTurnoAB.horaSalida);
-        const horaProgramado = new Date(ultimaRutaABProgramado.hora);
-        
-        if (horaProgramado > horaTurno) {
-          ultimaRutaAB = rutaProgramadaMapeada;
-        }
+
+    if (ultimoTurnoABObj && ultimoProgramadoABObj) {
+      const horaTurno = new Date(ultimoTurnoABObj.horaSalida);
+      const horaProgramado = this.convertirNumeroHoraADate(ultimoProgramadoABObj.hora, ultimoProgramadoABObj.fecha);
+
+      if (horaTurno > horaProgramado) {
+        ultimoEventoAB = {
+          ruta: ultimoTurnoABObj.ruta?.nombre === 'Despacho A' ? 'A' : 'B',
+          hora: horaTurno,
+          tipo: 'turno'
+        };
       } else {
-        ultimaRutaAB = rutaProgramadaMapeada;
+        ultimoEventoAB = {
+          ruta: ultimoProgramadoABObj.ruta?.nombre === 'Despacho A' ? 'A' : 'B',
+          hora: horaProgramado,
+          tipo: 'programado'
+        };
       }
+    } else if (ultimoTurnoABObj) {
+      ultimoEventoAB = {
+        ruta: ultimoTurnoABObj.ruta?.nombre || '',
+        hora: new Date(ultimoTurnoABObj.horaSalida),
+        tipo: 'turno'
+      };
+    } else if (ultimoProgramadoABObj) {
+      ultimoEventoAB = {
+        ruta: ultimoProgramadoABObj.ruta?.nombre === 'Despacho A' ? 'A' : 'B',
+        hora: this.convertirNumeroHoraADate(ultimoProgramadoABObj.hora, ultimoProgramadoABObj.fecha),
+        tipo: 'programado'
+      };
     }
     
+    const ultimaRutaAB = ultimoEventoAB ? ultimoEventoAB.ruta : null;
+    
     // La última ruta de cualquier tipo (para logs)
-    const ultimaRutaHecha = turnosHoy[0]?.ruta?.nombre;
+    // No es necesario ya que estamos filtrando por hora
+    // const ultimaRutaHecha = turnosHoy[0]?.ruta?.nombre;
     
     console.log('🔍 Rutas hechas hoy por móvil (turnos + programados):', {
       movilId,
@@ -1550,37 +1576,31 @@ export class TurnoService {
       rutasHechasTurnos,
       rutasHechasProgramados,
       rutasHechasTotal: rutasHechasNombres,
-      ultimaRutaABTurno,
-      ultimaRutaABProgramado: ultimaRutaABProgramado?.ruta?.nombre,
+      ultimoEventoAB: ultimoEventoAB ? { ruta: ultimoEventoAB.ruta, hora: ultimoEventoAB.hora.toISOString(), tipo: ultimoEventoAB.tipo } : null,
       ultimaRutaABFinal: ultimaRutaAB,
-      ultimaRutaHecha,
       debeAlternar: ultimaRutaAB === 'A' ? 'B' : ultimaRutaAB === 'B' ? 'A' : 'N/A'
     });
     
     // Filtrar huecos para la sugerencia automática
     const huecosParaSugerencia = huecos.filter(hueco => {
       // Mapear nombre del hueco a nombre corto para comparación
-      const rutaHuecoCorta = hueco.rutaNombre === 'Despacho A' ? 'A' :
-                            hueco.rutaNombre === 'Despacho B' ? 'B' :
-                            hueco.rutaNombre === 'Despacho C' ? 'C' :
+      const rutaHuecoCorta = hueco.rutaNombre.includes('Despacho A') ? 'A' :
+                            hueco.rutaNombre.includes('Despacho B') ? 'B' :
+                            hueco.rutaNombre.includes('Despacho C') || hueco.rutaNombre.includes('Despacho D') || hueco.rutaNombre.includes('Despacho E') ? 'C' :
                             hueco.rutaNombre;
       
       console.log(`🔍 Evaluando hueco para sugerencia: ${hueco.rutaNombre}`, {
         rutaHuecoCorta,
         rutasHechasNombres,
-        includeC: rutasHechasNombres.includes('C'),
+        yaHizoC: rutasHechasNombres.includes('C'),
         esCDespacho: rutaHuecoCorta === 'C'
       });
       
       // Si ya hizo la ruta C, no permitir sugerirla nuevamente (solo se hace una vez)
-      const yaHizoC = rutasHechasNombres.some(ruta => 
-        ruta === 'C' || ruta === 'Despacho C' || ruta === 'DESPACHO C' || ruta === 'Despacho Despacho C'
-      );
+      const yaHizoC = rutasHechasNombres.includes('C');
       if (rutaHuecoCorta === 'C' && yaHizoC) {
-        const origenC = rutasHechasTurnos.some(ruta => 
-          ruta === 'C' || ruta === 'Despacho C' || ruta === 'DESPACHO C' || ruta === 'Despacho Despacho C'
-        ) ? 'turno' : 'programado';
-        console.log(`🚫 Hueco descartado para sugerencia automática: ${hueco.rutaNombre} (móvil ${movilId} ya hizo la ruta C hoy como ${origenC})`);
+        // No es necesario verificar el origen (turno o programado), solo si ya hizo C
+        console.log(`🚫 Hueco descartado para sugerencia automática: ${hueco.rutaNombre} (móvil ${movilId} ya hizo la ruta C hoy)`);
         return false;
       }
       
@@ -1589,7 +1609,7 @@ export class TurnoService {
         return true;
       }
       
-      // Para otras rutas, no mostrar si ya las hizo
+      // Para otras rutas, no mostrar si ya las hizo (excepto C, que ya se manejó)
       const noRepiteRuta = !rutasHechasNombres.includes(rutaHuecoCorta);
       if (!noRepiteRuta) {
         console.log(`🚫 Hueco descartado para sugerencia automática: ${hueco.rutaNombre} (móvil ${movilId} ya hizo esta ruta hoy)`);
@@ -1611,39 +1631,29 @@ export class TurnoService {
 
     // PASO 1: Encontrar el hueco más temprano de cada tipo
     const huecosA = huecosParaSugerencia.filter(h => {
-      const rutaCorta = h.rutaNombre === 'Despacho A' ? 'A' : 
-                       h.rutaNombre === 'Despacho B' ? 'B' : 
-                       h.rutaNombre === 'Despacho C' ? 'C' : h.rutaNombre;
-      return rutaCorta === 'A';
+      return h.rutaNombre.includes('Despacho A');
     });
     const huecoMasTempranoA = huecosA.sort((a, b) => new Date(a.horaSalida).getTime() - new Date(b.horaSalida).getTime())[0];
     
     const huecosB = huecosParaSugerencia.filter(h => {
-      const rutaCorta = h.rutaNombre === 'Despacho A' ? 'A' : 
-                       h.rutaNombre === 'Despacho B' ? 'B' : 
-                       h.rutaNombre === 'Despacho C' ? 'C' : h.rutaNombre;
-      return rutaCorta === 'B';
+      return h.rutaNombre.includes('Despacho B');
     });
     const huecoMasTempranoB = huecosB.sort((a, b) => new Date(a.horaSalida).getTime() - new Date(b.horaSalida).getTime())[0];
     
     const huecosC = huecosParaSugerencia.filter(h => {
-      const rutaCorta = h.rutaNombre === 'Despacho A' ? 'A' : 
-                       h.rutaNombre === 'Despacho B' ? 'B' : 
-                       h.rutaNombre === 'Despacho C' ? 'C' : h.rutaNombre;
-      return rutaCorta === 'C';
+      return h.rutaNombre.includes('Despacho C') || h.rutaNombre.includes('Despacho D') || h.rutaNombre.includes('Despacho E');
     });
     const huecoMasTempranoC = huecosC.sort((a, b) => new Date(a.horaSalida).getTime() - new Date(b.horaSalida).getTime())[0];
     
-    const yaHizoC = rutasHechasNombres.some(ruta => 
-      ruta === 'C' || ruta === 'Despacho C' || ruta === 'DESPACHO C' || ruta === 'Despacho Despacho C'
-    );
+    // Determinar si ya hizo C basándose en rutasHechasNombres
+    const yaHizoCGeneral = rutasHechasNombres.includes('C');
     
     console.log('🔍 Huecos filtrados por tipo:', {
       huecosA: huecosA.length,
       huecosB: huecosB.length,
       huecosC: huecosC.length,
       rutasHechasNombres,
-      incluyeC: yaHizoC
+      incluyeC: yaHizoCGeneral
     });
 
     console.log('🔍 Huecos más tempranos por tipo:', {
@@ -1678,7 +1688,7 @@ export class TurnoService {
       const huecosDisponibles = [];
       if (huecoMasTempranoA) huecosDisponibles.push(huecoMasTempranoA);
       if (huecoMasTempranoB) huecosDisponibles.push(huecoMasTempranoB);
-      if (huecoMasTempranoC && !yaHizoC) huecosDisponibles.push(huecoMasTempranoC);
+      if (huecoMasTempranoC && !yaHizoCGeneral) huecosDisponibles.push(huecoMasTempranoC); // Usar yaHizoCGeneral
       
       if (huecosDisponibles.length > 0) {
         // Ordenar por tiempo y tomar el más temprano
@@ -1707,12 +1717,12 @@ export class TurnoService {
     if (sugerenciaPorAlternancia) {
       // Buscar el mejor hueco de la ruta sugerida por alternancia que tenga prioridad ROTACION
       const huecosDeRutaSugerida = huecosParaSugerencia.filter(h => {
-        const rutaCorta = h.rutaNombre === 'Despacho A' ? 'A' : 
-                         h.rutaNombre === 'Despacho B' ? 'B' : 
-                         h.rutaNombre === 'Despacho C' ? 'C' : h.rutaNombre;
-        const rutaSugeridaCorta = sugerenciaPorAlternancia.rutaNombre === 'Despacho A' ? 'A' : 
-                                 sugerenciaPorAlternancia.rutaNombre === 'Despacho B' ? 'B' : 
-                                 sugerenciaPorAlternancia.rutaNombre === 'Despacho C' ? 'C' : sugerenciaPorAlternancia.rutaNombre;
+        const rutaCorta = h.rutaNombre.includes('Despacho A') ? 'A' :
+                         h.rutaNombre.includes('Despacho B') ? 'B' :
+                         h.rutaNombre.includes('Despacho C') || h.rutaNombre.includes('Despacho D') || h.rutaNombre.includes('Despacho E') ? 'C' : h.rutaNombre;
+        const rutaSugeridaCorta = sugerenciaPorAlternancia.rutaNombre.includes('Despacho A') ? 'A' :
+                                 sugerenciaPorAlternancia.rutaNombre.includes('Despacho B') ? 'B' :
+                                 sugerenciaPorAlternancia.rutaNombre.includes('Despacho C') || sugerenciaPorAlternancia.rutaNombre.includes('Despacho D') || sugerenciaPorAlternancia.rutaNombre.includes('Despacho E') ? 'C' : sugerenciaPorAlternancia.rutaNombre;
         return rutaCorta === rutaSugeridaCorta && h.prioridad === 'ROTACION';
       });
       
@@ -1728,7 +1738,7 @@ export class TurnoService {
     }
     
     // PASO 4: Verificar si hay una ruta C mejor (solo si C no se ha hecho y hay alternancia válida)
-    if (ultimaRutaAB && huecoMasTempranoC && !yaHizoC && mejorHueco) {
+    if (ultimaRutaAB && huecoMasTempranoC && !yaHizoCGeneral && mejorHueco) { // Usar yaHizoCGeneral
       const horaC = new Date(huecoMasTempranoC.horaSalida).getTime();
       const horaMejorHueco = new Date(mejorHueco.horaSalida).getTime();
       
@@ -1738,17 +1748,19 @@ export class TurnoService {
       } else {
         console.log(`🔄 Alternancia mejor que C: ${mejorHueco.rutaNombre} ${mejorHueco.horaSalida} está antes que C ${huecoMasTempranoC.horaSalida}`);
       }
-    } else if (huecoMasTempranoC && !yaHizoC && !mejorHueco) {
+    } else if (huecoMasTempranoC && !yaHizoCGeneral && !mejorHueco) { // Usar yaHizoCGeneral
       // Si no hay sugerencia de alternancia, usar C
       mejorHueco = huecoMasTempranoC;
       console.log(`🔄 No hay alternancia disponible, usando C ${huecoMasTempranoC.horaSalida}`);
-    } else if (yaHizoC) {
+    } else if (yaHizoCGeneral) { // Usar yaHizoCGeneral
       console.log(`🔄 C ya hecha, manteniendo sugerencia de alternancia`);
       // Si C ya se hizo, asegurar que no se seleccione C como mejor hueco
-      if (mejorHueco && mejorHueco.rutaNombre === 'Despacho C') {
+      if (mejorHueco && (mejorHueco.rutaNombre.includes('Despacho C') || mejorHueco.rutaNombre.includes('Despacho D') || mejorHueco.rutaNombre.includes('Despacho E'))) {
         console.log(`⚠️ C ya hecha pero mejorHueco es C, buscando alternativa...`);
         // Buscar el siguiente mejor hueco que no sea C
-        const huecosSinC = huecosParaSugerencia.filter(h => h.rutaNombre !== 'Despacho C');
+        const huecosSinC = huecosParaSugerencia.filter(h => 
+          !(h.rutaNombre.includes('Despacho C') || h.rutaNombre.includes('Despacho D') || h.rutaNombre.includes('Despacho E'))
+        );
         if (huecosSinC.length > 0) {
           const mejorHuecoSinC = huecosSinC.sort((a, b) => {
             const prioridadA = this.getPrioridadNumerica(a.prioridad);
@@ -2076,10 +2088,15 @@ export class TurnoService {
       fechaHoy
     });
 
+    // Obtener la hora actual de Bogotá para filtrar eventos futuros
+    const ahoraBogotaDate = this.getHoraBogota(ahora).date;
+
     // Obtener turnos del móvil
     const todosTurnos = await prisma.turno.findMany({
       where: {
         movilId,
+        fecha: { gte: new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate()), lt: new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate() + 1) },
+        horaSalida: { lte: ahoraBogotaDate }, // Solo turnos que ya ocurrieron o están ocurriendo
         estado: { in: ['PENDIENTE', 'EN_CURSO', 'COMPLETADO'] }
       },
       include: {
@@ -2090,16 +2107,15 @@ export class TurnoService {
       orderBy: { horaSalida: 'asc' }
     });
 
-    // Filtrar turnos de hoy
-    const turnosHoy = todosTurnos.filter(turno => {
-      const fechaTurno = new Date(turno.fecha).toISOString().split('T')[0];
-      return fechaTurno === fechaHoy;
-    });
+    // Los turnos ya están filtrados por fecha y hora
+    const turnosHoy = todosTurnos;
 
     // Obtener programados del móvil
     const todosProgramados = await prisma.programacion.findMany({
       where: {
-        automovilId: movilId // movilId es realmente el automovilId
+        automovilId: movilId, // movilId es realmente el automovilId
+        fecha: { gte: new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate()), lt: new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate() + 1) },
+        hora: { lte: this.convertirDateANumeroHora(ahoraBogotaDate) } // Solo programados que ya ocurrieron o están ocurriendo
       },
       include: {
         automovil: true,
@@ -2108,11 +2124,8 @@ export class TurnoService {
       orderBy: { hora: 'asc' }
     });
 
-    // Filtrar programados de hoy
-    const programadosHoy = todosProgramados.filter(prog => {
-      const fechaProgramado = new Date(prog.fecha).toISOString().split('T')[0];
-      return fechaProgramado === fechaHoy;
-    });
+    // Los programados ya están filtrados por fecha y hora
+    const programadosHoy = todosProgramados;
 
     console.log('📋 Rutas encontradas para el móvil:', {
       movilId,
@@ -2241,10 +2254,17 @@ export class TurnoService {
       ahora: ahora.toISOString()
     });
 
+    // Obtener la hora actual de Bogotá para filtrar eventos futuros
+    const ahoraBogotaDate = this.getHoraBogota(ahora).date;
+
     // Obtener todos los programados disponibles
     // Como automovilId no puede ser null, necesitamos una lógica diferente
     // Por ahora, vamos a obtener todos los programados y filtrar después
     const todosProgramados = await prisma.programacion.findMany({
+      where: {
+        fecha: { gte: new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate()), lt: new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate() + 1) },
+        hora: { lte: this.convertirDateANumeroHora(ahoraBogotaDate) } // Solo programados que ya ocurrieron o están ocurriendo
+      },
       include: {
         ruta: true
       },
@@ -2262,11 +2282,8 @@ export class TurnoService {
       }))
     });
 
-    // Filtrar programados de hoy
-    const programados = todosProgramados.filter(prog => {
-      const fechaProgramado = new Date(prog.fecha).toISOString().split('T')[0];
-      return fechaProgramado === fechaHoy;
-    });
+    // Filtrar programados de hoy (ya filtrados en la consulta)
+    const programados = todosProgramados;
 
     console.log('📋 Programados encontrados:', programados.length);
 
@@ -2293,8 +2310,8 @@ export class TurnoService {
           horaProgramado.setHours(7, 0, 0, 0); // Hora por defecto
         }
 
-        // Solo incluir si está en el futuro
-        const minutosHastaProgramado = Math.round((horaProgramado.getTime() - ahora.getTime()) / (1000 * 60));
+        // Solo incluir si está en el futuro (después de ahoraBogotaDate)
+        const minutosHastaProgramado = Math.round((horaProgramado.getTime() - ahoraBogotaDate.getTime()) / (1000 * 60));
         
         // Verificar consistencia: como automovilId no puede ser null, 
         // consideramos disponibles aquellos con automovilId = 0 (valor especial para "disponible")
@@ -2303,15 +2320,15 @@ export class TurnoService {
         console.log(`🔍 Evaluando programado: ${programado.ruta?.nombre || 'Sin ruta'}`, {
           id: programado.id,
           horaProgramado: horaProgramado.toISOString(),
-          ahora: ahora.toISOString(),
+          ahora: ahoraBogotaDate.toISOString(),
           minutosHastaProgramado,
-          estaEnFuturo: horaProgramado > ahora,
+          estaEnFuturo: horaProgramado > ahoraBogotaDate,
           esDisponible: programado.automovilId === 0,
           automovilId: programado.automovilId,
           esRealmenteDisponible
         });
         
-        if (esRealmenteDisponible && horaProgramado > ahora) {
+        if (esRealmenteDisponible && horaProgramado > ahoraBogotaDate) {
           const huecoGenerado = {
             rutaId: 0, // Los programados no tienen rutaId en la tabla Ruta
             rutaNombre: programado.ruta?.nombre || 'Sin ruta',
@@ -2332,7 +2349,7 @@ export class TurnoService {
             if (programado.automovilId !== 0) {
               razon = 'Ya asignado (tiene movilId)';
             }
-          } else if (horaProgramado <= ahora) {
+          } else if (horaProgramado <= ahoraBogotaDate) {
             razon = minutosHastaProgramado < 0 ? 'Hora ya pasó' : 'Hora presente';
           }
           
@@ -2360,16 +2377,17 @@ export class TurnoService {
    */
   private async verificarProgramadosHoy(ahora: Date): Promise<boolean> {
     // Obtener solo la fecha de hoy (YYYY-MM-DD)
-    const fechaHoy = ahora.toISOString().split('T')[0];
+    const { date: ahoraBogotaDate } = this.getHoraBogota(ahora);
+    const fechaHoy = ahoraBogotaDate.toISOString().split('T')[0];
 
     // Obtener todos los programados y filtrar por fecha
     const todosProgramados = await prisma.programacion.findMany({
-      select: { fecha: true }
+      select: { fecha: true, hora: true }
     });
 
     const programadosHoy = todosProgramados.filter(prog => {
       const fechaProgramado = new Date(prog.fecha).toISOString().split('T')[0];
-      return fechaProgramado === fechaHoy;
+      return fechaProgramado === fechaHoy; // && this.convertirNumeroHoraADate(prog.hora, prog.fecha) <= ahoraBogotaDate;
     });
 
     console.log('📊 Verificación de programados hoy:', {
@@ -2407,5 +2425,23 @@ export class TurnoService {
     const bogotaDate = new Date(year, month - 1, day, hours, minutes, seconds);
     
     return { hours, minutes, date: bogotaDate };
+  }
+
+  // Función auxiliar para convertir número de hora (HHMM) y fecha a un objeto Date en Bogotá
+  private convertirNumeroHoraADate(numeroHora: number, fechaBase: Date): Date {
+    const horas = Math.floor(numeroHora / 100);
+    const minutos = numeroHora % 100;
+
+    const fecha = new Date(fechaBase);
+    fecha.setHours(horas, minutos, 0, 0);
+
+    const { date: bogotaDate } = this.getHoraBogota(fecha);
+    return bogotaDate;
+  }
+
+  // Función auxiliar para convertir Date a número de hora (HHMM) en Bogotá
+  private convertirDateANumeroHora(date: Date): number {
+    const { hours, minutes } = this.getHoraBogota(date);
+    return hours * 100 + minutes;
   }
 } 
