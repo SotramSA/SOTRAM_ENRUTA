@@ -551,17 +551,17 @@ export class TurnoService {
     const horaDecimal = horas + minutos / 60;
     
     // Restricciones para Despacho A: 17:00 a 20:30
-    if (rutaNombre === 'A') {
+    if (rutaNombre === 'A' || rutaNombre === 'Despacho A') {
       if (horaDecimal >= 17.0 && horaDecimal <= 20.5) {
-        console.log(`🚫 Hora restringida para Despacho A: ${hora.toLocaleTimeString('es-ES')} (entre 17:00 y 20:30)`);
+        console.log(`🚫 Hora restringida para ${rutaNombre}: ${hora.toLocaleTimeString('es-ES')} (entre 17:00 y 20:30)`);
         return true;
       }
     }
     
     // Restricciones para Despacho C: 19:00 a 20:30
-    if (rutaNombre === 'C') {
+    if (rutaNombre === 'C' || rutaNombre === 'Despacho C') {
       if (horaDecimal >= 19.0 && horaDecimal <= 20.5) {
-        console.log(`🚫 Hora restringida para Despacho C: ${hora.toLocaleTimeString('es-ES')} (entre 19:00 y 20:30)`);
+        console.log(`🚫 Hora restringida para ${rutaNombre}: ${hora.toLocaleTimeString('es-ES')} (entre 19:00 y 20:30)`);
         return true;
       }
     }
