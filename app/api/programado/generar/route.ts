@@ -650,7 +650,7 @@ export async function POST(request: NextRequest) {
           if (!movilElegido) {
             movilElegido = movilesDisponibles[Math.floor(Math.random() * movilesDisponibles.length)]
           }
-          
+          //cambio
           mapaAsignaciones.set(posicion, movilElegido.id)
           movilesAsignados.add(movilElegido.id)
           
