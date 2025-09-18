@@ -378,7 +378,9 @@ export class TurnoService {
 
     // Generar huecos alternados respetando las frecuencias de las rutas
     // Los huecos son GLOBALES, no específicos de un móvil/conductor
+    console.log('🎯 LLAMANDO A generarHuecosAlternados CON VALIDACIONES HORARIAS...');
     const huecos = await this.generarHuecosAlternados(rutas, ahora, movilId, conductorId);
+    console.log('🎯 RETORNADO DE generarHuecosAlternados, huecos generados:', huecos.length);
     
     // Almacenar huecos en la base de datos
     await this.almacenarHuecosEnDB(huecos, ahora);
@@ -547,37 +549,60 @@ export class TurnoService {
    * Usa zona horaria de Bogotá para manejar correctamente las horas en Vercel
    */
   private estaEnRangoRestringido(hora: Date, rutaNombre: string): boolean {
-    // Convertir a zona horaria de Bogotá para manejar correctamente en Vercel
-    const formatter = new Intl.DateTimeFormat('es-CO', {
-      timeZone: 'America/Bogota',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
+    const { hours, minutes, date: horaBogotaDate } = this.getHoraBogota(hora);
+    const horaDecimal = hours + minutes / 60;
+    
+    const horaTexto = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    
+    // Log detallado para depuración
+    console.log(`🔍 VALIDACIÓN HORARIA:`, {
+      rutaNombre,
+      horaOriginal: hora.toISOString(),
+      horaBogota: horaTexto,
+      hours,
+      minutes,
+      horaDecimal,
+      esDespachoA: rutaNombre === 'A' || rutaNombre === 'Despacho A',
+      esDespachoC: rutaNombre === 'C' || rutaNombre === 'Despacho C'
     });
     
-    const parts = formatter.formatToParts(hora);
-    const horas = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
-    const minutos = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
-    const horaDecimal = horas + minutos / 60;
-    
-    const horaTexto = `${horas.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')}`;
-    
-    // Restricciones para Despacho A: 17:00 a 20:30
-    if (rutaNombre === 'A' || rutaNombre === 'Despacho A') {
-      if (horaDecimal >= 17.0 && horaDecimal <= 20.5) {
-        console.log(`🚫 Hora restringida para ${rutaNombre}: ${horaTexto} (entre 17:00 y 20:30)`);
+    // Restricciones para Despacho A y B: antes de 7:00 AM y entre 17:00-20:30
+    if (rutaNombre === 'A' || rutaNombre === 'Despacho A' || rutaNombre === 'B' || rutaNombre === 'Despacho B') {
+      // Restricción matutina: antes de 7:00 AM
+      const antesDeSeisAM = horaDecimal < 7.0;
+      // Restricción vespertina: entre 17:00 y 20:30 (solo para A)
+      const entreVespertino = (rutaNombre === 'A' || rutaNombre === 'Despacho A') && (horaDecimal >= 17.0 && horaDecimal <= 20.5);
+      
+      const estaRestringida = antesDeSeisAM || entreVespertino;
+      
+      console.log(`📋 ${rutaNombre} - Hora: ${horaTexto}, Decimal: ${horaDecimal}, AntesDE7AM: ${antesDeSeisAM}, Vespertino: ${entreVespertino}, Restringida: ${estaRestringida}`);
+      
+      if (estaRestringida) {
+        const motivo = antesDeSeisAM ? 'antes de 7:00 AM' : 'entre 17:00 y 20:30';
+        console.log(`🚫 HORA RESTRINGIDA para ${rutaNombre}: ${horaTexto} (${motivo})`);
         return true;
       }
     }
     
-    // Restricciones para Despacho C: 19:00 a 20:30
+    // Restricciones para Despacho C: antes de 8:30 AM y entre 19:00-20:30
     if (rutaNombre === 'C' || rutaNombre === 'Despacho C') {
-      if (horaDecimal >= 19.0 && horaDecimal <= 20.5) {
-        console.log(`🚫 Hora restringida para ${rutaNombre}: ${horaTexto} (entre 19:00 y 20:30)`);
+      // Restricción matutina: antes de 8:30 AM
+      const antesDeOchoTreinta = horaDecimal < 8.5;
+      // Restricción vespertina: entre 19:00 y 20:30
+      const entreVespertino = horaDecimal >= 19.0 && horaDecimal <= 20.5;
+      
+      const estaRestringida = antesDeOchoTreinta || entreVespertino;
+      
+      console.log(`📋 Despacho C - Hora: ${horaTexto}, Decimal: ${horaDecimal}, AntesDe8:30AM: ${antesDeOchoTreinta}, Vespertino: ${entreVespertino}, Restringida: ${estaRestringida}`);
+      
+      if (estaRestringida) {
+        const motivo = antesDeOchoTreinta ? 'antes de 8:30 AM' : 'entre 19:00 y 20:30';
+        console.log(`🚫 HORA RESTRINGIDA para ${rutaNombre}: ${horaTexto} (${motivo})`);
         return true;
       }
     }
     
+    console.log(`✅ Hora permitida para ${rutaNombre}: ${horaTexto}`);
     return false;
   }
 
@@ -593,6 +618,7 @@ export class TurnoService {
   ): Promise<HuecoDisponible[]> {
     const huecos: HuecoDisponible[] = [];
     
+    console.log('🚨🚨🚨 GENERANDO HUECOS CON VALIDACIONES HORARIAS ACTIVADAS 🚨🚨🚨');
     console.log('🔍 DEBUG generarHuecosAlternados:', {
       ahora: this.validarFecha(ahora),
       rutas: rutas.map(r => r.nombre)
@@ -722,12 +748,14 @@ export class TurnoService {
         const tiempoMinimoSalida = valorConfig ? parseInt(valorConfig) : 5;
         const tiempoFinal = isNaN(tiempoMinimoSalida) ? 5 : tiempoMinimoSalida;
         const margenAdicional = 1;
-        horaInicio = new Date(ahora);
+        // Usar la hora de Bogotá para la hora de inicio
+        let { date: ahoraBogota } = this.getHoraBogota(ahora);
+        horaInicio = new Date(ahoraBogota);
         horaInicio.setMinutes(horaInicio.getMinutes() + tiempoFinal + margenAdicional);
         
         // Aplicar restricción horaria para rutas A y B si hay programados
         if (hayProgramadosHoy) {
-          const restriccionHora = new Date(ahora);
+          const restriccionHora = new Date(ahoraBogota);
           restriccionHora.setHours(7, 0, 0, 0); // 7:00 AM
           
           if (horaInicio < restriccionHora) {
@@ -738,6 +766,7 @@ export class TurnoService {
         
         console.log('⏰ Calculando hora de inicio para rutas A/B basada en tiempo mínimo:', {
           ahora: this.validarFecha(ahora),
+          ahoraBogota: this.validarFecha(ahoraBogota),
           tiempoMinimoSalida: tiempoFinal,
           margenAdicional,
           horaInicio: this.validarFecha(horaInicio),
@@ -833,6 +862,13 @@ export class TurnoService {
 
         // Verificar restricciones horarias para rutas específicas
         const estaRestringida = this.estaEnRangoRestringido(horaActual, ruta.nombre);
+        
+        console.log(`🎯 [PRIORIDAD 1] Evaluando hueco para ${ruta.nombre}:`, {
+          hora: horaActual.toISOString(),
+          hayConflicto,
+          estaRestringida,
+          seGenerara: !hayConflicto && !estaRestringida
+        });
 
         if (!hayConflicto && !estaRestringida) {
           huecos.push({
@@ -844,6 +880,9 @@ export class TurnoService {
             frecuenciaCalculada: ruta.frecuenciaActual
           });
           huecosGenerados++;
+          console.log(`✅ [PRIORIDAD 1] Hueco generado para ${ruta.nombre} a las ${horaActual.toISOString()}`);
+        } else {
+          console.log(`❌ [PRIORIDAD 1] Hueco NO generado para ${ruta.nombre} - Conflicto: ${hayConflicto}, Restringida: ${estaRestringida}`);
         }
 
         // Avanzar al siguiente hueco usando la frecuencia de la ruta actual
@@ -890,9 +929,31 @@ export class TurnoService {
         const tiempoMinimoSalida = valorConfig ? parseInt(valorConfig) : 5;
         const tiempoFinal = isNaN(tiempoMinimoSalida) ? 5 : tiempoMinimoSalida;
           const margenAdicional = 1;
-          horaInicioRuta = new Date(ahora);
+          // Usar la hora de Bogotá para la hora de inicio
+          let { date: ahoraBogota } = this.getHoraBogota(ahora);
+          horaInicioRuta = new Date(ahoraBogota);
           horaInicioRuta.setMinutes(horaInicioRuta.getMinutes() + tiempoFinal + margenAdicional);
-          console.log(`✅ Nueva hora de inicio para ${ruta.nombre}:`, this.validarFecha(horaInicioRuta));
+          
+          // Aplicar restricción horaria para ruta C si hay programados
+          if (hayProgramadosHoy && ruta.nombre === 'C') {
+            const restriccionHoraC = new Date(ahoraBogota);
+            restriccionHoraC.setHours(8, 30, 0, 0); // 8:30 AM
+            
+            if (horaInicioRuta < restriccionHoraC) {
+              horaInicioRuta = new Date(restriccionHoraC);
+              console.log('🚫 Aplicando restricción horaria C: turnos inician a las 8:30 AM cuando hay programados');
+            }
+          }
+          
+          console.log(`⏰ Calculando hora de inicio para ${ruta.nombre} basada en tiempo mínimo:`, {
+            ahora: this.validarFecha(ahora),
+            ahoraBogota: this.validarFecha(ahoraBogota),
+            tiempoMinimoSalida: tiempoFinal,
+            margenAdicional,
+            horaInicioRuta: this.validarFecha(horaInicioRuta),
+            hayProgramados: hayProgramadosHoy,
+            restriccionAplicada: hayProgramadosHoy && ruta.nombre === 'C' && horaInicioRuta.getHours() >= 8
+          });
         }
       } else {
         // Si no hay turnos existentes, usar tiempo mínimo
@@ -900,12 +961,13 @@ export class TurnoService {
         const tiempoMinimoSalida = valorConfig ? parseInt(valorConfig) : 5;
         const tiempoFinal = isNaN(tiempoMinimoSalida) ? 5 : tiempoMinimoSalida;
         const margenAdicional = 1;
-        horaInicioRuta = new Date(ahora);
+        let { date: ahoraBogota } = this.getHoraBogota(ahora);
+        horaInicioRuta = new Date(ahoraBogota);
         horaInicioRuta.setMinutes(horaInicioRuta.getMinutes() + tiempoFinal + margenAdicional);
         
         // Aplicar restricción horaria para ruta C si hay programados
         if (hayProgramadosHoy && ruta.nombre === 'C') {
-          const restriccionHoraC = new Date(ahora);
+          const restriccionHoraC = new Date(ahoraBogota);
           restriccionHoraC.setHours(8, 30, 0, 0); // 8:30 AM
           
           if (horaInicioRuta < restriccionHoraC) {
@@ -916,6 +978,7 @@ export class TurnoService {
         
         console.log(`⏰ Calculando hora de inicio para ${ruta.nombre} basada en tiempo mínimo:`, {
           ahora: this.validarFecha(ahora),
+          ahoraBogota: this.validarFecha(ahoraBogota),
           tiempoMinimoSalida: tiempoFinal,
           margenAdicional,
           horaInicioRuta: this.validarFecha(horaInicioRuta),
@@ -950,6 +1013,13 @@ export class TurnoService {
 
         // Verificar restricciones horarias para rutas específicas
         const estaRestringida = this.estaEnRangoRestringido(horaActual, ruta.nombre);
+        
+        console.log(`🎯 [PRIORIDAD 0] Evaluando hueco para ${ruta.nombre}:`, {
+          hora: horaActual.toISOString(),
+          hayConflicto,
+          estaRestringida,
+          seGenerara: !hayConflicto && !estaRestringida
+        });
 
         if (!hayConflicto && !estaRestringida) {
           huecos.push({
@@ -961,6 +1031,9 @@ export class TurnoService {
             frecuenciaCalculada: ruta.frecuenciaActual
           });
           huecosGenerados++;
+          console.log(`✅ [PRIORIDAD 0] Hueco generado para ${ruta.nombre} a las ${horaActual.toISOString()}`);
+        } else {
+          console.log(`❌ [PRIORIDAD 0] Hueco NO generado para ${ruta.nombre} - Conflicto: ${hayConflicto}, Restringida: ${estaRestringida}`);
         }
 
         // Avanzar usando la frecuencia de esta ruta específica
@@ -2307,5 +2380,32 @@ export class TurnoService {
     });
 
     return programadosHoy.length > 0;
+  }
+
+  // Función auxiliar para obtener la hora actual en Bogotá (con simulación)
+  private getHoraBogota(date: Date): { hours: number; minutes: number; date: Date } {
+    const formatter = new Intl.DateTimeFormat('es-CO', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+    
+    const parts = formatter.formatToParts(date);
+    const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
+    const month = parseInt(parts.find(p => p.type === 'month')?.value || '0');
+    const day = parseInt(parts.find(p => p.type === 'day')?.value || '0');
+    const hours = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+    const minutes = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
+    const seconds = parseInt(parts.find(p => p.type === 'second')?.value || '0');
+    
+    // Reconstruir la fecha en la zona horaria de Bogotá
+    const bogotaDate = new Date(year, month - 1, day, hours, minutes, seconds);
+    
+    return { hours, minutes, date: bogotaDate };
   }
 } 
