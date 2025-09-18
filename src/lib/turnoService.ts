@@ -544,16 +544,28 @@ export class TurnoService {
 
   /**
    * Valida si una hora está en un rango horario restringido para una ruta específica
+   * Usa zona horaria de Bogotá para manejar correctamente las horas en Vercel
    */
   private estaEnRangoRestringido(hora: Date, rutaNombre: string): boolean {
-    const horas = hora.getHours();
-    const minutos = hora.getMinutes();
+    // Convertir a zona horaria de Bogotá para manejar correctamente en Vercel
+    const formatter = new Intl.DateTimeFormat('es-CO', {
+      timeZone: 'America/Bogota',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+    
+    const parts = formatter.formatToParts(hora);
+    const horas = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+    const minutos = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
     const horaDecimal = horas + minutos / 60;
+    
+    const horaTexto = `${horas.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')}`;
     
     // Restricciones para Despacho A: 17:00 a 20:30
     if (rutaNombre === 'A' || rutaNombre === 'Despacho A') {
       if (horaDecimal >= 17.0 && horaDecimal <= 20.5) {
-        console.log(`🚫 Hora restringida para ${rutaNombre}: ${hora.toLocaleTimeString('es-ES')} (entre 17:00 y 20:30)`);
+        console.log(`🚫 Hora restringida para ${rutaNombre}: ${horaTexto} (entre 17:00 y 20:30)`);
         return true;
       }
     }
@@ -561,7 +573,7 @@ export class TurnoService {
     // Restricciones para Despacho C: 19:00 a 20:30
     if (rutaNombre === 'C' || rutaNombre === 'Despacho C') {
       if (horaDecimal >= 19.0 && horaDecimal <= 20.5) {
-        console.log(`🚫 Hora restringida para ${rutaNombre}: ${hora.toLocaleTimeString('es-ES')} (entre 19:00 y 20:30)`);
+        console.log(`🚫 Hora restringida para ${rutaNombre}: ${horaTexto} (entre 19:00 y 20:30)`);
         return true;
       }
     }
