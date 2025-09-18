@@ -39,6 +39,16 @@ export interface ValidacionResult {
 
 export class ValidacionService {
   /**
+   * Helper to normalize a Date object to the start of its day in UTC.
+   * This is crucial for consistent date-only comparisons, ignoring time and timezone components.
+   */
+  private static normalizeDateToStartOfDay(date: Date): Date {
+    const d = new Date(date);
+    d.setUTCHours(0, 0, 0, 0);
+    return d;
+  }
+
+  /**
    * Valida que un móvil esté disponible para un turno
    */
   static async validarMovilDisponible(movilId: number, fecha: Date): Promise<{ valido: boolean; error?: string }> {
@@ -98,13 +108,15 @@ export class ValidacionService {
 
     // Si la ruta es unaVezDia, verificar que el conductor no la haya hecho hoy
     if (ruta.unaVezDia) {
+      const hoyNormalizado = this.normalizeDateToStartOfDay(fecha);
+
       const turnoHoy = await prisma.turno.findFirst({
         where: {
           conductorId,
           rutaId,
           fecha: {
-            gte: new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()),
-            lt: new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate() + 1)
+            gte: hoyNormalizado,
+            lt: new Date(hoyNormalizado.getTime() + 24 * 60 * 60 * 1000)
           }
         }
       });
@@ -182,7 +194,7 @@ export class ValidacionService {
     const ahora = TimeService.getCurrentTime();
     // Normalizar la fecha actual de `ahora` a inicio del día en la zona horaria de Bogotá
     const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora);
-    const inicioDia = new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate());
+    const inicioDia = this.normalizeDateToStartOfDay(ahoraBogotaDate);
     const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000);
 
     console.log('🔍 Validando planilla:', {
@@ -225,11 +237,14 @@ export class ValidacionService {
     );
 
     if (planilla) {
+      // Normalizar la fecha de la planilla antes de la comparación y para el log
+      const planillaFechaNormalizada = this.normalizeDateToStartOfDay(planilla.fecha);
       console.log('✅ Planilla encontrada:', {
         id: planilla.id,
-        fecha: planilla.fecha.toISOString(), // Asegurar que sea ISO para consistencia en logs
+        fecha: planilla.fecha.toISOString(), // Original para referencia
+        planillaFechaNormalizada: planillaFechaNormalizada.toISOString(), // Normalizada
         automovilId: planilla.automovilId,
-        comparacionConInicioDia: planilla.fecha >= inicioDia && planilla.fecha < finDia
+        comparacionConInicioDia: planillaFechaNormalizada.getTime() === inicioDia.getTime()
       });
       
       return {
@@ -251,9 +266,8 @@ export class ValidacionService {
    */
   static async validarListaChequeo(movilId: number): Promise<{ tieneListaChequeo: boolean; listaChequeo?: { id: number; fecha: Date; items: string } }> {
     const ahora = TimeService.getCurrentTime();
-    // Normalizar la fecha actual de `ahora` a inicio del día en la zona horaria de Bogotá
-    const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora);
-    const inicioDia = new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate());
+    const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora); // Usar la hora de Bogotá
+    const inicioDia = this.normalizeDateToStartOfDay(ahoraBogotaDate);
     const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000);
 
     console.log('🔍 Validando lista de chequeo:', {
@@ -278,11 +292,14 @@ export class ValidacionService {
     });
 
     if (listaChequeo) {
+      // Normalizar la fecha de la lista de chequeo antes de la comparación y para el log
+      const listaChequeoFechaNormalizada = this.normalizeDateToStartOfDay(listaChequeo.fecha);
       console.log('✅ Lista de chequeo encontrada:', {
         id: listaChequeo.id,
-        fecha: listaChequeo.fecha.toISOString(), // Asegurar que sea ISO para consistencia en logs
+        fecha: listaChequeo.fecha.toISOString(), // Original para referencia
+        listaChequeoFechaNormalizada: listaChequeoFechaNormalizada.toISOString(), // Normalizada
         items: listaChequeo.items,
-        comparacionConInicioDia: listaChequeo.fecha >= inicioDia && listaChequeo.fecha < finDia
+        comparacionConInicioDia: listaChequeoFechaNormalizada.getTime() === inicioDia.getTime()
       });
       
       return {
@@ -316,15 +333,20 @@ export class ValidacionService {
     }
 
     const ahora = TimeService.getCurrentTime();
-    const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora); // Usar la hora de Bogotá
-    const fechaVencimiento = new Date(conductor.licenciaConduccion);
-    const vencida = fechaVencimiento < ahoraBogotaDate; // Comparar con hora de Bogotá
+    const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora);
+    // Normalizar ambas fechas al inicio del día en UTC para una comparación de fecha pura
+    const fechaVencimientoNormalizada = this.normalizeDateToStartOfDay(new Date(conductor.licenciaConduccion));
+    const ahoraBogotaDateNormalizada = this.normalizeDateToStartOfDay(ahoraBogotaDate);
+    
+    const vencida = fechaVencimientoNormalizada < ahoraBogotaDateNormalizada;
 
     console.log('🔍 Validando licencia de conducción:', {
       conductorId,
-      fechaVencimiento: fechaVencimiento.toISOString(),
+      fechaVencimiento: new Date(conductor.licenciaConduccion).toISOString(), // Original para referencia
+      fechaVencimientoNormalizada: fechaVencimientoNormalizada.toISOString(), // Normalizada
       ahora: ahora.toISOString(),
-      ahoraBogotaDate: ahoraBogotaDate.toISOString(),
+      ahoraBogotaDate: ahoraBogotaDate.toISOString(), // Original de Bogotá
+      ahoraBogotaDateNormalizada: ahoraBogotaDateNormalizada.toISOString(), // Normalizada
       vencida
     });
 
@@ -333,7 +355,7 @@ export class ValidacionService {
       return {
         licenciaConduccionVencida: true,
         licenciaConduccion: {
-          fechaVencimiento
+          fechaVencimiento: new Date(conductor.licenciaConduccion)
         }
       };
     }
@@ -342,7 +364,7 @@ export class ValidacionService {
     return {
       licenciaConduccionVencida: false,
       licenciaConduccion: {
-        fechaVencimiento
+        fechaVencimiento: new Date(conductor.licenciaConduccion)
       }
     };
   }
@@ -369,53 +391,71 @@ export class ValidacionService {
     }
 
     const ahora = TimeService.getCurrentTime();
-    const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora); // Usar la hora de Bogotá
+    const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora);
+    // Normalizar la fecha actual de Bogotá al inicio del día en UTC para comparación de fecha pura
+    const ahoraBogotaDateNormalizada = this.normalizeDateToStartOfDay(ahoraBogotaDate);
     const documentosVencidos: Array<{ tipo: string; fechaVencimiento: Date }> = [];
 
     console.log('🔍 Validando documentos del móvil:', {
       movilId,
       ahora: ahora.toISOString(),
-      ahoraBogotaDate: ahoraBogotaDate.toISOString()
+      ahoraBogotaDate: ahoraBogotaDate.toISOString(),
+      ahoraBogotaDateNormalizada: ahoraBogotaDateNormalizada.toISOString()
     });
 
     // Validar SOAT
-    if (automovil.soat && new Date(automovil.soat) < ahoraBogotaDate) {
-      documentosVencidos.push({
-        tipo: 'SOAT',
-        fechaVencimiento: new Date(automovil.soat)
-      });
+    if (automovil.soat) {
+      const soatNormalizado = this.normalizeDateToStartOfDay(new Date(automovil.soat));
+      if (soatNormalizado < ahoraBogotaDateNormalizada) {
+        documentosVencidos.push({
+          tipo: 'SOAT',
+          fechaVencimiento: new Date(automovil.soat)
+        });
+      }
     }
 
     // Validar Revisión Técnico Mecánica
-    if (automovil.revisionTecnomecanica && new Date(automovil.revisionTecnomecanica) < ahoraBogotaDate) {
-      documentosVencidos.push({
-        tipo: 'Revisión Técnico Mecánica',
-        fechaVencimiento: new Date(automovil.revisionTecnomecanica)
-      });
+    if (automovil.revisionTecnomecanica) {
+      const revisionNormalizada = this.normalizeDateToStartOfDay(new Date(automovil.revisionTecnomecanica));
+      if (revisionNormalizada < ahoraBogotaDateNormalizada) {
+        documentosVencidos.push({
+          tipo: 'Revisión Técnico Mecánica',
+          fechaVencimiento: new Date(automovil.revisionTecnomecanica)
+        });
+      }
     }
 
     // Validar Tarjeta de Operación
-    if (automovil.tarjetaOperacion && new Date(automovil.tarjetaOperacion) < ahoraBogotaDate) {
-      documentosVencidos.push({
-        tipo: 'Tarjeta de Operación',
-        fechaVencimiento: new Date(automovil.tarjetaOperacion)
-      });
+    if (automovil.tarjetaOperacion) {
+      const tarjetaNormalizada = this.normalizeDateToStartOfDay(new Date(automovil.tarjetaOperacion));
+      if (tarjetaNormalizada < ahoraBogotaDateNormalizada) {
+        documentosVencidos.push({
+          tipo: 'Tarjeta de Operación',
+          fechaVencimiento: new Date(automovil.tarjetaOperacion)
+        });
+      }
     }
 
     // Validar Licencia de Tránsito
-    if (automovil.licenciaTransito && new Date(automovil.licenciaTransito) < ahoraBogotaDate) {
-      documentosVencidos.push({
-        tipo: 'Licencia de Tránsito',
-        fechaVencimiento: new Date(automovil.licenciaTransito)
-      });
+    if (automovil.licenciaTransito) {
+      const licenciaNormalizada = this.normalizeDateToStartOfDay(new Date(automovil.licenciaTransito));
+      if (licenciaNormalizada < ahoraBogotaDateNormalizada) {
+        documentosVencidos.push({
+          tipo: 'Licencia de Tránsito',
+          fechaVencimiento: new Date(automovil.licenciaTransito)
+        });
+      }
     }
 
     // Validar Extintor
-    if (automovil.extintor && new Date(automovil.extintor) < ahoraBogotaDate) {
-      documentosVencidos.push({
-        tipo: 'Extintor',
-        fechaVencimiento: new Date(automovil.extintor)
-      });
+    if (automovil.extintor) {
+      const extintorNormalizado = this.normalizeDateToStartOfDay(new Date(automovil.extintor));
+      if (extintorNormalizado < ahoraBogotaDateNormalizada) {
+        documentosVencidos.push({
+          tipo: 'Extintor',
+          fechaVencimiento: new Date(automovil.extintor)
+        });
+      }
     }
 
     // Validar Revisión Preventiva - DESHABILITADO POR SOLICITUD DEL USUARIO
@@ -425,7 +465,6 @@ export class ValidacionService {
     //     fechaVencimiento: new Date(automovil.revisionPreventiva)
     //   });
     // }
-
 
 
     console.log('📋 Documentos vencidos encontrados:', documentosVencidos.length);
@@ -442,9 +481,10 @@ export class ValidacionService {
     motivo: string;
   }>> {
     const ahora = TimeService.getCurrentTime();
-    const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora); // Usar la hora de Bogotá
-    const inicioDia = new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate());
-    const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000);
+    const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora);
+    // Normalizar la fecha actual de Bogotá al inicio del día en UTC para las comparaciones
+    const inicioDia = this.normalizeDateToStartOfDay(ahoraBogotaDate);
+    const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000); // Fin del día actual en UTC
 
     console.log('🔍 Validando sanciones automóvil:', {
       movilId,
@@ -459,6 +499,7 @@ export class ValidacionService {
       where: {
         automovilId: movilId,
         AND: [
+          // Normalizar las fechas de las sanciones para la comparación
           { fechaInicio: { lte: finDia } },
           { fechaFin: { gte: inicioDia } }
         ]
@@ -470,8 +511,10 @@ export class ValidacionService {
 
     console.log('🔍 Sanciones automóvil encontradas:', sanciones.map(s => ({
       id: s.id,
-      fechaInicio: s.fechaInicio,
-      fechaFin: s.fechaFin,
+      fechaInicio: s.fechaInicio.toISOString(), // Original para referencia
+      fechaInicioNormalizada: this.normalizeDateToStartOfDay(s.fechaInicio).toISOString(), // Normalizada
+      fechaFin: s.fechaFin.toISOString(), // Original para referencia
+      fechaFinNormalizada: this.normalizeDateToStartOfDay(s.fechaFin).toISOString(), // Normalizada
       descripcion: s.descripcion
     })));
 
@@ -493,9 +536,10 @@ export class ValidacionService {
     motivo: string;
   }>> {
     const ahora = TimeService.getCurrentTime();
-    const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora); // Usar la hora de Bogotá
-    const inicioDia = new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate());
-    const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000);
+    const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora);
+    // Normalizar la fecha actual de Bogotá al inicio del día en UTC para las comparaciones
+    const inicioDia = this.normalizeDateToStartOfDay(ahoraBogotaDate);
+    const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000); // Fin del día actual en UTC
 
     console.log('🔍 Validando sanciones conductor:', {
       conductorId,
@@ -510,6 +554,7 @@ export class ValidacionService {
       where: {
         conductorId,
         AND: [
+          // Normalizar las fechas de las sanciones para la comparación
           { fechaInicio: { lte: finDia } },
           { fechaFin: { gte: inicioDia } }
         ]
@@ -521,8 +566,10 @@ export class ValidacionService {
 
     console.log('🔍 Sanciones conductor encontradas:', sanciones.map(s => ({
       id: s.id,
-      fechaInicio: s.fechaInicio,
-      fechaFin: s.fechaFin,
+      fechaInicio: s.fechaInicio.toISOString(), // Original para referencia
+      fechaInicioNormalizada: this.normalizeDateToStartOfDay(s.fechaInicio).toISOString(), // Normalizada
+      fechaFin: s.fechaFin.toISOString(), // Original para referencia
+      fechaFinNormalizada: this.normalizeDateToStartOfDay(s.fechaFin).toISOString(), // Normalizada
       descripcion: s.descripcion
     })));
 
@@ -584,7 +631,7 @@ export class ValidacionService {
       return validacionConductor;
     }
 
-    // Validar ruta
+    // Validar ruta (usando la fecha actual, que será normalizada internamente)
     const validacionRuta = await this.validarRutaDisponible(rutaId, conductorId, ahora);
     if (!validacionRuta.valido) {
       return validacionRuta;
@@ -613,7 +660,7 @@ export class ValidacionService {
     horaSalida: Date
   ): Promise<{ valido: boolean; error?: string }> {
     const ahora = TimeService.getCurrentTime();
-    const fecha = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    const fecha = this.normalizeDateToStartOfDay(ahora); // Normalizar a inicio del día
 
     // Verificar si ya hay un turno asignado para ese hueco
     const turnoExistente = await prisma.turno.findFirst({
@@ -641,7 +688,8 @@ export class ValidacionService {
     return fecha.toLocaleDateString('es-ES', {
       year: 'numeric',
       month: '2-digit',
-      day: '2-digit'
+      day: '2-digit',
+      timeZone: 'America/Bogota' // Asegurar que se formatee en Bogotá
     });
   }
 
@@ -649,40 +697,10 @@ export class ValidacionService {
    * Verifica si una sanción es de un solo día
    */
   static esSancionUnDia(fechaInicio: Date, fechaFin: Date): boolean {
-    const inicio = new Date(fechaInicio);
-    const fin = new Date(fechaFin);
+    // Usar la función de normalización para asegurar la comparación de solo fechas
+    const inicioNormalizado = this.normalizeDateToStartOfDay(fechaInicio);
+    const finNormalizado = this.normalizeDateToStartOfDay(fechaFin);
     
-    // Resetear las horas para comparar solo las fechas
-    inicio.setHours(0, 0, 0, 0);
-    fin.setHours(0, 0, 0, 0);
-    
-    return inicio.getTime() === fin.getTime();
-  }
-
-  // Agrega la función getHoraBogota al ValidacionService
-  private static getHoraBogota(date: Date): { hours: number; minutes: number; date: Date } {
-    const formatter = new Intl.DateTimeFormat('es-CO', {
-      timeZone: 'America/Bogota',
-      year: 'numeric',
-      month: 'numeric',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    });
-    
-    const parts = formatter.formatToParts(date);
-    const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
-    const month = parseInt(parts.find(p => p.type === 'month')?.value || '0');
-    const day = parseInt(parts.find(p => p.type === 'day')?.value || '0');
-    const hours = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
-    const minutes = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
-    const seconds = parseInt(parts.find(p => p.type === 'second')?.value || '0');
-    
-    // Reconstruir la fecha en la zona horaria de Bogotá
-    const bogotaDate = new Date(year, month - 1, day, hours, minutes, seconds);
-    
-    return { hours, minutes, date: bogotaDate };
+    return inicioNormalizado.getTime() === finNormalizado.getTime();
   }
 } 

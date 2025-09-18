@@ -178,4 +178,35 @@ export class TimeService {
       isClient: this.isClient()
     };
   }
+
+  /**
+   * Convierte una Date a su equivalente en la zona horaria de Bogotá (America/Bogota).
+   * Retorna las horas, minutos y un objeto Date reconstruido en esa zona horaria.
+   */
+  static getHoraBogota(date: Date): { hours: number; minutes: number; date: Date } {
+    const formatter = new Intl.DateTimeFormat('es-CO', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+    
+    const parts = formatter.formatToParts(date);
+    const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
+    const month = parseInt(parts.find(p => p.type === 'month')?.value || '0');
+    const day = parseInt(parts.find(p => p.type === 'day')?.value || '0');
+    const hours = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+    const minutes = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
+    const seconds = parseInt(parts.find(p => p.type === 'second')?.value || '0');
+    
+    // Reconstruir la fecha en la zona horaria de Bogotá (como un objeto Date)
+    // Usar el constructor UTC para evitar la inferencia de la zona horaria local
+    const bogotaDate = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
+    
+    return { hours, minutes, date: bogotaDate };
+  }
 } 
