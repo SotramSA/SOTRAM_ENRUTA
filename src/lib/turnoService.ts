@@ -543,6 +543,33 @@ export class TurnoService {
   }
 
   /**
+   * Valida si una hora está en un rango horario restringido para una ruta específica
+   */
+  private estaEnRangoRestringido(hora: Date, rutaNombre: string): boolean {
+    const horas = hora.getHours();
+    const minutos = hora.getMinutes();
+    const horaDecimal = horas + minutos / 60;
+    
+    // Restricciones para Despacho A: 17:00 a 20:30
+    if (rutaNombre === 'A') {
+      if (horaDecimal >= 17.0 && horaDecimal <= 20.5) {
+        console.log(`🚫 Hora restringida para Despacho A: ${hora.toLocaleTimeString('es-ES')} (entre 17:00 y 20:30)`);
+        return true;
+      }
+    }
+    
+    // Restricciones para Despacho C: 19:00 a 20:30
+    if (rutaNombre === 'C') {
+      if (horaDecimal >= 19.0 && horaDecimal <= 20.5) {
+        console.log(`🚫 Hora restringida para Despacho C: ${hora.toLocaleTimeString('es-ES')} (entre 19:00 y 20:30)`);
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
    * Genera huecos alternados respetando las frecuencias de las rutas
    * Implementa restricciones horarias cuando hay programados
    */
@@ -792,7 +819,10 @@ export class TurnoService {
           return esConflicto;
         });
 
-        if (!hayConflicto) {
+        // Verificar restricciones horarias para rutas específicas
+        const estaRestringida = this.estaEnRangoRestringido(horaActual, ruta.nombre);
+
+        if (!hayConflicto && !estaRestringida) {
           huecos.push({
             rutaId: ruta.id,
             rutaNombre: ruta.nombre,
@@ -906,7 +936,10 @@ export class TurnoService {
           return esConflicto;
         });
 
-        if (!hayConflicto) {
+        // Verificar restricciones horarias para rutas específicas
+        const estaRestringida = this.estaEnRangoRestringido(horaActual, ruta.nombre);
+
+        if (!hayConflicto && !estaRestringida) {
           huecos.push({
             rutaId: ruta.id,
             rutaNombre: ruta.nombre,
