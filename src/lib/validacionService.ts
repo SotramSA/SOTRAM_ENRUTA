@@ -180,12 +180,15 @@ export class ValidacionService {
    */
   static async validarPlanilla(movilId: number): Promise<{ tienePlanilla: boolean; planilla?: { id: number; fecha: Date; activo: boolean } }> {
     const ahora = TimeService.getCurrentTime();
-    const inicioDia = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    // Normalizar la fecha actual de `ahora` a inicio del día en la zona horaria de Bogotá
+    const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora);
+    const inicioDia = new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate());
     const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000);
 
     console.log('🔍 Validando planilla:', {
       movilId,
       ahora: ahora.toISOString(),
+      ahoraBogotaDate: ahoraBogotaDate.toISOString(),
       inicioDia: inicioDia.toISOString(),
       finDia: finDia.toISOString()
     });
@@ -216,7 +219,7 @@ export class ValidacionService {
       todasLasPlanillas.map(p => ({
         id: p.id,
         fecha: p.fecha.toISOString(),
-        fechaLocal: p.fecha.toLocaleDateString('es-ES'),
+        fechaLocal: p.fecha.toLocaleDateString('es-ES', { timeZone: 'America/Bogota' }), // Asegurar que se formatee en Bogotá
         automovilId: p.automovilId
       }))
     );
@@ -224,8 +227,9 @@ export class ValidacionService {
     if (planilla) {
       console.log('✅ Planilla encontrada:', {
         id: planilla.id,
-        fecha: planilla.fecha,
-        automovilId: planilla.automovilId
+        fecha: planilla.fecha.toISOString(), // Asegurar que sea ISO para consistencia en logs
+        automovilId: planilla.automovilId,
+        comparacionConInicioDia: planilla.fecha >= inicioDia && planilla.fecha < finDia
       });
       
       return {
@@ -247,12 +251,15 @@ export class ValidacionService {
    */
   static async validarListaChequeo(movilId: number): Promise<{ tieneListaChequeo: boolean; listaChequeo?: { id: number; fecha: Date; items: string } }> {
     const ahora = TimeService.getCurrentTime();
-    const inicioDia = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    // Normalizar la fecha actual de `ahora` a inicio del día en la zona horaria de Bogotá
+    const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora);
+    const inicioDia = new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate());
     const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000);
 
     console.log('🔍 Validando lista de chequeo:', {
       movilId,
       ahora: ahora.toISOString(),
+      ahoraBogotaDate: ahoraBogotaDate.toISOString(),
       inicioDia: inicioDia.toISOString(),
       finDia: finDia.toISOString()
     });
@@ -273,8 +280,9 @@ export class ValidacionService {
     if (listaChequeo) {
       console.log('✅ Lista de chequeo encontrada:', {
         id: listaChequeo.id,
-        fecha: listaChequeo.fecha,
-        items: listaChequeo.items
+        fecha: listaChequeo.fecha.toISOString(), // Asegurar que sea ISO para consistencia en logs
+        items: listaChequeo.items,
+        comparacionConInicioDia: listaChequeo.fecha >= inicioDia && listaChequeo.fecha < finDia
       });
       
       return {
@@ -308,13 +316,15 @@ export class ValidacionService {
     }
 
     const ahora = TimeService.getCurrentTime();
+    const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora); // Usar la hora de Bogotá
     const fechaVencimiento = new Date(conductor.licenciaConduccion);
-    const vencida = fechaVencimiento < ahora;
+    const vencida = fechaVencimiento < ahoraBogotaDate; // Comparar con hora de Bogotá
 
     console.log('🔍 Validando licencia de conducción:', {
       conductorId,
       fechaVencimiento: fechaVencimiento.toISOString(),
       ahora: ahora.toISOString(),
+      ahoraBogotaDate: ahoraBogotaDate.toISOString(),
       vencida
     });
 
@@ -359,15 +369,17 @@ export class ValidacionService {
     }
 
     const ahora = TimeService.getCurrentTime();
+    const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora); // Usar la hora de Bogotá
     const documentosVencidos: Array<{ tipo: string; fechaVencimiento: Date }> = [];
 
     console.log('🔍 Validando documentos del móvil:', {
       movilId,
-      ahora: ahora.toISOString()
+      ahora: ahora.toISOString(),
+      ahoraBogotaDate: ahoraBogotaDate.toISOString()
     });
 
     // Validar SOAT
-    if (automovil.soat && new Date(automovil.soat) < ahora) {
+    if (automovil.soat && new Date(automovil.soat) < ahoraBogotaDate) {
       documentosVencidos.push({
         tipo: 'SOAT',
         fechaVencimiento: new Date(automovil.soat)
@@ -375,7 +387,7 @@ export class ValidacionService {
     }
 
     // Validar Revisión Técnico Mecánica
-    if (automovil.revisionTecnomecanica && new Date(automovil.revisionTecnomecanica) < ahora) {
+    if (automovil.revisionTecnomecanica && new Date(automovil.revisionTecnomecanica) < ahoraBogotaDate) {
       documentosVencidos.push({
         tipo: 'Revisión Técnico Mecánica',
         fechaVencimiento: new Date(automovil.revisionTecnomecanica)
@@ -383,7 +395,7 @@ export class ValidacionService {
     }
 
     // Validar Tarjeta de Operación
-    if (automovil.tarjetaOperacion && new Date(automovil.tarjetaOperacion) < ahora) {
+    if (automovil.tarjetaOperacion && new Date(automovil.tarjetaOperacion) < ahoraBogotaDate) {
       documentosVencidos.push({
         tipo: 'Tarjeta de Operación',
         fechaVencimiento: new Date(automovil.tarjetaOperacion)
@@ -391,7 +403,7 @@ export class ValidacionService {
     }
 
     // Validar Licencia de Tránsito
-    if (automovil.licenciaTransito && new Date(automovil.licenciaTransito) < ahora) {
+    if (automovil.licenciaTransito && new Date(automovil.licenciaTransito) < ahoraBogotaDate) {
       documentosVencidos.push({
         tipo: 'Licencia de Tránsito',
         fechaVencimiento: new Date(automovil.licenciaTransito)
@@ -399,7 +411,7 @@ export class ValidacionService {
     }
 
     // Validar Extintor
-    if (automovil.extintor && new Date(automovil.extintor) < ahora) {
+    if (automovil.extintor && new Date(automovil.extintor) < ahoraBogotaDate) {
       documentosVencidos.push({
         tipo: 'Extintor',
         fechaVencimiento: new Date(automovil.extintor)
@@ -430,12 +442,14 @@ export class ValidacionService {
     motivo: string;
   }>> {
     const ahora = TimeService.getCurrentTime();
-    const inicioDia = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora); // Usar la hora de Bogotá
+    const inicioDia = new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate());
     const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000);
 
     console.log('🔍 Validando sanciones automóvil:', {
       movilId,
       ahora: ahora.toISOString(),
+      ahoraBogotaDate: ahoraBogotaDate.toISOString(),
       inicioDia: inicioDia.toISOString(),
       finDia: finDia.toISOString()
     });
@@ -479,12 +493,14 @@ export class ValidacionService {
     motivo: string;
   }>> {
     const ahora = TimeService.getCurrentTime();
-    const inicioDia = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora); // Usar la hora de Bogotá
+    const inicioDia = new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate());
     const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000);
 
     console.log('🔍 Validando sanciones conductor:', {
       conductorId,
       ahora: ahora.toISOString(),
+      ahoraBogotaDate: ahoraBogotaDate.toISOString(),
       inicioDia: inicioDia.toISOString(),
       finDia: finDia.toISOString()
     });
@@ -641,5 +657,32 @@ export class ValidacionService {
     fin.setHours(0, 0, 0, 0);
     
     return inicio.getTime() === fin.getTime();
+  }
+
+  // Agrega la función getHoraBogota al ValidacionService
+  private static getHoraBogota(date: Date): { hours: number; minutes: number; date: Date } {
+    const formatter = new Intl.DateTimeFormat('es-CO', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+    
+    const parts = formatter.formatToParts(date);
+    const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
+    const month = parseInt(parts.find(p => p.type === 'month')?.value || '0');
+    const day = parseInt(parts.find(p => p.type === 'day')?.value || '0');
+    const hours = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+    const minutes = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
+    const seconds = parseInt(parts.find(p => p.type === 'second')?.value || '0');
+    
+    // Reconstruir la fecha en la zona horaria de Bogotá
+    const bogotaDate = new Date(year, month - 1, day, hours, minutes, seconds);
+    
+    return { hours, minutes, date: bogotaDate };
   }
 } 
