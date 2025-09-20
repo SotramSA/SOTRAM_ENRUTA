@@ -707,6 +707,7 @@ export async function POST(request: NextRequest) {
           data: programaciones
         })
       }
+      //comentario
 
       // 📊 Calcular estadísticas finales del algoritmo equitativo
       const movilesConDobles = new Map()
