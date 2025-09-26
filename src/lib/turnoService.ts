@@ -2145,16 +2145,29 @@ export class TurnoService {
         tipo: 'turno',
         estado: t.estado || 'PENDIENTE' as 'PENDIENTE'
       })),
-      ...todosProgramados.map(p => ({
-        id: p.id,
-        // Asegurarse de que horaSalida sea Date en el formato ISO, para que el frontend lo interprete correctamente
-        horaSalida: new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate(), Math.floor(p.hora / 100), p.hora % 100).toISOString(),
-        ruta: p.ruta ? { id: p.ruta.id, nombre: p.ruta.nombre } : null,
-        movil: p.automovil ? { id: p.automovil.id, movil: p.automovil.movil } : { id: 0, movil: 'N/A' }, // Asume que un programado tiene un movil asignado
-        conductor: { id: 0, nombre: 'Programado' }, // Asigna un conductor por defecto para programados
-        tipo: 'programado',
-        estado: 'PENDIENTE' // Los programados siempre están pendientes en esta vista
-      }))
+      ...todosProgramados.map(p => {
+        // Crear la fecha en la zona horaria de Bogotá (UTC-5)
+        const horas = Math.floor(p.hora / 100);
+        const minutos = p.hora % 100;
+        
+        // Crear la fecha base en Bogotá
+        const fechaBogota = new Date(ahoraBogotaDate.getFullYear(), ahoraBogotaDate.getMonth(), ahoraBogotaDate.getDate(), horas, minutos);
+        
+        // Ajustar para la zona horaria de Bogotá (UTC-5)
+        // Sumar 5 horas para compensar la diferencia con UTC
+        const fechaUTC = new Date(fechaBogota.getTime() + (5 * 60 * 60 * 1000));
+        
+        return {
+          id: p.id,
+          // Usar el mismo formato ISO que los turnos regulares
+          horaSalida: fechaUTC.toISOString(),
+          ruta: p.ruta ? { id: p.ruta.id, nombre: p.ruta.nombre } : null,
+          movil: p.automovil ? { id: p.automovil.id, movil: p.automovil.movil } : { id: 0, movil: 'N/A' }, // Asume que un programado tiene un movil asignado
+          conductor: { id: 0, nombre: 'Programado' }, // Asigna un conductor por defecto para programados
+          tipo: 'programado',
+          estado: 'PENDIENTE' // Los programados siempre están pendientes en esta vista
+        };
+      })
     ];
 
     // Ordenar todos los eventos por horaSalida
@@ -2406,4 +2419,4 @@ export class TurnoService {
     const { hours, minutes } = this.getHoraBogota(date);
     return hours * 100 + minutes;
   }
-} 
+}
