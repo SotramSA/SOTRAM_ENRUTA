@@ -15,7 +15,7 @@ const PLANTILLA_FIJA: Record<string, Array<{ruta: string, hora: string}>> = {
   ],
   'A7': [
     { ruta: 'DESPACHO D. RUT7 CORZO LORETO', hora: '05:04' },
-    { ruta: 'Despacho A', hora: '06:20' }
+    { ruta: 'Despacho B', hora: '06:15' }
   ],
   'A10': [
     { ruta: 'DESPACHO D. RUT7 CORZO LORETO', hora: '05:11' },
@@ -33,17 +33,17 @@ const PLANTILLA_FIJA: Record<string, Array<{ruta: string, hora: string}>> = {
   ],
   'A8': [
     { ruta: 'DESPACHO D RUT4 PAMPA-CORZO', hora: '05:10' },
-    { ruta: 'Despacho C', hora: '06:10' }
+    { ruta: 'Despacho C', hora: '06:30' }
   ],
   
   // DESPACHO E + DESPACHO B/C (dobles)
   'A3': [
     { ruta: 'DESPACHO E RUT7 CORZO', hora: '04:55' },
-    { ruta: 'Despacho C', hora: '06:00' }
+    { ruta: 'Despacho C', hora: '06:10' }
   ],
   'A6': [
     { ruta: 'DESPACHO E RUT7 CORZO', hora: '05:05' },
-    { ruta: 'Despacho B', hora: '06:15' }
+    { ruta: 'Despacho A', hora: '06:20' }
   ],
   'A9': [
     { ruta: 'DESPACHO E RUT7 CORZO', hora: '05:15' },
@@ -77,7 +77,7 @@ const PLANTILLA_FIJA: Record<string, Array<{ruta: string, hora: string}>> = {
     { ruta: 'Despacho C', hora: '06:00' },
     { ruta: 'Despacho Puente piedra', hora: '18:00' }
   ],
-  'A36': [{ ruta: 'Despacho C', hora: '19:20' }],
+  'A36': [{ ruta: 'Despacho B', hora: '06:45' },{ ruta: 'Despacho C', hora: '19:20' }],
   
   // Completar las posiciones restantes (combinando matutino + vespertino en las MISMAS posiciones)
   'A21': [
@@ -130,7 +130,7 @@ const PLANTILLA_FIJA: Record<string, Array<{ruta: string, hora: string}>> = {
     { ruta: 'Despacho A', hora: '19:24' }
   ],
   'A38': [
-    { ruta: 'Despacho B', hora: '06:45' },
+    { ruta: 'Despacho C', hora: '06:50' },
     { ruta: 'Despacho A', hora: '19:36' }
   ],
   'A39': [
