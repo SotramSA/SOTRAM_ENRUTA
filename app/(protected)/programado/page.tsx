@@ -581,7 +581,11 @@ export default function ProgramadoPage() {
       // Formatear directamente sin conversiones de zona horaria
       const hh = String(hm.h).padStart(2, '0')
       const mm = String(hm.m).padStart(2, '0')
-      return `${hh}:${mm} am`
+      
+      // Aplicar regla: de 12:00 a 23:59 es PM, el resto es AM
+      const ampm = hm.h >= 12 ? 'pm' : 'am'
+      
+      return `${hh}:${mm} ${ampm}`
     }
 
     const toMinutesColombia = (raw: string | number) => {
@@ -639,6 +643,48 @@ export default function ProgramadoPage() {
       // Mover el puntero de fila: header + filas
       currentRow += filas.length + 3 // deja una fila vacía entre tablas
       tableIndex += 1
+    }
+
+    // Agregar tabla de móviles sin programación
+    if (visiblePoolMoviles.length > 0) {
+      // Título de la sección
+      worksheet.mergeCells(currentRow, 1, currentRow, 2)
+      const sinProgCell = worksheet.getCell(currentRow, 1)
+      sinProgCell.value = 'Móviles sin programación'
+      sinProgCell.font = { bold: true }
+      currentRow += 2
+
+      // Datos de móviles sin programación (solo el número del móvil)
+      const filasMovilesSinProg = visiblePoolMoviles.map(movil => [movil.movil])
+
+      // Definir rango inicial de la tabla
+      const refSinProg = `A${currentRow}`
+      const tableNameSinProg = `Tabla_Moviles_Sin_Programacion`
+
+      worksheet.addTable({
+        name: tableNameSinProg,
+        ref: refSinProg,
+        headerRow: true,
+        style: {
+          theme: 'TableStyleMedium2',
+          showRowStripes: true,
+        },
+        columns: [
+          { name: 'Móvil' },
+        ],
+        rows: filasMovilesSinProg,
+      })
+
+      // Centrar contenido de la tabla (encabezados y datos)
+      const headerRowSinProg = currentRow
+      const dataEndSinProg = currentRow + filasMovilesSinProg.length
+      for (let r = headerRowSinProg; r <= dataEndSinProg; r++) {
+        const cell = worksheet.getCell(r, 1)
+        cell.alignment = { horizontal: 'center' }
+      }
+
+      // Actualizar el puntero de fila
+      currentRow += filasMovilesSinProg.length + 2
     }
 
     // Autoajustar el ancho de columnas (A y B) según el contenido máximo
