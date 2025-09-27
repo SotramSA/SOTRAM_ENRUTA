@@ -76,8 +76,8 @@ export async function PUT(
     console.log('✅ Programado asignado exitosamente:', {
       id: programadoActualizado.id,
       ruta: programadoActualizado.ruta?.nombre || 'Sin Ruta',
-      movilAnterior: programado.automovil.movil,
-      movilNuevo: programadoActualizado.automovil.movil
+      movilAnterior: programado.automovil?.movil || 'Sin móvil',
+      movilNuevo: programadoActualizado.automovil?.movil || 'Sin móvil'
     });
 
     return NextResponse.json({
@@ -87,10 +87,10 @@ export async function PUT(
         id: programadoActualizado.id,
         ruta: programadoActualizado.ruta?.nombre || 'Sin Ruta',
         hora: programadoActualizado.hora,
-        automovil: {
+        automovil: programadoActualizado.automovil ? {
           id: programadoActualizado.automovil.id,
           movil: programadoActualizado.automovil.movil
-        },
+        } : null,
         estado: programadoActualizado.estado
       }
     });

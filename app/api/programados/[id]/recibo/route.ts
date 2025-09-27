@@ -59,7 +59,7 @@ export async function GET(
       fecha: programado.fecha,
       hora: programado.hora,
       ruta: programado.ruta?.nombre,
-      automovil: programado.automovil.movil
+      automovil: programado.automovil?.movil || 'Sin móvil'
     });
 
     // Formatear la hora desde el campo numérico
@@ -110,12 +110,12 @@ export async function GET(
     });
 
     // Determinar datos del móvil y conductor según los parámetros
-    let movilFinal = movilNumero || programado.automovil.movil;
+    let movilFinal = movilNumero || programado.automovil?.movil || 'Sin móvil';
     let conductorFinal = conductorNombre || 'Programado';
-    let placaFinal = programado.automovil.placa || 'falta por placa';
+    let placaFinal = programado.automovil?.placa || 'falta por placa';
     
     // Si el móvil cambió, necesitamos obtener la placa del nuevo móvil
-    if (movilNumero && movilNumero !== programado.automovil.movil) {
+    if (movilNumero && movilNumero !== programado.automovil?.movil) {
       try {
         const nuevoMovil = await prisma.automovil.findFirst({
           where: { movil: movilNumero }

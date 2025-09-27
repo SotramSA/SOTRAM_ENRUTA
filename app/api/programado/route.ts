@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
       rutaId: p.rutaId,
       rutaNombre: p.ruta?.nombre,
       automovilId: p.automovilId,
-      movil: p.automovil.movil
+      movil: p.automovil?.movil
     })))
 
     // Contar por ruta raw

@@ -10,7 +10,15 @@ export async function PUT(
     const { id: idParam } = await params
     const id = parseInt(idParam)
 
+    console.log('🔍 PUT /api/programado/[id] - Datos recibidos:', { 
+      id, 
+      movilId, 
+      disponible,
+      idParam 
+    })
+
     if (!id) {
+      console.log('❌ Error: ID requerido')
       return NextResponse.json({ error: 'ID requerido' }, { status: 400 })
     }
 
@@ -51,21 +59,12 @@ export async function PUT(
         })
 
         if (!nuevoMovil) {
+          console.log('❌ Error: Móvil no disponible', { movilId, nuevoMovil })
           return NextResponse.json({ error: 'Móvil no disponible' }, { status: 400 })
         }
 
-        // Verificar que el móvil no esté ya asignado a otra ruta en la misma fecha
-        const movilOcupado = await prisma.programacion.findFirst({
-          where: {
-            automovilId: movilId,
-            fecha: programacionActual.fecha,
-            id: { not: id }
-          }
-        })
-
-        if (movilOcupado) {
-          return NextResponse.json({ error: 'Móvil ya asignado a otra ruta en esta fecha' }, { status: 400 })
-        }
+        // Validación de móvil ya asignado removida para permitir asignaciones múltiples
+        // El usuario puede asignar el mismo móvil a múltiples rutas sin restricciones
 
         updateData.automovilId = movilId
       }

@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
     if (turnosProgramados.length > 0) {
       console.log('Programaciones encontradas:')
       turnosProgramados.forEach((programado, index) => {
-        console.log(`${index + 1}. ID: ${programado.id}, Fecha: ${programado.fecha}, Hora: "${programado.hora}" (tipo: ${typeof programado.hora}), Ruta: ${programado.ruta?.nombre || 'N/A'}, Móvil: ${programado.automovil.movil}`)
+        console.log(`${index + 1}. ID: ${programado.id}, Fecha: ${programado.fecha}, Hora: "${programado.hora}" (tipo: ${typeof programado.hora}), Ruta: ${programado.ruta?.nombre || 'N/A'}, Móvil: ${programado.automovil?.movil || 'N/A'}`)
       })
     }
 
@@ -369,4 +369,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-} 
+}

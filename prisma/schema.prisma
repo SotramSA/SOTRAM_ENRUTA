@@ -177,12 +177,12 @@ model ListaChequeo {
 
 model Programacion {
   id          Int       @id @default(autoincrement())
-  automovilId Int
+  automovilId Int?
   fecha       DateTime
   hora        Int
   rutaId      Int?
   estado      String    @default("PENDIENTE")
-  automovil   Automovil @relation(fields: [automovilId], references: [id])
+  automovil   Automovil? @relation(fields: [automovilId], references: [id])
   ruta        Ruta?     @relation(fields: [rutaId], references: [id])
   usuario     Usuario?  @relation(fields: [usuarioId], references: [id])
   usuarioId   Int?

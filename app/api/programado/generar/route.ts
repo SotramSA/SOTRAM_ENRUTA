@@ -257,7 +257,7 @@ function calcularPuntuacion(
 
 export async function POST(request: NextRequest) {
   try {
-    const { fecha } = await request.json()
+    const { fecha, manual = false } = await request.json()
 
     if (!fecha) {
       return NextResponse.json({ error: 'Fecha requerida' }, { status: 400 })
@@ -664,34 +664,65 @@ export async function POST(request: NextRequest) {
 
       // 🏗️ Crear programaciones basadas en las asignaciones
       const programaciones: any[] = []
-      for (const [posicion, movilId] of mapaAsignaciones.entries()) {
-        const turnosDeLaPosicion = PLANTILLA_FIJA[posicion]
-        const movil = movilesFiltrados.find(m => m.id === movilId)
+      
+      if (manual) {
+        // Modo manual: crear programaciones sin móviles asignados
+        console.log('📋 Modo manual: generando horarios sin móviles asignados')
         
-        if (!movil) continue
-        
-        // Crear programación para cada turno de la posición
-        turnosDeLaPosicion.forEach((turno) => {
-          const rutaId = rutaMap.get(turno.ruta)
-          if (!rutaId) {
-            console.error(`❌ Ruta no encontrada: ${turno.ruta}`)
-            return
-          }
+        for (const [posicion, _] of Object.entries(PLANTILLA_FIJA)) {
+          const turnosDeLaPosicion = PLANTILLA_FIJA[posicion]
           
-          // Convertir hora a número HHMM
-          const [horas, minutos] = turno.hora.split(':').map(Number)
-          const horaNumerico = horas * 100 + minutos
-          
+          // Crear programación para cada turno de la posición sin móvil
+          turnosDeLaPosicion.forEach((turno) => {
+            const rutaId = rutaMap.get(turno.ruta)
+            if (!rutaId) {
+              console.error(`❌ Ruta no encontrada: ${turno.ruta}`)
+              return
+            }
+            
+            // Convertir hora a número HHMM
+            const [horas, minutos] = turno.hora.split(':').map(Number)
+            const horaNumerico = horas * 100 + minutos
+            
             programaciones.push({
               fecha: fechaObj,
               rutaId,
               hora: horaNumerico,
-            automovilId: movilId
+              automovilId: null // Sin móvil asignado en modo manual
+            })
           })
+        }
+      } else {
+        // Modo automático: crear programaciones con móviles asignados
+        for (const [posicion, movilId] of mapaAsignaciones.entries()) {
+          const turnosDeLaPosicion = PLANTILLA_FIJA[posicion]
+          const movil = movilesFiltrados.find(m => m.id === movilId)
           
-          // Contar asignación
-          asignacionesPorMovil.set(movilId, (asignacionesPorMovil.get(movilId) || 0) + 1)
-        })
+          if (!movil) continue
+          
+          // Crear programación para cada turno de la posición
+          turnosDeLaPosicion.forEach((turno) => {
+            const rutaId = rutaMap.get(turno.ruta)
+            if (!rutaId) {
+              console.error(`❌ Ruta no encontrada: ${turno.ruta}`)
+              return
+            }
+            
+            // Convertir hora a número HHMM
+            const [horas, minutos] = turno.hora.split(':').map(Number)
+            const horaNumerico = horas * 100 + minutos
+            
+            programaciones.push({
+              fecha: fechaObj,
+              rutaId,
+              hora: horaNumerico,
+              automovilId: movilId
+            })
+            
+            // Contar asignación
+            asignacionesPorMovil.set(movilId, (asignacionesPorMovil.get(movilId) || 0) + 1)
+          })
+        }
       }
 
       // 📊 Estadísticas de asignación
@@ -751,21 +782,22 @@ export async function POST(request: NextRequest) {
 
       return {
         totalRutas: programaciones.length,
-        totalMoviles: totalMovilesFinal,
-        movilesAsignados: movilesAsignadosFinal,
-        movilesEnDescanso: movilesEnDescansoFinal,
+        totalMoviles: manual ? 0 : totalMovilesFinal,
+        movilesAsignados: manual ? 0 : movilesAsignadosFinal,
+        movilesEnDescanso: manual ? totalMovilesFinal : movilesEnDescansoFinal,
         movilesSinTrabajarAyer: movilesSinTrabajarAyer.size,
+        modoManual: manual,
         estadisticas: {
-          promedioAsignaciones: programaciones.length / totalMovilesFinal,
-          distribucion: Object.fromEntries(asignacionesPorMovil),
+          promedioAsignaciones: manual ? 0 : programaciones.length / totalMovilesFinal,
+          distribucion: manual ? {} : Object.fromEntries(asignacionesPorMovil),
           distribucionPorRuta: distribucionPorRuta,
-          dobles: Object.fromEntries(movilesConDobles)
+          dobles: manual ? {} : Object.fromEntries(movilesConDobles)
         }
       }
     });
 
     return NextResponse.json({
-      message: 'Programación generada exitosamente con distribución equitativa',
+      message: manual ? 'Programación manual generada exitosamente (sin móviles asignados)' : 'Programación generada exitosamente con distribución equitativa',
       ...result
     })
 

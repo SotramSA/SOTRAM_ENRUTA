@@ -75,42 +75,90 @@ export async function GET(request: NextRequest) {
     }));
 
     // Convertir programados al formato esperado
-    const programadosFormateados = programados.map(prog => ({
-      id: prog.id,
-      tipo: 'programado' as const,
-      horaSalida: (() => {
+    const programadosFormateados = programados.map(prog => {
+      try {
+        let horaSalidaISO: string;
+        
         if (typeof prog.hora === 'number') {
           const horas = Math.floor(prog.hora / 100);
           const minutos = prog.hora % 100;
           const fechaProgramado = new Date(prog.fecha);
-          // Crear la fecha usando componentes para evitar conversiones de zona horaria
-          const horaDate = new Date(
-            fechaProgramado.getFullYear(),
-            fechaProgramado.getMonth(),
-            fechaProgramado.getDate(),
-            horas,
-            minutos,
-            0,
-            0
-          );
-          return horaDate.toISOString();
+          
+          // Validar que las horas y minutos sean válidos
+          if (horas < 0 || horas > 23 || minutos < 0 || minutos > 59) {
+            console.warn(`⚠️ Hora inválida en programación ${prog.id}: ${prog.hora}`);
+            // Usar hora por defecto
+            horaSalidaISO = new Date(fechaProgramado.getFullYear(), fechaProgramado.getMonth(), fechaProgramado.getDate(), 0, 0, 0, 0).toISOString();
+          } else {
+            // Crear la fecha usando componentes para evitar conversiones de zona horaria
+            const horaDate = new Date(
+              fechaProgramado.getFullYear(),
+              fechaProgramado.getMonth(),
+              fechaProgramado.getDate(),
+              horas,
+              minutos,
+              0,
+              0
+            );
+            horaSalidaISO = horaDate.toISOString();
+          }
+        } else if (typeof prog.hora === 'string') {
+          // Si es string, intentar parsearlo
+          horaSalidaISO = prog.hora;
+        } else if (prog.hora === null || prog.hora === undefined) {
+          // Si es null, usar medianoche del día
+          const fechaProgramado = new Date(prog.fecha);
+          horaSalidaISO = new Date(fechaProgramado.getFullYear(), fechaProgramado.getMonth(), fechaProgramado.getDate(), 0, 0, 0, 0).toISOString();
+          console.warn(`⚠️ Hora null en programación ${prog.id}, usando medianoche`);
+        } else {
+          // Fallback para otros tipos
+          console.warn(`⚠️ Tipo de hora desconocido en programación ${prog.id}:`, typeof prog.hora, prog.hora);
+          const fechaProgramado = new Date(prog.fecha);
+          horaSalidaISO = new Date(fechaProgramado.getFullYear(), fechaProgramado.getMonth(), fechaProgramado.getDate(), 0, 0, 0, 0).toISOString();
         }
-        return prog.hora; // Fallback
-      })(),
-      ruta: { 
-        id: prog.ruta?.id || 0,
-        nombre: prog.ruta?.nombre || 'Sin ruta'
-      },
-      movil: { 
-        id: prog.automovil.id, 
-        movil: prog.automovil.movil 
-      },
-      conductor: { 
-        id: 0, // Los programados no tienen conductor específico
-        nombre: 'Programado' 
-      },
-      estado: 'PROGRAMADO'
-    }));
+
+        return {
+          id: prog.id,
+          tipo: 'programado' as const,
+          horaSalida: horaSalidaISO,
+          ruta: { 
+            id: prog.ruta?.id || 0,
+            nombre: prog.ruta?.nombre || 'Sin ruta'
+          },
+          movil: { 
+            id: prog.automovil?.id || 0, 
+            movil: prog.automovil?.movil || 'Sin móvil'
+          },
+          conductor: { 
+            id: 0, // Los programados no tienen conductor específico
+            nombre: 'Programado' 
+          },
+          estado: 'PROGRAMADO'
+        };
+      } catch (error) {
+        console.error(`❌ Error procesando programación ${prog.id}:`, error);
+        // Retornar un objeto válido con valores por defecto
+        const fechaProgramado = new Date(prog.fecha);
+        return {
+          id: prog.id,
+          tipo: 'programado' as const,
+          horaSalida: new Date(fechaProgramado.getFullYear(), fechaProgramado.getMonth(), fechaProgramado.getDate(), 0, 0, 0, 0).toISOString(),
+          ruta: { 
+            id: prog.ruta?.id || 0,
+            nombre: prog.ruta?.nombre || 'Sin ruta'
+          },
+          movil: { 
+            id: prog.automovil?.id || 0, 
+            movil: prog.automovil?.movil || 'Sin móvil'
+          },
+          conductor: { 
+            id: 0,
+            nombre: 'Programado' 
+          },
+          estado: 'PROGRAMADO'
+        };
+      }
+    });
 
     // Combinar y ordenar por hora
     const todosLosEventos = [...turnosFormateados, ...programadosFormateados];

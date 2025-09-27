@@ -29,7 +29,7 @@ interface Programacion {
 
 // Vista editable para drag & drop de móviles
 interface ProgramacionView extends Omit<Programacion, 'movilId' | 'movil'> {
-  originalMovilId: number
+  originalMovilId: number | null
   currentMovil: MovilDisponible | null
   disponible: boolean // Asegurar que siempre sea boolean, no opcional
 }
@@ -146,8 +146,8 @@ export default function ProgramadoPage() {
           usuarioId: p.usuarioId,
           disponible: Boolean(p.disponible),
           automovil: p.automovil,
-          originalMovilId: p.automovil.id,
-          currentMovil: { id: p.automovil.id, movil: p.automovil.movil, placa: p.automovil.placa }
+          originalMovilId: p.automovil?.id || null,
+          currentMovil: p.automovil ? { id: p.automovil.id, movil: p.automovil.movil, placa: p.automovil.placa } : null
         }
       })
       console.log('📊 Vista de programaciones procesada:', view.length, view)
@@ -167,11 +167,11 @@ export default function ProgramadoPage() {
 
   // Statistics calculation removed - handled differently now
 
-  async function generarProgramacion() {
+  async function generarProgramacion(manual = false) {
     try {
       setIsGenerating(true)
-      const response = await axios.post('/api/programado/generar', { fecha: selectedDate })
-      apiNotifications.createSuccess('Programación')
+      const response = await axios.post('/api/programado/generar', { fecha: selectedDate, manual })
+      apiNotifications.createSuccess(manual ? 'Programación manual' : 'Programación')
       
         // Mostrar estadísticas de distribución si están disponibles
         if (response.data.estadisticas) {
@@ -225,7 +225,7 @@ export default function ProgramadoPage() {
   async function toggleDisponible(programacion: { id: number; disponible: boolean }) {
     try {
       await axios.put(`/api/programado/${programacion.id}`, {
-        disponible: !programacion.disponible
+        movilId: programacion.disponible ? -1 : null
       })
       apiNotifications.updateSuccess('Estado de programación')
       fetchAll()
@@ -334,8 +334,10 @@ export default function ProgramadoPage() {
   }, [programaciones])
 
   const visiblePoolMoviles = useMemo(() => {
-    return dedupeById(poolMoviles).filter(m => !assignedMobileIds.has(m.id))
-  }, [poolMoviles, assignedMobileIds])
+    // Permitir que los móviles aparezcan en el pool aunque estén asignados
+    // para permitir múltiples asignaciones (móviles que hacen 2+ rutas)
+    return dedupeById(poolMoviles)
+  }, [poolMoviles])
 
   // Drag & Drop helpers (mover solo el chip del móvil)
   function handleDragStartFromSlot(event: React.DragEvent<HTMLDivElement>, programacionId: number) {
@@ -388,8 +390,9 @@ export default function ProgramadoPage() {
         const fromPool = poolMoviles.find(m => m.id === mobileFromPoolId) || null
         target.currentMovil = fromPool
         setPoolMoviles(pool => {
-          const remaining = pool.filter(m => m.id !== mobileFromPoolId)
-          const nextPool = replaced ? [...remaining, { id: replaced.id, movil: replaced.movil, placa: replaced.placa }] : remaining
+          // NO eliminar el móvil del pool - permitir múltiples asignaciones
+          // Solo agregar el móvil reemplazado si existe
+          const nextPool = replaced ? [...pool, { id: replaced.id, movil: replaced.movil, placa: replaced.placa }] : pool
           return dedupeById(nextPool)
         })
         
@@ -422,11 +425,11 @@ export default function ProgramadoPage() {
   // Function removed: hasEmptySlots - not used
 
   function getPendingCount() {
-    return programaciones.filter(p => (p.currentMovil ? p.currentMovil.id : -1) !== p.originalMovilId).length
+    return programaciones.filter(p => (p.currentMovil ? p.currentMovil.id : -1) !== (p.originalMovilId || -1)).length
   }
 
   async function savePendingChanges() {
-    const changes = programaciones.filter(p => (p.currentMovil ? p.currentMovil.id : -1) !== p.originalMovilId)
+    const changes = programaciones.filter(p => (p.currentMovil ? p.currentMovil.id : -1) !== (p.originalMovilId || -1))
     if (changes.length === 0) return
     
     console.log('🔍 Guardando cambios:', {
@@ -436,7 +439,7 @@ export default function ProgramadoPage() {
         ruta: c.ruta,
         originalMovilId: c.originalMovilId,
         currentMovilId: c.currentMovil?.id || null,
-        isRemoval: c.originalMovilId !== -1 && !c.currentMovil
+        isRemoval: (c.originalMovilId || -1) !== -1 && !c.currentMovil
       }))
     })
     
@@ -473,14 +476,12 @@ export default function ProgramadoPage() {
         if (p.currentMovil) {
           // Asignar móvil
           await axios.put(`/api/programado/${p.id}`, { 
-            movilId: p.currentMovil.id,
-            disponible: false // Marcar como no disponible cuando se asigna
+            movilId: p.currentMovil.id
           })
         } else {
           // Eliminar móvil (hacer disponible)
           await axios.put(`/api/programado/${p.id}`, { 
-            movilId: -1,
-            disponible: true // Marcar como disponible cuando se elimina
+            movilId: -1
           })
         }
       }))
@@ -704,7 +705,7 @@ export default function ProgramadoPage() {
                 </div>
                 
                 <Button
-                  onClick={generarProgramacion}
+                  onClick={() => generarProgramacion()}
                   disabled={isGenerating}
                   className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 px-6 py-2 rounded-xl"
                 >
@@ -846,13 +847,22 @@ export default function ProgramadoPage() {
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">No hay programación disponible</h3>
                 <p className="text-gray-600 mb-6">Genera una nueva programación para la fecha seleccionada.</p>
-                <Button
-                  onClick={generarProgramacion}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg rounded-xl"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Generar Programación
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button
+                    onClick={() => generarProgramacion(false)}
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg rounded-xl"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Generar Automática
+                  </Button>
+                  <Button
+                    onClick={() => generarProgramacion(true)}
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg rounded-xl"
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    Generar Manual
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ) : (
@@ -1005,8 +1015,11 @@ export default function ProgramadoPage() {
                                     onClick={(ev) => {
                                       ev.stopPropagation()
                                       const sourceId = programacion.id
-                                      setProgramaciones(prev => prev.map(p => p.id === sourceId ? { ...p, currentMovil: null } : p))
-                                      setPoolMoviles(pool => dedupeById([...pool, { id: programacion.currentMovil!.id, movil: programacion.currentMovil!.movil, placa: programacion.currentMovil!.placa }]))
+                                      if (programacion.currentMovil) {
+                                        const movilToReturn = { id: programacion.currentMovil.id, movil: programacion.currentMovil.movil, placa: programacion.currentMovil.placa }
+                                        setProgramaciones(prev => prev.map(p => p.id === sourceId ? { ...p, currentMovil: null } : p))
+                                        setPoolMoviles(pool => dedupeById([...pool, movilToReturn]))
+                                      }
                                     }}
                                     aria-label="Liberar móvil"
                                   >

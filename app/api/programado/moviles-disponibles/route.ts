@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       })
 
       console.log('📋 Móviles asignados encontrados:', movilesAsignados.length)
-      movilesAsignadosIds = new Set(movilesAsignados.map(m => m.automovilId))
+      movilesAsignadosIds = new Set(movilesAsignados.map(m => m.automovilId).filter(id => id !== null) as number[])
     } catch (prismaError: any) {
       console.log('📝 No hay programaciones para esta fecha (primera vez o error):', prismaError.message)
       // Si no hay programaciones, todos los móviles están disponibles
