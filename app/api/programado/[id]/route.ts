@@ -10,15 +10,9 @@ export async function PUT(
     const { id: idParam } = await params
     const id = parseInt(idParam)
 
-    console.log('🔍 PUT /api/programado/[id] - Datos recibidos:', { 
-      id, 
-      movilId, 
-      disponible,
-      idParam 
-    })
+    // Removed debug log of received data
 
     if (!id) {
-      console.log('❌ Error: ID requerido')
       return NextResponse.json({ error: 'ID requerido' }, { status: 400 })
     }
 
@@ -59,7 +53,6 @@ export async function PUT(
         })
 
         if (!nuevoMovil) {
-          console.log('❌ Error: Móvil no disponible', { movilId, nuevoMovil })
           return NextResponse.json({ error: 'Móvil no disponible' }, { status: 400 })
         }
 

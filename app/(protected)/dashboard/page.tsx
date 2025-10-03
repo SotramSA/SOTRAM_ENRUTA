@@ -53,8 +53,7 @@ interface DashboardData {
   }>
   metricasGenerales: {
     totalTurnos: number
-    turnosPendientes: number
-    turnosEnCurso: number
+    turnosNoCompletados: number
     turnosCompletados: number
   }
   fechaInicio: string
@@ -186,7 +185,7 @@ export default function DashboardPage() {
           {data && (
             <>
               {/* Métricas Generales */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <Card className="bg-white rounded-lg shadow-sm border border-gray-200">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
@@ -205,25 +204,11 @@ export default function DashboardPage() {
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-gray-600">Pendientes</p>
-                        <p className="text-2xl font-bold text-yellow-600">{data.metricasGenerales.turnosPendientes}</p>
+                        <p className="text-sm font-medium text-gray-600">No Completados</p>
+                        <p className="text-2xl font-bold text-yellow-600">{data.metricasGenerales.turnosNoCompletados}</p>
                       </div>
                       <div className="p-3 bg-yellow-100 rounded-lg">
                         <Clock className="w-6 h-6 text-yellow-600" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-white rounded-lg shadow-sm border border-gray-200">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">En Curso</p>
-                        <p className="text-2xl font-bold text-blue-600">{data.metricasGenerales.turnosEnCurso}</p>
-                      </div>
-                      <div className="p-3 bg-blue-100 rounded-lg">
-                        <TrendingUp className="w-6 h-6 text-blue-600" />
                       </div>
                     </div>
                   </CardContent>
@@ -444,4 +429,4 @@ export default function DashboardPage() {
       </div>
     </RouteGuard>
   )
-} 
+}

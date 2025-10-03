@@ -16,16 +16,38 @@ export function TimeController() {
   // Función para obtener la hora del servidor respetando la simulación
   const fetchCurrentTime = async () => {
     try {
+      
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos timeout
+      
       const response = await fetch('/api/time', {
-        headers: TimeService.getSimulationHeaders(),
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...TimeService.getSimulationHeaders(),
+        },
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
+      
+      
+      
       if (response.ok) {
         const data = await response.json();
         setCurrentTime(new Date(data.currentTime));
         setIsSimulationMode(data.isSimulationMode);
+      } else {
+        console.error('🔍 TimeController: Response no ok:', response.status, response.statusText);
       }
     } catch (error) {
-      console.error('Error obteniendo hora actual:', error);
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error('🔍 TimeController: Request timeout');
+      } else {
+        console.error('🔍 TimeController: Error obteniendo hora actual:', error);
+        console.error('🔍 TimeController: Error stack:', error instanceof Error ? error.stack : 'No stack available');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -85,7 +107,7 @@ export function TimeController() {
   };
 
   return (
-    <Card className="p-6 bg-white border-gray-200 shadow-sm" >
+    <Card className="p-6 bg-white border-gray-200 shadow-sm" hidden>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">🕐 Control de Hora del Sistema</h3>
@@ -235,4 +257,4 @@ export function TimeController() {
       </div>
     </Card>
   );
-} 
+}

@@ -104,8 +104,7 @@ export async function GET(request: NextRequest) {
     const metricasGenerales = await prisma.$queryRaw`
       SELECT 
         COUNT(*) as totalTurnos,
-        COUNT(CASE WHEN estado = 'PENDIENTE' THEN 1 END) as turnosPendientes,
-        COUNT(CASE WHEN estado = 'EN_CURSO' THEN 1 END) as turnosEnCurso,
+        COUNT(CASE WHEN estado = 'NO_COMPLETADO' THEN 1 END) as turnosNoCompletados,
         COUNT(CASE WHEN estado = 'COMPLETADO' THEN 1 END) as turnosCompletados
       FROM "Turno" 
       WHERE "horaSalida" >= ${inicio} AND "horaSalida" <= ${fin}
@@ -141,8 +140,7 @@ export async function GET(request: NextRequest) {
 
     const metricasGeneralesConvertidas = {
       totalTurnos: Number((metricasGenerales as any[])[0]?.totalturnos || 0),
-      turnosPendientes: Number((metricasGenerales as any[])[0]?.turnospendientes || 0),
-      turnosEnCurso: Number((metricasGenerales as any[])[0]?.turnosencurso || 0),
+      turnosNoCompletados: Number((metricasGenerales as any[])[0]?.turnosnocompletados || 0),
       turnosCompletados: Number((metricasGenerales as any[])[0]?.turnoscompletados || 0)
     };
 
@@ -163,6 +161,34 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error en dashboard:', error);
+    // Fallback de desarrollo: si la BD no está disponible, devolver datos vacíos
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        const { searchParams } = new URL(request.url);
+        const fechaInicio = searchParams.get('fechaInicio') || '';
+        const fechaFin = searchParams.get('fechaFin') || '';
+
+        const demandaCompleta = Array.from({ length: 24 }, (_, i) => ({ hora: i, cantidad: 0 }));
+        const response = {
+          demandaPorHora: demandaCompleta,
+          tiempoPromedioMinutos: 0,
+          automovilesActivos: [],
+          conductoresActivos: [],
+          balanceRutas: [],
+          metricasGenerales: {
+            totalTurnos: 0,
+            turnosNoCompletados: 0,
+            turnosCompletados: 0
+          },
+          fechaInicio,
+          fechaFin
+        };
+        return NextResponse.json(response);
+      } catch (e) {
+        // Si algo falla en el fallback, mantener 500
+        console.error('Error en fallback de desarrollo del dashboard:', e);
+      }
+    }
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
-} 
+}

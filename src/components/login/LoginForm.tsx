@@ -45,7 +45,6 @@ export default function LoginForm() {
                 if (!response.ok) {
                     setError(result.error || 'Error de autenticación');
                 } else {
-                    console.log('Login exitoso, redirigiendo a /admin');
                     router.push('/admin');
                 }
             } catch (error) {

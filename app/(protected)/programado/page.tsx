@@ -44,6 +44,7 @@ interface MovilDisponible {
 const RUTAS_HORARIOS = {
   'Despacho A': [
     // Horarios matutinos
+    '04:50',
     '05:00', '05:10', '05:20', '05:28', '05:36', '05:44', '05:52',
     '06:00', '06:10', '06:20', '06:30', '06:40', '06:50', '07:00',
     // Horarios vespertinos  

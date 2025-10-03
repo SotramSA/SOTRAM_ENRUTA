@@ -334,13 +334,12 @@ export default function AutomovilManager() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
   function handleView(automovil: Automovil) {
-    console.log('🔍 Abriendo modal de visualización para:', automovil);
+   
     setViewItem(automovil);
     setIsViewModalOpen(true);
   }
 
   function handleViewModalClose() {
-    console.log('🔍 Cerrando modal de visualización');
     setIsViewModalOpen(false);
     setViewItem(null);
   }

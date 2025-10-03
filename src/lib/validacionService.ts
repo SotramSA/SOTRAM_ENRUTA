@@ -197,13 +197,7 @@ export class ValidacionService {
     const inicioDia = this.normalizeDateToStartOfDay(ahoraBogotaDate);
     const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000);
 
-    console.log('🔍 Validando planilla:', {
-      movilId,
-      ahora: ahora.toISOString(),
-      ahoraBogotaDate: ahoraBogotaDate.toISOString(),
-      inicioDia: inicioDia.toISOString(),
-      finDia: finDia.toISOString()
-    });
+    
 
     // Buscar planillas directamente por automovilId y fecha
     const planilla = await prisma.planilla.findFirst({
@@ -227,25 +221,12 @@ export class ValidacionService {
       take: 5 // Solo las últimas 5
     });
 
-    console.log('🔍 DEBUG - Todas las planillas recientes para móvil', movilId, ':', 
-      todasLasPlanillas.map(p => ({
-        id: p.id,
-        fecha: p.fecha.toISOString(),
-        fechaLocal: p.fecha.toLocaleDateString('es-ES', { timeZone: 'America/Bogota' }), // Asegurar que se formatee en Bogotá
-        automovilId: p.automovilId
-      }))
-    );
+    
 
     if (planilla) {
       // Normalizar la fecha de la planilla antes de la comparación y para el log
       const planillaFechaNormalizada = this.normalizeDateToStartOfDay(planilla.fecha);
-      console.log('✅ Planilla encontrada:', {
-        id: planilla.id,
-        fecha: planilla.fecha.toISOString(), // Original para referencia
-        planillaFechaNormalizada: planillaFechaNormalizada.toISOString(), // Normalizada
-        automovilId: planilla.automovilId,
-        comparacionConInicioDia: planillaFechaNormalizada.getTime() === inicioDia.getTime()
-      });
+      
       
       return {
         tienePlanilla: true,
@@ -257,7 +238,7 @@ export class ValidacionService {
       };
     }
 
-    console.log('❌ No se encontró planilla para el día actual');
+    
     return { tienePlanilla: false };
   }
 
@@ -270,13 +251,7 @@ export class ValidacionService {
     const inicioDia = this.normalizeDateToStartOfDay(ahoraBogotaDate);
     const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000);
 
-    console.log('🔍 Validando lista de chequeo:', {
-      movilId,
-      ahora: ahora.toISOString(),
-      ahoraBogotaDate: ahoraBogotaDate.toISOString(),
-      inicioDia: inicioDia.toISOString(),
-      finDia: finDia.toISOString()
-    });
+    
 
     const listaChequeo = await prisma.listaChequeo.findFirst({
       where: {
@@ -294,13 +269,7 @@ export class ValidacionService {
     if (listaChequeo) {
       // Normalizar la fecha de la lista de chequeo antes de la comparación y para el log
       const listaChequeoFechaNormalizada = this.normalizeDateToStartOfDay(listaChequeo.fecha);
-      console.log('✅ Lista de chequeo encontrada:', {
-        id: listaChequeo.id,
-        fecha: listaChequeo.fecha.toISOString(), // Original para referencia
-        listaChequeoFechaNormalizada: listaChequeoFechaNormalizada.toISOString(), // Normalizada
-        items: listaChequeo.items,
-        comparacionConInicioDia: listaChequeoFechaNormalizada.getTime() === inicioDia.getTime()
-      });
+      
       
       return {
         tieneListaChequeo: true,
@@ -312,7 +281,7 @@ export class ValidacionService {
       };
     }
 
-    console.log('❌ No se encontró lista de chequeo para el día actual');
+    
     return { tieneListaChequeo: false };
   }
 
@@ -326,7 +295,6 @@ export class ValidacionService {
     });
 
     if (!conductor || !conductor.licenciaConduccion) {
-      console.log('❌ Conductor no encontrado o sin licencia de conducción');
       return {
         licenciaConduccionVencida: true // Si no tiene fecha, considerar vencida
       };
@@ -340,18 +308,9 @@ export class ValidacionService {
     
     const vencida = fechaVencimientoNormalizada < ahoraBogotaDateNormalizada;
 
-    console.log('🔍 Validando licencia de conducción:', {
-      conductorId,
-      fechaVencimiento: new Date(conductor.licenciaConduccion).toISOString(), // Original para referencia
-      fechaVencimientoNormalizada: fechaVencimientoNormalizada.toISOString(), // Normalizada
-      ahora: ahora.toISOString(),
-      ahoraBogotaDate: ahoraBogotaDate.toISOString(), // Original de Bogotá
-      ahoraBogotaDateNormalizada: ahoraBogotaDateNormalizada.toISOString(), // Normalizada
-      vencida
-    });
+    
 
     if (vencida) {
-      console.log('❌ Licencia de conducción vencida');
       return {
         licenciaConduccionVencida: true,
         licenciaConduccion: {
@@ -360,7 +319,7 @@ export class ValidacionService {
       };
     }
 
-    console.log('✅ Licencia de conducción válida');
+    
     return {
       licenciaConduccionVencida: false,
       licenciaConduccion: {
@@ -386,7 +345,6 @@ export class ValidacionService {
     });
 
     if (!automovil) {
-      console.log('❌ Automóvil no encontrado');
       return { documentosVencidos: [] };
     }
 
@@ -396,12 +354,7 @@ export class ValidacionService {
     const ahoraBogotaDateNormalizada = this.normalizeDateToStartOfDay(ahoraBogotaDate);
     const documentosVencidos: Array<{ tipo: string; fechaVencimiento: Date }> = [];
 
-    console.log('🔍 Validando documentos del móvil:', {
-      movilId,
-      ahora: ahora.toISOString(),
-      ahoraBogotaDate: ahoraBogotaDate.toISOString(),
-      ahoraBogotaDateNormalizada: ahoraBogotaDateNormalizada.toISOString()
-    });
+    
 
     // Validar SOAT
     if (automovil.soat) {
@@ -467,7 +420,7 @@ export class ValidacionService {
     // }
 
 
-    console.log('📋 Documentos vencidos encontrados:', documentosVencidos.length);
+    
     return { documentosVencidos };
   }
 
@@ -486,13 +439,7 @@ export class ValidacionService {
     const inicioDia = this.normalizeDateToStartOfDay(ahoraBogotaDate);
     const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000); // Fin del día actual en UTC
 
-    console.log('🔍 Validando sanciones automóvil:', {
-      movilId,
-      ahora: ahora.toISOString(),
-      ahoraBogotaDate: ahoraBogotaDate.toISOString(),
-      inicioDia: inicioDia.toISOString(),
-      finDia: finDia.toISOString()
-    });
+    
 
     // Obtener sanciones del automóvil que intersecten el día actual
     const sanciones = await prisma.sancionAutomovil.findMany({
@@ -509,14 +456,7 @@ export class ValidacionService {
       }
     });
 
-    console.log('🔍 Sanciones automóvil encontradas:', sanciones.map(s => ({
-      id: s.id,
-      fechaInicio: s.fechaInicio.toISOString(), // Original para referencia
-      fechaInicioNormalizada: this.normalizeDateToStartOfDay(s.fechaInicio).toISOString(), // Normalizada
-      fechaFin: s.fechaFin.toISOString(), // Original para referencia
-      fechaFinNormalizada: this.normalizeDateToStartOfDay(s.fechaFin).toISOString(), // Normalizada
-      descripcion: s.descripcion
-    })));
+    
 
     return sanciones.map(sancion => ({
       id: sancion.id,
@@ -541,13 +481,7 @@ export class ValidacionService {
     const inicioDia = this.normalizeDateToStartOfDay(ahoraBogotaDate);
     const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000); // Fin del día actual en UTC
 
-    console.log('🔍 Validando sanciones conductor:', {
-      conductorId,
-      ahora: ahora.toISOString(),
-      ahoraBogotaDate: ahoraBogotaDate.toISOString(),
-      inicioDia: inicioDia.toISOString(),
-      finDia: finDia.toISOString()
-    });
+    
 
     // Obtener sanciones del conductor para el día actual
     const sanciones = await prisma.sancionConductor.findMany({
@@ -564,14 +498,7 @@ export class ValidacionService {
       }
     });
 
-    console.log('🔍 Sanciones conductor encontradas:', sanciones.map(s => ({
-      id: s.id,
-      fechaInicio: s.fechaInicio.toISOString(), // Original para referencia
-      fechaInicioNormalizada: this.normalizeDateToStartOfDay(s.fechaInicio).toISOString(), // Normalizada
-      fechaFin: s.fechaFin.toISOString(), // Original para referencia
-      fechaFinNormalizada: this.normalizeDateToStartOfDay(s.fechaFin).toISOString(), // Normalizada
-      descripcion: s.descripcion
-    })));
+    
 
     return sanciones.map(sancion => ({
       id: sancion.id,
@@ -703,4 +630,4 @@ export class ValidacionService {
     
     return inicioNormalizado.getTime() === finNormalizado.getTime();
   }
-} 
+}

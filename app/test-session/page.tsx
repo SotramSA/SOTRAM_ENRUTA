@@ -7,11 +7,10 @@ export default function TestSessionPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    console.log('TestSession: All cookies:', document.cookie)
+    // Removed debug log of all cookies
 
     // Check for session cookie
     const hasSessionCookie = document.cookie.includes('session=')
-    console.log('TestSession: Has session cookie:', hasSessionCookie)
 
     if (hasSessionCookie) {
       const cookies = document.cookie.split(';')
@@ -22,7 +21,6 @@ export default function TestSessionPage() {
           const sessionValue = decodeURIComponent(sessionCookie.split('=')[1])
           const sessionData = JSON.parse(sessionValue)
           setSessionInfo(sessionData)
-          console.log('TestSession: Session data:', sessionData)
         } catch (error) {
           console.error('TestSession: Error parsing session:', error)
         }

@@ -125,13 +125,12 @@ async function checkDashboardData() {
     console.log('\n👤 Conductores más activos:');
     console.log(conductoresActivos);
 
-    // 8. Verificar métricas generales
+    // 8. Verificar métricas generales (esquema binario)
     const metricasGenerales = await prisma.$queryRaw`
       SELECT 
-        COUNT(*) as totalTurnos,
-        COUNT(CASE WHEN estado = 'PENDIENTE' THEN 1 END) as turnosPendientes,
-        COUNT(CASE WHEN estado = 'EN_CURSO' THEN 1 END) as turnosEnCurso,
-        COUNT(CASE WHEN estado = 'COMPLETADO' THEN 1 END) as turnosCompletados
+        COUNT(*) as "totalTurnos",
+        COUNT(CASE WHEN estado = 'NO_COMPLETADO' THEN 1 END) as "turnosNoCompletados",
+        COUNT(CASE WHEN estado = 'COMPLETADO' THEN 1 END) as "turnosCompletados"
       FROM "Turno" 
       WHERE "horaCreacion" >= ${fechaEspecifica} AND "horaCreacion" <= ${finFecha}
     `;
@@ -146,4 +145,4 @@ async function checkDashboardData() {
   }
 }
 
-checkDashboardData(); 
+checkDashboardData();

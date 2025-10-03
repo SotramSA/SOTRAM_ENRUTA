@@ -16,8 +16,7 @@ export async function GET(request: NextRequest) {
     const finDia = new Date(fechaObj)
     finDia.setHours(23, 59, 59, 999)
 
-    console.log('🔍 Buscando móviles disponibles para fecha:', fecha)
-    console.log('📅 Rango de fechas:', { inicioDia, finDia })
+    // Removed debug logs for input and date range
 
 
     
@@ -37,9 +36,9 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    console.log('🚗 Total de móviles activos y disponibles:', todosLosMoviles.length)
+    // Removed debug log for móviles count
 
-    console.log(`🔍 Buscando móviles asignados para fecha: ${fecha}`)
+    // Removed debug log announcing assigned lookup
 
     // Obtener los móviles que ya están asignados en esta fecha
     let movilesAsignadosIds = new Set<number>()
@@ -54,22 +53,22 @@ export async function GET(request: NextRequest) {
         }
       })
 
-      console.log('📋 Móviles asignados encontrados:', movilesAsignados.length)
+      // Removed debug log for assigned móviles count
       movilesAsignadosIds = new Set(movilesAsignados.map(m => m.automovilId).filter(id => id !== null) as number[])
     } catch (prismaError: any) {
-      console.log('📝 No hay programaciones para esta fecha (primera vez o error):', prismaError.message)
+      // Removed informational log; preserve behavior without logging
       // Si no hay programaciones, todos los móviles están disponibles
       movilesAsignadosIds = new Set<number>()
     }
 
-    console.log('📋 Móviles asignados para esta fecha (IDs): ', movilesAsignadosIds.size)
+    // Removed debug log for assigned IDs size
 
     // Filtrar solo los móviles que no están asignados y siguen disponibles/activos
     const movilesDisponibles = todosLosMoviles.filter(
       movil => !movilesAsignadosIds.has(movil.id)
     )
 
-    console.log('📋 Móviles disponibles calculados:', movilesDisponibles.length)
+    // Removed debug log for calculated disponibles count
 
     return NextResponse.json({
       success: true,

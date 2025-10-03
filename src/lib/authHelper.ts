@@ -27,18 +27,15 @@ export async function getSessionUser(request: NextRequest): Promise<SessionUser 
     // Obtener datos de sesión de las cookies
     const sessionData = request.cookies.get('session')?.value;
     
-    console.log('🔍 Debug authHelper - Session data encontrada:', !!sessionData);
-    console.log('🔍 Debug authHelper - Cookies disponibles:', request.cookies.getAll().map(c => c.name));
+    
 
     if (!sessionData) {
-      console.log('❌ No se encontró datos de sesión');
       return null;
     }
 
     // Parsear los datos de sesión
     const session = JSON.parse(sessionData) as SessionUser;
 
-    console.log('✅ Sesión parseada correctamente para usuario:', session.nombre);
     return session;
   } catch (error) {
     console.error('❌ Error parseando sesión:', error);

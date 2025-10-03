@@ -15,7 +15,7 @@ export default async function Sidebar() {
     },
     {
       name: 'Turnos',
-      href: '/turno',
+      href: '/turnos',
       icon: 'Clock',
       avalaible: session?.tablaTurno
     },

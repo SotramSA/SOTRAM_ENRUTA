@@ -209,4 +209,24 @@ export class TimeService {
     
     return { hours, minutes, date: bogotaDate };
   }
-} 
+
+  /**
+   * Convierte una fecha ISO string a formato HH:MM de 24 horas
+   * @param isoString - Fecha en formato ISO string
+   * @returns Hora en formato HH:MM (24 horas)
+   */
+  static isoToTimeHHMM(isoString: string): string {
+    try {
+      const date = new Date(isoString);
+      if (isNaN(date.getTime())) {
+        return 'Hora inválida';
+      }
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      return `${hours}:${minutes}`;
+    } catch (error) {
+      console.error('Error convirtiendo ISO a HH:MM:', isoString, error);
+      return 'Error';
+    }
+  }
+}

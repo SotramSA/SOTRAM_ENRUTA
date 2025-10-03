@@ -4,7 +4,7 @@ async function testDashboardAPI() {
   try {
     console.log('🧪 Probando API del dashboard...\n');
 
-    const url = 'http://localhost:3001/api/dashboard?fechaInicio=2025-08-04&fechaFin=2025-08-04';
+    const url = 'http://localhost:3015/api/dashboard?fechaInicio=2025-08-04&fechaFin=2025-08-04';
     
     console.log(`📡 Haciendo petición a: ${url}`);
     
@@ -82,4 +82,4 @@ async function testDashboardAPI() {
   }
 }
 
-testDashboardAPI(); 
+testDashboardAPI();

@@ -25,12 +25,28 @@ export async function GET(
     }
 
     const turnoService = new TurnoService();
-    const rutas = await turnoService.obtenerRutasMovilHoy(movilId);
+    const todasLasRutas = await turnoService.obtenerRutasMovilHoy(movilId);
 
-    console.log('🔍 API rutas-hoy: Rutas encontradas:', {
+    // Obtener la fecha actual para filtrar solo los turnos de hoy
+    const ahora = TimeService.getCurrentTime();
+    const fechaHoy = ahora.toISOString().split('T')[0];
+
+    // Filtrar las rutas para mostrar solo las de hoy
+    const rutasHoy = todasLasRutas.filter(ruta => {
+      // Extraer la fecha de horaSalida que está en formato ISO
+      const fechaRuta = typeof ruta.horaSalida === 'string' 
+        ? ruta.horaSalida.split('T')[0] 
+        : ahora.toISOString().split('T')[0]; // Para programados usar fecha actual
+      
+      return fechaRuta === fechaHoy;
+    });
+
+    console.log('🔍 API rutas-hoy: Rutas filtradas para hoy:', {
       movilId,
-      totalRutas: rutas.length,
-      rutas: rutas.map(r => ({
+      fechaHoy,
+      totalRutasOriginales: todasLasRutas.length,
+      rutasHoy: rutasHoy.length,
+      rutas: rutasHoy.map(r => ({
         hora: r.horaSalida,
         ruta: r.ruta?.nombre,
         conductor: r.conductor.nombre,
@@ -40,8 +56,14 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      data: rutas,
-      total: rutas.length
+      data: rutasHoy,
+      total: rutasHoy.length,
+      meta: {
+        movilId: movilId.toString(),
+        fecha: fechaHoy,
+        totalOriginal: todasLasRutas.length,
+        filtradoHoy: rutasHoy.length
+      }
     });
 
   } catch (error) {
@@ -51,4 +73,4 @@ export async function GET(
       { status: 500 }
     );
   }
-} 
+}

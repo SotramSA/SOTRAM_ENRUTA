@@ -9,6 +9,9 @@ const PLANTILLA_FIJA: Record<string, Array<{ruta: string, hora: string}>> = {
     { ruta: 'DESPACHO D. RUT7 CORZO LORETO', hora: '04:50' },
     { ruta: 'Despacho A', hora: '06:00' }
   ],
+  'A47' : [
+    { ruta: 'Despacho A', hora: '04:50' }
+  ],
   'A4': [
     { ruta: 'DESPACHO D. RUT7 CORZO LORETO', hora: '04:57' },
     { ruta: 'Despacho A', hora: '06:10' }
@@ -264,7 +267,7 @@ export async function POST(request: NextRequest) {
     }
 
     const fechaObj = new Date(fecha)
-    console.log(`🚀 Generando programación con plantilla fija para: ${fecha}`)
+    
 
           const result = await prismaWithRetry.executeWithRetry(async () => {
         // Obtener todas las rutas activas existentes
@@ -290,7 +293,7 @@ export async function POST(request: NextRequest) {
         // Asegurarse de que todas las rutas de la plantilla existan en la base de datos
         for (const rutaNombre of rutasEnPlantilla) {
           if (!rutaMap.has(rutaNombre)) {
-            console.log(`➕ Creando ruta faltante en BD: ${rutaNombre}`)
+            
             const nuevaRuta = await prismaWithRetry.ruta.create({
               data: {
                 nombre: rutaNombre,
@@ -341,12 +344,7 @@ export async function POST(request: NextRequest) {
         placa: movil.placa
       }))
 
-      console.log('🚗 Móviles disponibles para programación:', {
-        totalMoviles: movilesFiltrados.length,
-        moviles: movilesFiltrados.map(m => `${m.movil} (ID: ${m.id})`).slice(0, 10),
-        totalMostrados: Math.min(10, movilesFiltrados.length),
-        hayMas: movilesFiltrados.length > 10
-      })
+      
 
       if (movilesFiltrados.length === 0) {
         throw new Error('No hay móviles disponibles para programación')
@@ -393,12 +391,7 @@ export async function POST(request: NextRequest) {
       const posicionesFijas = Object.keys(PLANTILLA_FIJA)
       const totalPosiciones = posicionesFijas.length
 
-      console.log('📋 Plantilla fija cargada:', {
-        totalPosiciones: totalPosiciones,
-        posicionesConDobles: posicionesFijas.filter(pos => PLANTILLA_FIJA[pos].length > 1).length,
-        posicionesSingle: posicionesFijas.filter(pos => PLANTILLA_FIJA[pos].length === 1).length,
-        totalTurnos: Object.values(PLANTILLA_FIJA).reduce((total, turnos) => total + turnos.length, 0)
-      })
+      
 
       // Eliminar programación existente para esta fecha
       await prismaWithRetry.programacion.deleteMany({
@@ -410,7 +403,7 @@ export async function POST(request: NextRequest) {
       // 🎲 Sistema equitativo con memoria de 2 días
       const asignacionesPorMovil = new Map()
       
-      console.log(`🚀 Iniciando algoritmo equitativo con ${movilesFiltrados.length} móviles disponibles para ${totalPosiciones} posiciones`)
+      
 
       // 📋 Función para obtener las últimas 2 posiciones de un móvil
       async function obtenerUltimasPosiciones(movilId: number, dias: number = 2) {
@@ -436,7 +429,7 @@ export async function POST(request: NextRequest) {
           
           // Si no hay programaciones anteriores, devolver array vacío
           if (!programacionesAnteriores || programacionesAnteriores.length === 0) {
-            console.log(`📝 Móvil ${movilId} no tiene programaciones anteriores (primera vez)`)
+            
             return []
           }
         
@@ -505,33 +498,32 @@ export async function POST(request: NextRequest) {
         movilesQueTrabajaronAyer.has(movil.id)
       )
 
-      console.log(`🏆 Móviles que descansaron ayer (prioridad): ${movilesQueDescansaronAyer.length}`)
-      console.log(`🔄 Móviles que trabajaron ayer: ${movilesRestantes.length}`)
+      
 
       // 🎯 Detectar si es la primera vez (todos descansaron)
       const esPrimeraVez = movilesQueTrabajaronAyer.size === 0
-      console.log(`📅 Primera ejecución: ${esPrimeraVez}`)
+      
 
       // 🎲 Crear arreglo final de móviles
       let movilesOrdenados: typeof movilesFiltrados
       if (esPrimeraVez) {
         // Si es primera vez, barajar todos los móviles por igual
         movilesOrdenados = shuffleArray(movilesFiltrados)
-        console.log(`🎲 Primera vez: todos los móviles barajados aleatoriamente`)
+        
       } else {
         // Si hay historial, dar prioridad a los que descansaron
         movilesOrdenados = [
           ...movilesQueDescansaronAyer,
           ...shuffleArray(movilesRestantes)
         ]
-        console.log(`🏆 Con historial: prioridad a los que descansaron`)
+        
       }
 
-      console.log(`📋 Orden de asignación preparado: ${movilesOrdenados.length} móviles`)
+      
 
       // 🎯 Barajar también las posiciones para mayor aleatoriedad
       const posicionesMezcladas = shuffleArray(posicionesFijas)
-      console.log(`🎲 Posiciones mezcladas: [${posicionesMezcladas.slice(0, 5).join(', ')}...]`)
+      
 
       // 🎯 Variables de control
       const posicionesAsignadas = new Set<string>()
@@ -543,7 +535,7 @@ export async function POST(request: NextRequest) {
       let movilIndex = 0
       
       for (const posicion of posicionesMezcladas) {
-        console.log(`🎯 Buscando móvil para posición ${posicion} (${posicionesAsignadasCount + 1}/${totalPosiciones})`)
+        
         
         // Buscar el primer móvil disponible que pueda tomar esta posición
         let movilAsignado = null
@@ -561,7 +553,7 @@ export async function POST(request: NextRequest) {
               mapaAsignaciones.set(posicion, movil.id)
               movilAsignado = movil
               
-              console.log(`✅ Posición ${posicion} → Móvil ${movil.movil} (reglas estrictas)`)
+          
               break
             }
           }
@@ -569,7 +561,7 @@ export async function POST(request: NextRequest) {
         
         // FASE 2: Si no encontró con reglas estrictas, intentar con reglas flexibles (1 día) - SOLO si NO es primera vez
         if (!movilAsignado && !esPrimeraVez) {
-          console.log(`🔄 Relajando reglas para posición ${posicion} (memoria 1 día)`)
+        
           
           for (const movil of movilesOrdenados) {
             if (movilesAsignados.has(movil.id)) continue
@@ -582,7 +574,7 @@ export async function POST(request: NextRequest) {
               mapaAsignaciones.set(posicion, movil.id)
               movilAsignado = movil
               
-              console.log(`✅ Posición ${posicion} → Móvil ${movil.movil} (reglas flexibles)`)
+          
               break
             }
           }
@@ -591,7 +583,7 @@ export async function POST(request: NextRequest) {
         // FASE 3: Si aún no encontró (o es primera vez), asignar cualquier móvil disponible (sin reglas)
         if (!movilAsignado) {
           const tipoAsignacion = esPrimeraVez ? 'primera vez' : 'sin reglas'
-          console.log(`🎲 Asignación libre para posición ${posicion} (${tipoAsignacion})`)
+        
           
           // Buscar cualquier móvil no asignado
           for (const movil of movilesOrdenados) {
@@ -602,14 +594,14 @@ export async function POST(request: NextRequest) {
             mapaAsignaciones.set(posicion, movil.id)
             movilAsignado = movil
             
-            console.log(`✅ Posición ${posicion} → Móvil ${movil.movil} (${tipoAsignacion})`)
+        
             break
           }
         }
         
         // FASE 4: Si no hay más móviles únicos, permitir múltiples asignaciones
         if (!movilAsignado && movilesOrdenados.length > 0) {
-          console.log(`🔄 Permitiendo múltiples asignaciones para posición ${posicion}`)
+        
           
           // Usar móviles en orden rotativo
           const movilRotativo = movilesOrdenados[movilIndex % movilesOrdenados.length]
@@ -618,7 +610,7 @@ export async function POST(request: NextRequest) {
           mapaAsignaciones.set(posicion, movilRotativo.id)
           movilAsignado = movilRotativo
           
-          console.log(`✅ Posición ${posicion} → Móvil ${movilRotativo.movil} (múltiple asignación)`)
+        
           movilIndex++
         }
         
@@ -633,13 +625,13 @@ export async function POST(request: NextRequest) {
       const posicionesSinAsignar = posicionesFijas.filter(pos => !posicionesAsignadas.has(pos))
       
       if (posicionesSinAsignar.length > 0) {
-        console.log(`🎲 Asignando ${posicionesSinAsignar.length} posiciones restantes con fallback`)
+      
         
         const movilesDisponibles = movilesFiltrados.filter(m => !movilesAsignados.has(m.id))
         
         for (const posicion of posicionesSinAsignar) {
           if (movilesDisponibles.length === 0) {
-            console.log(`⚠️ No hay más móviles disponibles para asignar posición ${posicion}`)
+        
             break
           }
           
@@ -658,7 +650,7 @@ export async function POST(request: NextRequest) {
           const indice = movilesDisponibles.indexOf(movilElegido)
           movilesDisponibles.splice(indice, 1)
           
-          console.log(`🎯 Posición ${posicion} asignada en fallback a móvil ${movilElegido.movil}`)
+        
         }
       }
 
@@ -667,7 +659,7 @@ export async function POST(request: NextRequest) {
       
       if (manual) {
         // Modo manual: crear programaciones sin móviles asignados
-        console.log('📋 Modo manual: generando horarios sin móviles asignados')
+      
         
         for (const [posicion, _] of Object.entries(PLANTILLA_FIJA)) {
           const turnosDeLaPosicion = PLANTILLA_FIJA[posicion]
@@ -727,10 +719,7 @@ export async function POST(request: NextRequest) {
 
       // 📊 Estadísticas de asignación
       const movilesEnDescansoHoy = movilesFiltrados.length - movilesAsignados.size
-      console.log(`📊 Resultado de asignación:`)
-      console.log(`   ✅ Móviles trabajando: ${movilesAsignados.size}`)
-      console.log(`   😴 Móviles descansando: ${movilesEnDescansoHoy}`)
-      console.log(`   🎯 Posiciones asignadas: ${mapaAsignaciones.size}/${totalPosiciones}`)
+      
 
       // Guardar programaciones en la base de datos
       if (programaciones.length > 0) {
@@ -758,23 +747,7 @@ export async function POST(request: NextRequest) {
         distribucionPorRuta[rutaNombre] = (distribucionPorRuta[rutaNombre] || 0) + 1
       })
 
-      console.log('✅ Algoritmo equitativo con flexibilidad progresiva completado:', {
-        totalProgramaciones: programaciones.length,
-        totalPosicionesFijas: totalPosiciones,
-        movilesAsignadosHoy: movilesAsignados.size,
-        movilesEnDescansoHoy: movilesEnDescansoHoy,
-        movilesConDobles: movilesConDobles.size,
-        distribucionPorRuta: distribucionPorRuta,
-        detalleDobles: movilesConDobles.size > 0 ? Object.fromEntries(movilesConDobles) : 'Ninguna',
-        metodologia: {
-          móvilesBarajados: true,
-          posicionesBarajadas: true,
-          esPrimeraVez: esPrimeraVez,
-          memoriaDias: esPrimeraVez ? 0 : 2,
-          prioridadDescansados: !esPrimeraVez,
-          flexibilidadProgresiva: true
-        }
-      })
+      
 
       const totalMovilesFinal = movilesFiltrados.length
       const movilesAsignadosFinal = movilesAsignados.size

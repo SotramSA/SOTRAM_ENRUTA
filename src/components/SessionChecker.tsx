@@ -13,7 +13,6 @@ export default function SessionChecker() {
         const hasSessionCookie = document.cookie.includes('session=')
         
         if (!hasSessionCookie) {
-          console.log('SessionChecker: No session cookie found, redirecting to login')
           router.push('/login')
           return
         }
@@ -29,17 +28,14 @@ export default function SessionChecker() {
             
             // Verificar si la sesión tiene datos válidos
             if (!sessionData || !sessionData.id) {
-              console.log('SessionChecker: Invalid session data, redirecting to login')
               router.push('/login')
               return
             }
           } catch (parseError) {
-            console.log('SessionChecker: Error parsing session, redirecting to login')
             router.push('/login')
             return
           }
         } else {
-          console.log('SessionChecker: Session cookie not found, redirecting to login')
           router.push('/login')
         }
       } catch (error) {

@@ -44,7 +44,6 @@ export default function ModalConfirmarReciboProgramado({
   // Cargar datos cuando se abre el modal
   useEffect(() => {
     if (isOpen && programado) {
-      console.log('🚗 Modal abierto con programado:', programado);
       setMovilNumero(programado.movil.movil);
       setConductorSeleccionado(null);
       cargarConductores(programado.movil.id);
@@ -52,13 +51,11 @@ export default function ModalConfirmarReciboProgramado({
   }, [isOpen, programado]);
 
   const cargarConductores = async (automovilId: number) => {
-    console.log('👥 Cargando conductores para automóvil:', automovilId);
     setCargandoConductores(true);
     try {
       const response = await fetch(`/api/conductores-automovil/${automovilId}`);
       if (response.ok) {
         const data = await response.json();
-        console.log('👥 Conductores cargados:', data.conductores);
         setConductores(data.conductores || []);
       } else {
         console.error('Error al cargar conductores');
@@ -130,12 +127,10 @@ export default function ModalConfirmarReciboProgramado({
   };
 
   if (!programado) {
-    console.log('❌ Modal: No hay programado');
     return null;
   }
 
   if (!programado.movil || !programado.movil.movil) {
-    console.log('❌ Modal: Estructura de móvil incorrecta:', programado);
     return null;
   }
 

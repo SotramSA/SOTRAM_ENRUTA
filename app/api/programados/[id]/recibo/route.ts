@@ -21,8 +21,6 @@ export async function GET(
     const conductorNombre = searchParams.get('conductorNombre');
     const movilOriginal = searchParams.get('movilOriginal');
 
-         console.log('🖨️ Generando recibo para programado:', programadoId);
-
      // Obtener el usuario actual desde la sesión
      const cookieStore = await cookies();
      const sessionCookie = cookieStore.get('session');
@@ -32,9 +30,8 @@ export async function GET(
       try {
         const sessionData = JSON.parse(sessionCookie.value);
         usuarioActual = sessionData?.nombre || 'Sistema';
-        console.log('👤 Usuario actual:', usuarioActual);
       } catch (error) {
-        console.log('⚠️ Error al parsear sesión:', error);
+        console.error('⚠️ Error al parsear sesión:', error);
       }
     }
 
@@ -50,17 +47,8 @@ export async function GET(
     
 
     if (!programado) {
-      console.log('❌ Programado no encontrado:', programadoId);
       return NextResponse.json({ error: 'Programado no encontrado' }, { status: 404 });
     }
-
-    console.log('✅ Programado encontrado:', {
-      id: programado.id,
-      fecha: programado.fecha,
-      hora: programado.hora,
-      ruta: programado.ruta?.nombre,
-      automovil: programado.automovil?.movil || 'Sin móvil'
-    });
 
     // Formatear la hora desde el campo numérico
     let horaFormateada = '';
@@ -124,7 +112,7 @@ export async function GET(
           placaFinal = nuevoMovil.placa || 'falta por placa';
         }
       } catch (error) {
-        console.log('⚠️ Error al obtener placa del nuevo móvil:', error);
+        console.error('⚠️ Error al obtener placa del nuevo móvil:', error);
       }
     }
 
@@ -144,7 +132,42 @@ export async function GET(
       esSustitucion: !!movilOriginal // Indica si es una sustitución
     };
 
-    console.log('📄 Datos del recibo generados:', reciboData);
+    // Actualizar los campos realizoPorId y realizadoPorConductorId en la base de datos
+    let nuevoEstado = programado.estado;
+    
+    if (movilNumero && conductorId) {
+      try {
+        // Buscar el automóvil por número de móvil para obtener su ID
+        const automovilRealizado = await prisma.automovil.findFirst({
+          where: { movil: movilNumero }
+        });
+
+        if (automovilRealizado) {
+          // Determinar el nuevo estado
+          if (automovilRealizado.id === programado.automovilId) {
+            // Mismo móvil asignado
+            nuevoEstado = 'COMPLETADO';
+          } else {
+            // Móvil diferente
+            nuevoEstado = `COMPLETADO POR ${movilNumero}`;
+          }
+
+          // Actualizar la programación en la base de datos
+          await prisma.programacion.update({
+            where: { id: programadoId },
+            data: {
+              realizadoPorId: automovilRealizado.id,
+              realizadoPorConductorId: parseInt(conductorId),
+              estado: nuevoEstado
+            }
+          });
+
+          // Programación actualizada correctamente
+        }
+      } catch (error) {
+        console.error('⚠️ Error al actualizar programación:', error);
+      }
+    }
 
     return NextResponse.json(reciboData);
 

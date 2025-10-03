@@ -4,14 +4,11 @@ import { ValidacionService } from '@/src/lib/validacionService';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    console.log('📥 Body recibido:', body);
     
     const { movilId, conductorId } = body;
 
-    console.log('🔍 Valores extraídos:', { movilId, conductorId, tipoMovilId: typeof movilId, tipoConductorId: typeof conductorId });
 
     if (!movilId || !conductorId) {
-      console.log('⚠️ Valores faltantes:', { movilId, conductorId });
       return NextResponse.json({
         success: false,
         message: 'Se requieren movilId y conductorId para la validación',
@@ -28,19 +25,11 @@ export async function POST(request: NextRequest) {
       }, { status: 200 }); // Cambiado de 400 a 200 para mostrar mensaje en lugar de error
     }
 
-    console.log('🔍 Validando planillas y sanciones para:', { movilId, conductorId });
+    // Validar planillas y sanciones
 
     const validacion = await ValidacionService.validarCompleta(movilId, conductorId);
 
-    console.log('✅ Resultado de validación:', {
-      tienePlanilla: validacion.tienePlanilla,
-      tieneListaChequeo: validacion.tieneListaChequeo,
-      licenciaConduccionVencida: validacion.licenciaConduccionVencida,
-      documentosVencidos: validacion.documentosVencidos.length,
-      sancionesAutomovil: validacion.sancionesAutomovil.length,
-      sancionesConductor: validacion.sancionesConductor.length,
-      tieneSanciones: validacion.tieneSanciones
-    });
+    // Resultado de validación preparado
 
     // Generar mensajes informativos basados en la validación
     const mensajes = [];
@@ -107,4 +96,4 @@ export async function POST(request: NextRequest) {
       }
     }, { status: 200 }); // Cambiado de 500 a 200
   }
-} 
+}

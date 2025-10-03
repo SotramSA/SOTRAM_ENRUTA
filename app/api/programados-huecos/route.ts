@@ -7,12 +7,15 @@ export async function GET(request: NextRequest) {
     TimeService.setFromHeaders(request.headers);
     const ahora = TimeService.getCurrentTime();
     
-    // Obtener solo la fecha de hoy (YYYY-MM-DD)
-    const fechaHoy = ahora.toISOString().split('T')[0]; // Ejemplo: "2025-01-15"
+    // Obtener fecha actual del sistema (UTC para comparar con fechas de DB)
+    const year = ahora.getUTCFullYear();
+    const month = String(ahora.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(ahora.getUTCDate()).padStart(2, '0');
+    const fechaHoy = `${year}-${month}-${day}`;
 
-    console.log('🔍 Obteniendo programados del día:', {
-      fechaHoy,
-      ahoraCompleto: ahora.toISOString()
+    console.log('🕐 Fecha del sistema:', {
+      fechaUTC: `${day}/${month}/${year}`,
+      fechaISO: fechaHoy
     });
 
     // Obtener todos los programados del día usando solo la fecha
@@ -37,9 +40,10 @@ export async function GET(request: NextRequest) {
       });
     });
 
-    // Filtrar por fecha de hoy comparando solo la parte de fecha
+    // Filtrar por fecha de hoy usando fecha ISO
     const programadosHoy = programados.filter(prog => {
-      const fechaProgramado = new Date(prog.fecha).toISOString().split('T')[0];
+      // Usar toISOString().split('T')[0] para obtener la fecha en formato ISO
+      const fechaProgramado = prog.fecha.toISOString().split('T')[0];
       return fechaProgramado === fechaHoy;
     });
 
@@ -48,7 +52,7 @@ export async function GET(request: NextRequest) {
       hoy: programadosHoy.length,
       fechaHoy,
       muestraProgramados: programadosHoy.slice(0, 3).map(p => ({
-        fecha: new Date(p.fecha).toISOString().split('T')[0],
+        fecha: `${p.fecha.getFullYear()}-${String(p.fecha.getMonth() + 1).padStart(2, '0')}-${String(p.fecha.getDate()).padStart(2, '0')}`,
         ruta: p.ruta?.nombre || 'Sin ruta',
         hora: p.hora,
         automovilId: p.automovilId

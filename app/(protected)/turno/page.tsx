@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ProtectedRoute from '@/src/components/ProtectedRoute';
 import { 
   Card, 
@@ -26,7 +26,8 @@ import { TimeService } from '@/src/lib/timeService';
 import { safeFetch } from '@/src/lib/utils';
 import type { Turno, HuecoDisponible, EstadisticaRotacion, AsignacionAutomatica } from '@/src/lib/turnoService';
 import type { ValidacionResult } from '@/src/lib/validacionService';
-import RutasMovilHoy from '@/src/components/RutasMovilHoy';
+import RutasMovilHoy, { type RutasMovilHoyRef } from '@/src/components/RutasMovilHoy';
+import TodasLasRutasHoy, { type TodasLasRutasHoyRef } from '@/src/components/TodasLasRutasHoy';
 
 
 interface Automovil {
@@ -74,6 +75,14 @@ function TurnoPageContent() {
   const [turnoAEliminar, setTurnoAEliminar] = useState<Turno | null>(null);
   const [validacion, setValidacion] = useState<ValidacionResult | null>(null);
   const [validando, setValidando] = useState(false);
+  // Estado separado para mantener el componente RutasMovilHoy montado
+  const [ultimoMovilSeleccionado, setUltimoMovilSeleccionado] = useState<{id: string, nombre: string} | null>(null);
+
+  // Referencia al componente RutasMovilHoy para poder actualizarlo
+  const rutasMovilHoyRef = useRef<RutasMovilHoyRef>(null);
+  
+  // Referencia al componente TodasLasRutasHoy para poder actualizarlo
+  const todasLasRutasHoyRef = useRef<TodasLasRutasHoyRef>(null);
 
   const [configuracionImpresora, setConfiguracionImpresora] = useState<{
     impresoraHabilitada: boolean;
@@ -534,8 +543,15 @@ function TurnoPageContent() {
 
         notifications.success('Programado asignado exitosamente');
         
+        // Actualizar el componente RutasMovilHoy ANTES de limpiar el formulario
+        if (rutasMovilHoyRef.current && ultimoMovilSeleccionado) {
+          console.log('🔄 Actualizando RutasMovilHoy para programado, móvil:', ultimoMovilSeleccionado.id);
+          await rutasMovilHoyRef.current.actualizarRutas();
+        }
+        
         // Recargar programados y limpiar formulario
         await cargarProgramados();
+        
         setAutomovilSeleccionado('');
         setConductorSeleccionado('');
         setAutomovilBusqueda('');
@@ -588,7 +604,16 @@ function TurnoPageContent() {
           await imprimirRecibo(data.turnoId);
         }
         
-        // Limpiar completamente el estado del formulario ANTES de recargar datos
+        // Actualizar el componente RutasMovilHoy ANTES de limpiar el formulario
+        if (rutasMovilHoyRef.current && ultimoMovilSeleccionado) {
+          console.log('🔄 Actualizando RutasMovilHoy para móvil:', ultimoMovilSeleccionado.id);
+          await rutasMovilHoyRef.current.actualizarRutas();
+        }
+        
+        // Recargar datos después de asignar el turno
+        await cargarTurnosDelDia(false); // No actualizar cards para evitar doble carga
+        
+        // Limpiar completamente el estado del formulario DESPUÉS de actualizar
         setLimpiandoFormulario(true);
         setAutomovilSeleccionado('');
         setConductorSeleccionado('');
@@ -598,9 +623,6 @@ function TurnoPageContent() {
         setValidacion(null);
         setConductoresPorAutomovil({});
         setCardsAbiertos({});
-        
-        // Recargar datos después de limpiar el formulario (sin modificar cardsAbiertos)
-        await cargarTurnosDelDia(false); // No actualizar cards para evitar doble carga
         
         // Resetear la bandera después de un delay para permitir nuevas consultas
         setTimeout(() => {
@@ -797,10 +819,8 @@ function TurnoPageContent() {
 
   const getEstadoColor = (estado: string) => {
     switch (estado) {
-      case 'PENDIENTE': return 'bg-blue-100 text-blue-800';
-      case 'EN_CURSO': return 'bg-yellow-100 text-yellow-800';
+      case 'NO_COMPLETADO': return 'bg-yellow-100 text-yellow-800';
       case 'COMPLETADO': return 'bg-green-100 text-green-800';
-      case 'CANCELADO': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -1196,6 +1216,11 @@ function TurnoPageContent() {
                   onSelect={(option) => {
                     setAutomovilSeleccionado(option.id.toString());
                     setAutomovilBusqueda(option.label);
+                    // Actualizar el último móvil seleccionado para mantener RutasMovilHoy montado
+                    setUltimoMovilSeleccionado({
+                      id: option.id.toString(),
+                      nombre: option.label.split(' - ')[0] // Extraer solo el nombre del móvil
+                    });
                   }}
                   placeholder="Buscar automóvil por nombre o placa..."
                   className="w-full"
@@ -1255,16 +1280,24 @@ function TurnoPageContent() {
         </Card>
 
         {/* Rutas del Móvil Hoy */}
-        {automovilSeleccionado && (
+        {ultimoMovilSeleccionado && (
           <Card className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
             <CardContent className="p-6">
               <RutasMovilHoy
-                movilId={parseInt(automovilSeleccionado)}
-                movilNombre={automoviles.find(a => a.id.toString() === automovilSeleccionado)?.movil || ''}
+                ref={rutasMovilHoyRef}
+                movilId={parseInt(ultimoMovilSeleccionado.id)}
+                movilNombre={ultimoMovilSeleccionado.nombre}
               />
             </CardContent>
           </Card>
         )}
+
+        {/* Todas las Rutas de Hoy */}
+        <Card className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+          <CardContent className="p-6">
+            <TodasLasRutasHoy ref={todasLasRutasHoyRef} />
+          </CardContent>
+        </Card>
 
         {/* Indicador de carga para asignación automática */}
         {loadingAsignacion && automovilSeleccionado && conductorSeleccionado && (
@@ -1618,4 +1651,4 @@ function TurnoPageContent() {
 
     </div>
   );
-} 
+}

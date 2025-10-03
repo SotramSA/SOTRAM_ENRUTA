@@ -17,14 +17,12 @@ export default function RouteGuard({ children, requiredPermission }: RouteGuardP
     // Verificar si hay una cookie de sesión en el cliente
     const checkSession = () => {
       try {
-        console.log('RouteGuard: Checking session for permission:', requiredPermission)
-        console.log('RouteGuard: All cookies:', document.cookie)
+        
 
         // Verificar si existe la cookie de sesión simple
         const hasSessionCookie = document.cookie.includes('session=')
 
         if (!hasSessionCookie) {
-          console.log('RouteGuard: No session cookie found, redirecting to login')
           router.push('/login')
           return
         }
@@ -33,22 +31,17 @@ export default function RouteGuard({ children, requiredPermission }: RouteGuardP
         const cookies = document.cookie.split(';')
         const sessionCookie = cookies.find(cookie => cookie.trim().startsWith('session='))
 
-        console.log('RouteGuard: Found session cookie:', sessionCookie)
+        
 
         if (sessionCookie) {
           try {
             const sessionValue = decodeURIComponent(sessionCookie.split('=')[1])
-            console.log('RouteGuard: Session value:', sessionValue)
-
             const sessionData = JSON.parse(sessionValue)
-            console.log('RouteGuard: Parsed session data:', sessionData)
 
             // Verificar si el usuario tiene el permiso requerido
             if (sessionData[requiredPermission]) {
-              console.log('RouteGuard: User has permission, allowing access')
               setHasPermission(true)
             } else {
-              console.log(`RouteGuard: User doesn't have permission: ${requiredPermission}, redirecting to admin`)
               router.push('/admin') // Redirigir a admin si no tiene permisos específicos
             }
           } catch (parseError) {

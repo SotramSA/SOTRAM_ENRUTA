@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Fecha requerida' }, { status: 400 })
     }
 
-    console.log('🔍 [API /programado] Buscando programaciones para fecha:', fecha)
+    // Removed noisy debug logging for production stability
 
     const programaciones = await prismaWithRetry.executeWithRetry(async () => {
       return await prismaWithRetry.programacion.findMany({
@@ -73,15 +73,7 @@ export async function GET(request: NextRequest) {
       });
     });
 
-    console.log('📋 [API /programado] Programaciones raw de BD:', programaciones.length)
-    console.log('📋 [API /programado] Primeras 5 programaciones raw:', programaciones.slice(0, 5).map(p => ({
-      id: p.id,
-      hora: p.hora,
-      rutaId: p.rutaId,
-      rutaNombre: p.ruta?.nombre,
-      automovilId: p.automovilId,
-      movil: p.automovil?.movil
-    })))
+    // Removed noisy debug logging for programaciones content
 
     // Contar por ruta raw
     const conteoPorRutaRaw: Record<string, number> = {}
@@ -89,10 +81,10 @@ export async function GET(request: NextRequest) {
       const rutaRaw = p.ruta?.nombre || 'Sin ruta'
       conteoPorRutaRaw[rutaRaw] = (conteoPorRutaRaw[rutaRaw] || 0) + 1
     })
-    console.log('📊 [API /programado] Conteo por ruta raw:', conteoPorRutaRaw)
+    // Removed noisy debug logging for conteo por ruta
 
     // YA NO necesitamos mapear porque todas las rutas especiales están directamente en la BD
-    console.log('✅ [API /programado] Enviando respuesta con', programaciones.length, 'programaciones (sin mapeo)')
+    // Removed noisy informational log for response size
 
     return NextResponse.json({
       programaciones: programaciones

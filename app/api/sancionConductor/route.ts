@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    console.log('POST /api/sancionConductor body:', body);
+    // Removed request body logging to avoid sensitive data exposure
     const conductorId = body.conductorId;
     const fechaInicio = body.fechaInicio;
     const fechaFin = body.fechaFin;
@@ -108,4 +108,4 @@ export async function POST(request: NextRequest) {
       details: error instanceof Error ? error.message : 'Error desconocido'
     }, { status: 500 });
   }
-} 
+}
