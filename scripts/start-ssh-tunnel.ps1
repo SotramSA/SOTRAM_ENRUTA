@@ -20,7 +20,7 @@ if ($existingProcess) {
 
 # Establecer tunel SSH
 Write-Host "Iniciando tunel SSH..." -ForegroundColor Green
-Write-Host "Puerto local: $LOCAL_PORT -> Servidor: $SERVER_IP:$REMOTE_PORT" -ForegroundColor Cyan
+Write-Host "Puerto local: $LOCAL_PORT -> Servidor: ${SERVER_IP}:$REMOTE_PORT" -ForegroundColor Cyan
 
 # Iniciar SSH en background
 $tunnelString = "$LOCAL_PORT`:localhost:$REMOTE_PORT"

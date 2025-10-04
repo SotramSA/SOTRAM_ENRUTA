@@ -413,4 +413,4 @@ export default function RutasPage() {
       </div>
     </RouteGuard>
   );
-} 
+}

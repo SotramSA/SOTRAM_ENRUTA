@@ -582,4 +582,4 @@ export default function SancionConductorManager() {
       </div>
     </RouteGuard>
   )
-} 
+}

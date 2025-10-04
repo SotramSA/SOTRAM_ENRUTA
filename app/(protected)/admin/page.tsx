@@ -2,6 +2,7 @@ import { getSession } from '@/src/lib/session'
 import { Users, Bus, Route, Clock, FileText, Settings, Activity, Shield, ArrowRight } from 'lucide-react'
 import RouteGuard from '@/src/components/RouteGuard'
 
+
 export default async function AdminPage() {
     const session = await getSession()
 

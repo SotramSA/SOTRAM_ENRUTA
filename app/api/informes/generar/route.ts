@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/src/lib/prisma'
+import prismaWithRetry from '@/lib/prismaClient'
 import ExcelJS from 'exceljs'
 
 export async function POST(request: NextRequest) {
   try {
     const { fecha } = await request.json()
+
+    console.log(fecha)
+    console.log(typeof fecha)
 
     if (!fecha) {
       return NextResponse.json(
@@ -13,31 +16,40 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Convertir la fecha a objetos Date para el inicio y fin del día
-    const fechaInicio = new Date(fecha)
-    fechaInicio.setHours(0, 0, 0, 0)
-    
-    const fechaFin = new Date(fecha)
-    fechaFin.setHours(23, 59, 59, 999)
+    // Usar función propuesta: interpreta la fecha "YYYY-MM-DD" en límites UTC
+    function getStartAndEndFromDateString(dateStr: string) {
+      const [year, month, day] = dateStr.split('-').map(Number)
+      const start = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0))
+      const end = new Date(Date.UTC(year, month - 1, day + 1, 0, 0, 0, 0))
+      return {
+        inicio: start.toISOString(),
+        fin: end.toISOString()
+      }
+    }
 
-    // Obtener todos los turnos de la fecha especificada
-    // Primero intentar por fecha, luego por horaCreacion
-    let turnos = await prisma.turno.findMany({
+    if (typeof fecha !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+      return NextResponse.json(
+        { error: 'Fecha inválida: se requiere formato YYYY-MM-DD' },
+        { status: 400 }
+      )
+    }
+
+    const { inicio, fin } = getStartAndEndFromDateString(fecha)
+    const fechaInicio = new Date(inicio)
+    const fechaFinExclusivo = new Date(fin)
+
+    console.log('Fecha recibida:', fecha)
+    console.log('Fecha inicio (ISO/UTC):', fechaInicio.toISOString())
+    console.log('Fecha fin exclusiva (ISO/UTC):', fechaFinExclusivo.toISOString())
+
+    // Obtener todos los turnos de la fecha especificada (mismo criterio que Programacion)
+    let turnos = await prismaWithRetry.executeWithRetry(async () => {
+      return await prismaWithRetry.turno.findMany({
       where: {
-        OR: [
-          {
-            fecha: {
-              gte: fechaInicio,
-              lte: fechaFin
-            }
-          },
-          {
-            horaCreacion: {
-              gte: fechaInicio,
-              lte: fechaFin
-            }
-          }
-        ]
+        fecha: {
+          gte: fechaInicio,
+          lt: fechaFinExclusivo
+        }
       },
       include: {
         conductor: true,
@@ -48,68 +60,35 @@ export async function POST(request: NextRequest) {
         { rutaId: 'asc' },
         { horaCreacion: 'asc' }
       ]
+      })
     })
 
     // Obtener también los turnos programados para la fecha especificada
-    const turnosProgramados = await prisma.programacion.findMany({
+    const turnosProgramados = await prismaWithRetry.executeWithRetry(async () => {
+      return await prismaWithRetry.programacion.findMany({
       where: {
         fecha: {
           gte: fechaInicio,
-          lte: fechaFin
+          lt: fechaFinExclusivo
         }
       },
       include: {
         automovil: true,
-        ruta: true
+        ruta: true,
+        realizadoPor: true,
+        realizadoPorConductor: true
       },
       orderBy: [
         { hora: 'asc' }
       ]
+      })
     })
 
-    // Si no se encuentran turnos, buscar por cualquier fecha que contenga la fecha seleccionada
-    if (turnos.length === 0) {
-      console.log('No se encontraron turnos con filtro estricto, buscando con filtro más amplio...')
-      
-      // Buscar turnos que tengan la fecha en cualquier campo de fecha
-      turnos = await prisma.turno.findMany({
-        where: {
-          OR: [
-            {
-              fecha: {
-                gte: new Date(fecha + 'T00:00:00.000Z'),
-                lte: new Date(fecha + 'T23:59:59.999Z')
-              }
-            },
-            {
-              horaCreacion: {
-                gte: new Date(fecha + 'T00:00:00.000Z'),
-                lte: new Date(fecha + 'T23:59:59.999Z')
-              }
-            },
-            {
-              horaSalida: {
-                gte: new Date(fecha + 'T00:00:00.000Z'),
-                lte: new Date(fecha + 'T23:59:59.999Z')
-              }
-            }
-          ]
-        },
-        include: {
-          conductor: true,
-          automovil: true,
-          ruta: true
-        },
-        orderBy: [
-          { rutaId: 'asc' },
-          { horaCreacion: 'asc' }
-        ]
-      })
-    }
+    // Se elimina el fallback amplio para asegurar que los turnos sean estrictamente del día solicitado
 
     console.log(`Buscando turnos y programaciones para fecha: ${fecha}`)
     console.log(`Fecha inicio: ${fechaInicio.toISOString()}`)
-    console.log(`Fecha fin: ${fechaFin.toISOString()}`)
+    console.log(`Fecha fin exclusiva: ${fechaFinExclusivo.toISOString()}`)
     console.log(`Turnos encontrados: ${turnos.length}`)
     console.log(`Programaciones encontradas: ${turnosProgramados.length}`)
     
@@ -134,7 +113,7 @@ export async function POST(request: NextRequest) {
           error: 'No se encontraron turnos ni programaciones para la fecha especificada',
           fecha: fecha,
           fechaInicio: fechaInicio.toISOString(),
-          fechaFin: fechaFin.toISOString()
+          fechaFin: fechaFinExclusivo.toISOString()
         },
         { status: 404 }
       )
@@ -210,11 +189,24 @@ export async function POST(request: NextRequest) {
     // Crear el libro de Excel
     const workbook = new ExcelJS.Workbook()
 
+    // Helper: convertir ISO a HH:mm usando horas/minutos en UTC (como viene de la base de datos)
+    function isoToTimeHHMM(isoString: string): string {
+      try {
+        const date = new Date(isoString)
+        if (isNaN(date.getTime())) return ''
+        const hours = String(date.getUTCHours()).padStart(2, '0')
+        const minutes = String(date.getUTCMinutes()).padStart(2, '0')
+        return `${hours}:${minutes}`
+      } catch {
+        return ''
+      }
+    }
+
     // Helper: convertir hora de Programacion a Date y string legible (maneja número como 800 -> 08:00)
     const obtenerHoraProgramado = (programado: any): { legible: string; fechaHora: Date } => {
       const zona = 'America/Bogota'
       let fechaHora = new Date(0)
-      let legible = 'N/A'
+      let legible = ''
 
       try {
         const fechaBase = new Date(programado.fecha)
@@ -267,20 +259,23 @@ export async function POST(request: NextRequest) {
 
       // ======= Tabla de PROGRAMADOS =======
       // Título
-      worksheet.mergeCells(currentRow, 1, currentRow, 4)
+      worksheet.mergeCells(currentRow, 1, currentRow, 6)
       const tituloProg = worksheet.getCell(currentRow, 1)
       tituloProg.value = 'PROGRAMADOS'
       tituloProg.font = { bold: true }
       currentRow += 1
 
-      // Encabezados Programados (sin Conductor)
-      worksheet.getRow(currentRow).values = ['Hora Salida', 'Móvil', 'Placa', '']
+      // Encabezados Programados según requisitos
+      worksheet.getRow(currentRow).values = ['Hora Salida', 'Automóvil Asignado', 'Estado', 'Realizó por', 'Conductor', '']
       worksheet.getRow(currentRow).font = { bold: true, color: { argb: 'FFFFFF' } }
       worksheet.getRow(currentRow).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '70AD47' } }
       worksheet.getColumn(1).width = 15
-      worksheet.getColumn(2).width = 12
-      worksheet.getColumn(3).width = 15
-      worksheet.getColumn(4).width = 2
+      worksheet.getColumn(2).width = 14
+      worksheet.getColumn(3).width = 12
+      worksheet.getColumn(4).width = 12
+      // Ajuste solicitado: columnas E y F más anchas
+      worksheet.getColumn(5).width = 48
+      worksheet.getColumn(6).width = 18
       const headerProgRowIndex = currentRow
       currentRow += 1
 
@@ -288,15 +283,17 @@ export async function POST(request: NextRequest) {
       const programadosDatos = datosRuta.programados.map((p) => {
         const { legible, fechaHora } = obtenerHoraProgramado(p)
         return {
-          horaSalida: legible,
-          movil: p.automovil.movil,
-          placa: p.automovil.placa,
+          horaSalida: legible || '',
+          movilAsignado: p?.automovil?.movil || '',
+          estado: p?.estado || '',
+          realizadoPorMovil: p?.realizadoPor?.movil || '',
+          conductorRealizado: p?.realizadoPorConductor?.nombre || '',
           fechaHora
         }
       }).sort((a, b) => a.fechaHora.getTime() - b.fechaHora.getTime())
 
       programadosDatos.forEach(d => {
-        worksheet.getRow(currentRow).values = [d.horaSalida, d.movil, d.placa]
+        worksheet.getRow(currentRow).values = [d.horaSalida, d.movilAsignado, d.estado, d.realizadoPorMovil, d.conductorRealizado]
         currentRow += 1
       })
 
@@ -325,22 +322,26 @@ export async function POST(request: NextRequest) {
       worksheet.getColumn(2).width = 12
       worksheet.getColumn(3).width = 15
       worksheet.getColumn(4).width = 30
-      worksheet.getColumn(5).width = 2
+      // No ajustar la columna 5 aquí; evita estrechar la columna E de PROGRAMADOS
       const headerTurnoRowIndex = currentRow
       currentRow += 1
 
-      const turnosOrdenados = datosRuta.turnos.map(t => ({
-        horaSalida: t.horaSalida ? new Date(t.horaSalida) : new Date(0),
-        movil: t.automovil.movil,
-        placa: t.automovil.placa,
-        conductor: t.conductor?.nombre || 'N/A'
-      })).sort((a, b) => a.horaSalida.getTime() - b.horaSalida.getTime())
+      const turnosOrdenados = datosRuta.turnos.map(t => {
+        const fecha = t.horaSalida ? new Date(t.horaSalida) : new Date(0)
+        const iso = t.horaSalida
+          ? (t.horaSalida instanceof Date ? t.horaSalida.toISOString() : String(t.horaSalida))
+          : ''
+        return {
+          horaSalidaDate: fecha,
+          horaHHMM: iso ? isoToTimeHHMM(iso) : '',
+          movil: t?.automovil?.movil || '',
+          placa: t?.automovil?.placa || '',
+          conductor: t?.conductor?.nombre || ''
+        }
+      }).sort((a, b) => a.horaSalidaDate.getTime() - b.horaSalidaDate.getTime())
 
       turnosOrdenados.forEach(t => {
-        const horaStr = t.horaSalida.getTime() > 0
-          ? t.horaSalida.toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit' })
-          : 'N/A'
-        worksheet.getRow(currentRow).values = [horaStr, t.movil, t.placa, t.conductor]
+        worksheet.getRow(currentRow).values = [t.horaHHMM, t.movil, t.placa, t.conductor]
         currentRow += 1
       })
 

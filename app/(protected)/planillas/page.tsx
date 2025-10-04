@@ -973,4 +973,4 @@ const getFechaHoy = () => {
       </div>
     </RouteGuard>
   )
-} 
+}
