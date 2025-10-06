@@ -25,8 +25,13 @@ export async function GET(request: NextRequest) {
     const currentTime = TimeService.getCurrentTime();
     const today = currentTime.toISOString().split('T')[0];
 
+    // Permitir saltar caché con parámetro de query (force=1)
+    const { searchParams } = new URL(request.url);
+    const forceNoCache = searchParams.get('force') === '1';
+
     // Responder desde caché si es válido
     if (
+      !forceNoCache &&
       cachedResponse &&
       cachedResponse.fechaKey === today &&
       currentTime.getTime() - cachedResponse.timestamp < CACHE_TTL_MS
@@ -92,18 +97,18 @@ export async function GET(request: NextRequest) {
     const toFixedISOString = (date: Date): string => {
       const pad = (num: number, size: number = 2) => String(num).padStart(size, '0');
       return (
-        date.getFullYear() +
-        '-' + pad(date.getMonth() + 1) +
-        '-' + pad(date.getDate()) +
-        'T' + pad(date.getHours()) +
-        ':' + pad(date.getMinutes()) +
-        ':' + pad(date.getSeconds()) +
-        '.' + pad(date.getMilliseconds(), 3) +
+        date.getUTCFullYear() +
+        '-' + pad(date.getUTCMonth() + 1) +
+        '-' + pad(date.getUTCDate()) +
+        'T' + pad(date.getUTCHours()) +
+        ':' + pad(date.getUTCMinutes()) +
+        ':' + pad(date.getUTCSeconds()) +
+        '.' + pad(date.getUTCMilliseconds(), 3) +
         'Z'
       );
     };
 
-    // Mapear turnos al formato esperado
+    // Mapear turnos al formato esperado (normalizando a "hora local" con sufijo Z)
     const eventosTurnos = turnosHoy.map(t => ({
       id: t.id,
       horaSalida: t.horaSalida.toISOString(),
@@ -124,13 +129,14 @@ export async function GET(request: NextRequest) {
       const minutes = Number(normalized.slice(-2));
 
       const fechaAsignacion = new Date(p.fecha);
-      fechaAsignacion.setHours(hours, minutes, 0, 0);
+      // Asegurar que la hora se establece en UTC para evitar desfases por zona horaria
+      fechaAsignacion.setUTCHours(hours, minutes, 0, 0);
 
       const estado = p.realizadoPorId ? 'COMPLETADO' : 'NO_COMPLETADO';
 
       return {
         id: p.id,
-        horaSalida: toFixedISOString(fechaAsignacion),
+        horaSalida: fechaAsignacion.toISOString(),
         ruta: p.ruta ? { id: p.ruta.id, nombre: p.ruta.nombre } : null,
         movil: p.automovil ? { id: p.automovil.id, movil: p.automovil.movil } : { id: 0, movil: 'N/A' },
         conductor: { id: 0, nombre: 'Programado' },
@@ -169,8 +175,12 @@ export async function GET(request: NextRequest) {
     };
 
     const res = NextResponse.json(payload);
-    // Cabeceras de caché HTTP para clientes y proxies
-    res.headers.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=30');
+    // Cabeceras de caché HTTP: si force, evitar almacenamiento en cliente/proxy
+    if (forceNoCache) {
+      res.headers.set('Cache-Control', 'no-store, max-age=0');
+    } else {
+      res.headers.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=30');
+    }
     return res;
 
   } catch (error) {

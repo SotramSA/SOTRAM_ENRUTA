@@ -14,5 +14,3 @@ function getStartAndEndFromDateString(dateStr) {
   };
 }
 
-// Ejemplo
-console.log(getStartAndEndFromDateString("2025-10-02"));

@@ -538,6 +538,11 @@ function TurnosPageContent() {
         if (automovilSeleccionado && rutasMovilHoyRef.current) {
           await rutasMovilHoyRef.current.actualizarRutas();
         }
+
+        // Actualizar TodasLasRutasHoy (forzar bypass de caché)
+        if (todasLasRutasHoyRef.current) {
+          await todasLasRutasHoyRef.current.actualizarRutas(true);
+        }
       } else {
         throw new Error(result.error);
       }
