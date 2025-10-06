@@ -202,52 +202,56 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Helper: formatear hora sin convertir a Date (ej: "450" -> "04:50")
+    function formatHourString(hourStr: string): string {
+      const normalized = hourStr.padStart(4, '0')
+      const hours = normalized.slice(0, -2)
+      const minutes = normalized.slice(-2)
+      return `${hours}:${minutes}`
+    }
+
     // Helper: convertir hora de Programacion a Date y string legible (maneja número como 800 -> 08:00)
-    const obtenerHoraProgramado = (programado: any): { legible: string; fechaHora: Date } => {
-      const zona = 'America/Bogota'
-      let fechaHora = new Date(0)
+    const obtenerHoraProgramado = (programado: any): { legible: string; horaOrden: number } => {
       let legible = ''
+      let horaOrden = -1
 
       try {
-        const fechaBase = new Date(programado.fecha)
-        const year = fechaBase.getFullYear()
-        const month = fechaBase.getMonth()
-        const day = fechaBase.getDate()
-
         if (typeof programado.hora === 'number') {
           const horas = Math.floor(programado.hora / 100)
           const minutos = programado.hora % 100
-          fechaHora = new Date(year, month, day, horas, minutos, 0, 0)
+          legible = `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`
+          horaOrden = horas * 100 + minutos
         } else if (typeof programado.hora === 'string') {
-          // Intentar HH:mm
-          const m = programado.hora.match(/^(\d{1,2}):(\d{2})$/)
-          if (m) {
-            const horas = parseInt(m[1], 10)
-            const minutos = parseInt(m[2], 10)
-            fechaHora = new Date(year, month, day, horas, minutos, 0, 0)
+          // Si viene como "450" o "0930"
+          if (/^\d{3,4}$/.test(programado.hora)) {
+            legible = formatHourString(programado.hora)
+            horaOrden = parseInt(programado.hora, 10)
           } else {
-            // Intentar parsear como fecha completa
-            const d = new Date(programado.hora)
-            if (!isNaN(d.getTime())) {
-              fechaHora = d
+            // Si viene como "HH:mm"
+            const m = programado.hora.match(/^(\d{1,2}):(\d{2})$/)
+            if (m) {
+              const horas = parseInt(m[1], 10)
+              const minutos = parseInt(m[2], 10)
+              legible = `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`
+              horaOrden = horas * 100 + minutos
+            } else if (typeof programado.hora === 'string' && programado.hora.includes('T')) {
+              // Último recurso: extraer HH:mm del ISO sin crear Date
+              const hhmm = programado.hora.slice(11, 16)
+              const m2 = hhmm.match(/^(\d{2}):(\d{2})$/)
+              if (m2) {
+                const horas = parseInt(m2[1], 10)
+                const minutos = parseInt(m2[2], 10)
+                legible = hhmm
+                horaOrden = horas * 100 + minutos
+              }
             }
           }
-        } else if (programado.hora instanceof Date) {
-          fechaHora = programado.hora
-        }
-
-        if (!isNaN(fechaHora.getTime())) {
-          legible = fechaHora.toLocaleTimeString('es-CO', {
-            timeZone: zona,
-            hour: '2-digit',
-            minute: '2-digit'
-          })
         }
       } catch (e) {
-        console.error('Error convirtiendo hora de programado:', programado?.hora, e)
+        console.error('Error formateando hora de programado:', programado?.hora, e)
       }
 
-      return { legible, fechaHora }
+      return { legible, horaOrden }
     }
 
     // Para cada ruta, crear una hoja con dos tablas: Programados y Turnos
@@ -281,16 +285,16 @@ export async function POST(request: NextRequest) {
 
       // Datos Programados
       const programadosDatos = datosRuta.programados.map((p) => {
-        const { legible, fechaHora } = obtenerHoraProgramado(p)
+        const { legible, horaOrden } = obtenerHoraProgramado(p)
         return {
           horaSalida: legible || '',
           movilAsignado: p?.automovil?.movil || '',
           estado: p?.estado || '',
           realizadoPorMovil: p?.realizadoPor?.movil || '',
           conductorRealizado: p?.realizadoPorConductor?.nombre || '',
-          fechaHora
+          horaOrden
         }
-      }).sort((a, b) => a.fechaHora.getTime() - b.fechaHora.getTime())
+      }).sort((a, b) => a.horaOrden - b.horaOrden)
 
       programadosDatos.forEach(d => {
         worksheet.getRow(currentRow).values = [d.horaSalida, d.movilAsignado, d.estado, d.realizadoPorMovil, d.conductorRealizado]
