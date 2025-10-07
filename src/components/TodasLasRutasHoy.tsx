@@ -39,17 +39,6 @@ const TodasLasRutasHoy = forwardRef<TodasLasRutasHoyRef, TodasLasRutasHoyProps>(
     const [reorganizar, setReorganizar] = useState<boolean>(false);
     const [draggedGroup, setDraggedGroup] = useState<string | null>(null);
     const [dragOverGroup, setDragOverGroup] = useState<string | null>(null);
-    // Detectar ancho de pantalla para decidir una o dos columnas
-    const [isTwoCols, setIsTwoCols] = useState<boolean>(false);
-
-    useEffect(() => {
-      if (typeof window === 'undefined') return;
-      const mq = window.matchMedia('(min-width: 1024px)'); // lg breakpoint
-      const update = () => setIsTwoCols(mq.matches);
-      update();
-      mq.addEventListener('change', update);
-      return () => mq.removeEventListener('change', update);
-    }, []);
 
     const fetchRutas = async (force?: boolean) => {
       try {
@@ -254,24 +243,10 @@ const TodasLasRutasHoy = forwardRef<TodasLasRutasHoyRef, TodasLasRutasHoyProps>(
     const columna1: [string, Ruta[]][] = [];
     const columna2: [string, Ruta[]][] = [];
 
-    // Utilidades para ordenar por hora
-    const getHoraMs = (r: Ruta) => new Date(r.horaSalida).getTime();
-    const getEarliestMs = (rs: Ruta[]) => {
-      if (!rs || rs.length === 0) return Number.MAX_SAFE_INTEGER;
-      return Math.min(...rs.map(getHoraMs));
-    };
-
-    // Ordenar grupos por su hora más temprana cuando no se está reorganizando manualmente
-    const sortedByEarliest: [string, Ruta[]][] = [...gruposEntries].sort(
-      (a, b) => getEarliestMs(a[1]) - getEarliestMs(b[1])
-    );
-
-    // Si el usuario activa "Reorganizar", respetar su orden; de lo contrario, usar el cronológico
-    const orderedEntries: [string, Ruta[]][] = (!reorganizar)
-      ? sortedByEarliest
-      : (groupOrder && groupOrder.length > 0)
-        ? groupOrder.filter((g) => rutasAgrupadas[g]).map((g) => [g, rutasAgrupadas[g]])
-        : sortedByEarliest;
+    // Distribuir los grupos alternadamente para equilibrar las columnas
+    const orderedEntries: [string, Ruta[]][] = (groupOrder && groupOrder.length > 0)
+      ? groupOrder.filter((g) => rutasAgrupadas[g]).map((g) => [g, rutasAgrupadas[g]])
+      : gruposEntries;
 
     orderedEntries.forEach(([grupoNombre, rutasGrupo], index) => {
       if (index % 2 === 0) {
@@ -355,10 +330,7 @@ const TodasLasRutasHoy = forwardRef<TodasLasRutasHoyRef, TodasLasRutasHoyProps>(
           
           {!isCollapsed && (
             <div className="space-y-3">
-              {/* Ordenar las rutas del grupo por hora de salida (UTC) */}
-              {[...rutasGrupo]
-                .sort((a, b) => new Date(a.horaSalida).getTime() - new Date(b.horaSalida).getTime())
-                .map((ruta) => (
+              {rutasGrupo.map((ruta) => (
                 <div
                   key={`${ruta.id}-${ruta.automovilId}`}
                   className="bg-white rounded-lg p-3 border border-gray-200"
@@ -412,16 +384,18 @@ const TodasLasRutasHoy = forwardRef<TodasLasRutasHoyRef, TodasLasRutasHoyProps>(
         <h3 className="text-lg font-semibold text-gray-800 mb-4">
           Todas las Rutas de Hoy ({rutas.length} rutas)
         </h3>
-        {isTwoCols ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="space-y-0">{columna1.map(renderGrupo)}</div>
-            <div className="space-y-0">{columna2.map(renderGrupo)}</div>
-          </div>
-        ) : (
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Columna 1 */}
           <div className="space-y-0">
-            {orderedEntries.map(renderGrupo)}
+            {columna1.map(renderGrupo)}
           </div>
-        )}
+          
+          {/* Columna 2 */}
+          <div className="space-y-0">
+            {columna2.map(renderGrupo)}
+          </div>
+        </div>
       </div>
     );
   }

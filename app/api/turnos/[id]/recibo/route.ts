@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/src/lib/prisma';
+import { isoToTimeHHMM } from '@/src/lib/utils';
 import { getSessionUser } from '@/src/lib/authHelper';
 
 export async function GET(
@@ -47,20 +48,17 @@ export async function GET(
     };
     const fechaSalidaFormateada = fechaSalida.toLocaleDateString('es-CO', opcionesFecha);
 
-    // Formatear hora de salida (usar directamente la hora del turno)
-    const opcionesHora = { 
-      hour: '2-digit' as const, 
-      minute: '2-digit' as const,
-      hour12: true,
-      timeZone: zonaHoraria
-    };
-    const horaSalidaFormateada = turno.horaSalida.toLocaleTimeString('es-CO', opcionesHora);
+    // Formatear hora de salida en HH:mm usando UTC sobre el ISO almacenado
+    const horaSalidaISO = turno.horaSalida instanceof Date 
+      ? turno.horaSalida.toISOString() 
+      : String(turno.horaSalida);
+    const horaSalidaFormateada = isoToTimeHHMM(horaSalidaISO);
     
     const fechaCreacion = turno.horaCreacion ? new Date(turno.horaCreacion) : new Date();
 
     // Formatear fecha y hora de creación
     const fechaCreacionFormateada = fechaCreacion.toLocaleDateString('es-CO', opcionesFecha);
-    const horaCreacionFormateada = fechaCreacion.toLocaleTimeString('es-CO', opcionesHora);
+    const horaCreacionFormateada = fechaCreacion.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: zonaHoraria });
 
     // Crear datos del recibo
     const recibo = {
@@ -93,4 +91,4 @@ export async function GET(
       { status: 500 }
     );
   }
-} 
+}

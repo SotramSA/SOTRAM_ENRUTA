@@ -69,7 +69,8 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
   const abrirModalReciboProgramado = (ruta: Ruta) => {
     setProgramadoParaRecibo({
       id: ruta.id,
-      movil: { id: ruta.movil.id, movil: ruta.movil.movil }
+      movil: { id: ruta.movil.id, movil: ruta.movil.movil },
+      horaSalida: ruta.horaSalida
     });
     setShowModalReciboProgramado(true);
   };
@@ -97,6 +98,12 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
       // Si es un móvil diferente, agregar el móvil original
       if (datos.esDiferente && datos.movilOriginal) {
         params.append('movilOriginal', datos.movilOriginal);
+      }
+
+      // Pasar la hora de salida como ISO si está disponible
+      const horaSalida = programadoParaRecibo?.horaSalida;
+      if (typeof horaSalida === 'string' && horaSalida.includes('T')) {
+        params.append('horaSalidaISO', horaSalida);
       }
 
       const response = await fetch(`/api/programados/${programadoParaRecibo.id}/recibo?${params.toString()}`);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/src/lib/prisma';
+import { isoToTimeHHMM } from '@/src/lib/utils';
 import { cookies } from 'next/headers';
 
 export async function GET(
@@ -20,6 +21,7 @@ export async function GET(
     const conductorId = searchParams.get('conductorId');
     const conductorNombre = searchParams.get('conductorNombre');
     const movilOriginal = searchParams.get('movilOriginal');
+    const horaSalidaISO = searchParams.get('horaSalidaISO');
 
      // Obtener el usuario actual desde la sesión
      const cookieStore = await cookies();
@@ -50,24 +52,21 @@ export async function GET(
       return NextResponse.json({ error: 'Programado no encontrado' }, { status: 404 });
     }
 
-    // Formatear la hora desde el campo numérico
+    // Determinar la hora de salida segura en HH:mm
     let horaFormateada = '';
-    const hora = programado.hora;
-    if (typeof hora === 'number') {
-      // Convertir la hora numérica a formato legible
-      // Si hora = 800, significa 8:00 AM
-      // Si hora = 1430, significa 2:30 PM
-      const horas = Math.floor(hora / 100);
-      const minutos = hora % 100;
-      
-      // Determinar si es AM o PM
-      const esPM = horas >= 12;
-      const horas12 = horas > 12 ? horas - 12 : (horas === 0 ? 12 : horas);
-      
-      horaFormateada = `${horas12.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')} ${esPM ? 'p. m.' : 'a. m.'}`;
+    if (horaSalidaISO) {
+      // Priorizar hora llegada como ISO, usando UTC HH:mm
+      horaFormateada = isoToTimeHHMM(horaSalidaISO);
     } else {
-      // Fallback si la hora viene en otro formato
-      horaFormateada = String(hora);
+      // Formatear la hora desde el campo numérico del programado
+      const hora = programado.hora;
+      if (typeof hora === 'number') {
+        const horas = Math.floor(hora / 100);
+        const minutos = hora % 100;
+        horaFormateada = `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
+      } else {
+        horaFormateada = String(hora);
+      }
     }
 
     // Obtener zona horaria desde variables de entorno o usar Colombia por defecto

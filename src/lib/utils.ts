@@ -136,6 +136,18 @@ export const isDateInRange = (date: string, startDate: string, endDate: string):
 }
 
 /**
+ * Convierte una fecha/hora ISO a formato HH:mm usando UTC para evitar problemas de zonas horarias
+ * @param isoString - Cadena ISO, por ejemplo: "2025-09-30T14:35:00.000Z"
+ * @returns Hora en formato 24h HH:mm, por ejemplo: "14:35"
+ */
+export const isoToTimeHHMM = (isoString: string): string => {
+  const date = new Date(isoString);
+  const hours = String(date.getUTCHours()).padStart(2, '0');
+  const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+/**
  * Obtiene la fecha actual en formato YYYY-MM-DD
  * @returns Fecha actual en formato YYYY-MM-DD
  */
