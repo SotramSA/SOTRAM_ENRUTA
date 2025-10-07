@@ -57,6 +57,49 @@ export default function InformesPage() {
     }
   }
 
+  const handleGenerarInformeDespachado = async () => {
+    if (!fecha) {
+      alert('Por favor selecciona una fecha')
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const response = await fetch('/api/informes/despachado', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ fecha }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        if (response.status === 404) {
+          throw new Error(`No se encontraron viajes despachados para la fecha ${fecha}.`)
+        }
+        throw new Error(errorData.error || 'Error al generar el informe despachado')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `informe-despachado-${fecha}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      alert('Informe despachado generado y descargado exitosamente')
+    } catch (error) {
+      console.error('Error:', error)
+      alert(error instanceof Error ? error.message : 'Error al generar el informe despachado')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const handleGenerarReporte = async (tipo: string) => {
     setLoadingReport(tipo)
     try {
@@ -292,6 +335,25 @@ export default function InformesPage() {
                   )}
                 </button>
               </div>
+              <div className="flex items-end">
+                <button 
+                  onClick={handleGenerarInformeDespachado}
+                  disabled={isLoading || !fecha}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Generando...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      Informe Despachado
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -338,4 +400,4 @@ export default function InformesPage() {
       </div>
     </RouteGuard>
   )
-} 
+}
