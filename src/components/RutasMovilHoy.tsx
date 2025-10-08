@@ -107,8 +107,10 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
       }
 
       const response = await fetch(`/api/programados/${programadoParaRecibo.id}/recibo?${params.toString()}`);
+     
       if (response.ok) {
         const reciboData = await response.json();
+         console.log("\n\n\nACA ESTA EL CONSOLE"+reciboData)
         if (reciboData) {
           const printWindow = window.open('', '_blank', 'width=1,height=1,left=-1000,top=-1000,scrollbars=no,resizable=no,toolbar=no,location=no,directories=no,status=no,menubar=no');
           if (printWindow) {

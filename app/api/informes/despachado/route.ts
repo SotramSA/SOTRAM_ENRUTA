@@ -17,6 +17,8 @@ export async function POST(request: NextRequest) {
   try {
     const { fecha } = await request.json()
 
+    console.log(fecha)
+
     if (!fecha || typeof fecha !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
       return NextResponse.json(
         { error: 'Fecha inválida: se requiere formato YYYY-MM-DD' },
@@ -24,10 +26,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Interpretar fecha como límites UTC del día
+    // Convertimos a componentes numéricos
     const [year, month, day] = fecha.split('-').map(Number)
-    const fechaInicio = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0))
-    const fechaFinExclusivo = new Date(Date.UTC(year, month - 1, day + 1, 0, 0, 0, 0))
+
+    // Creamos las fechas en hora LOCAL (sin UTC ni Z)
+    const fechaInicio = new Date(year, month - 1, day, 0, 0, 0, 0)
+    const fechaFinExclusivo = new Date(year, month - 1, day + 1, 0, 0, 0, 0)
+
+    console.log("Inicio local:", fechaInicio)
+    console.log("Fin local:", fechaFinExclusivo)
 
     // Obtener turnos del día
     const turnos = await prismaWithRetry.executeWithRetry(async () => {

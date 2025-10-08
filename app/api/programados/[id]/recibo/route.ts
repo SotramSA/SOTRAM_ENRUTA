@@ -71,25 +71,28 @@ export async function GET(
 
     // Obtener zona horaria desde variables de entorno o usar Colombia por defecto
     const zonaHoraria = process.env.TIMEZONE || 'America/Bogota';
-    
-    // Formatear la fecha
-    const fechaObj = new Date(programado.fecha);
-    const fechaFormateada = fechaObj.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      timeZone: zonaHoraria
-    });
 
-    // Obtener la fecha y hora de registro (cuando se creó el programado)
-    const fechaRegistro = new Date().toLocaleDateString('es-ES', {
+    // Formatear la fecha del programado sin afectar por zona horaria
+    // Extraer la parte de fecha (YYYY-MM-DD) del ISO y construir la salida manualmente
+    const fechaISO = (programado.fecha instanceof Date
+      ? programado.fecha.toISOString()
+      : new Date(programado.fecha).toISOString()).slice(0, 10);
+    const [yearStr, monthStr, dayStr] = fechaISO.split('-');
+    const yearNum = parseInt(yearStr, 10);
+    const monthNum = parseInt(monthStr, 10);
+    const dayNum = parseInt(dayStr, 10);
+    const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    const fechaFormateada = `${dayNum} de ${meses[monthNum - 1]} de ${yearNum}`;
+
+    // Obtener la fecha y hora de registro (momento de emisión del recibo) en zona horaria configurada
+    const ahora = new Date();
+    const fechaRegistro = ahora.toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       timeZone: zonaHoraria
     });
-    
-    const horaRegistro = new Date().toLocaleTimeString('es-ES', {
+    const horaRegistro = ahora.toLocaleTimeString('es-ES', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,
