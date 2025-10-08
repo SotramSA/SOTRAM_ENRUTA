@@ -114,7 +114,7 @@ export class ValidacionService {
         where: {
           conductorId,
           rutaId,
-          fecha: {
+          horaSalida: {
             gte: hoyNormalizado,
             lt: new Date(hoyNormalizado.getTime() + 24 * 60 * 60 * 1000)
           }
@@ -160,16 +160,16 @@ export class ValidacionService {
     const ahora = TimeService.getCurrentTime();
     const fecha = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
 
-         // Obtener turnos existentes para el móvil y conductor en la misma fecha
-     const turnosExistentes = await prisma.turno.findMany({
-       where: {
-         OR: [
-           { movilId, fecha: { gte: fecha, lt: new Date(fecha.getTime() + 24 * 60 * 60 * 1000) } },
-           { conductorId, fecha: { gte: fecha, lt: new Date(fecha.getTime() + 24 * 60 * 60 * 1000) } }
-         ]
-       },
-               include: { ruta: true, automovil: true }
-     });
+    // Obtener turnos existentes para el móvil y conductor en la misma fecha usando horaSalida
+    const turnosExistentes = await prisma.turno.findMany({
+      where: {
+        OR: [
+          { movilId, horaSalida: { gte: fecha, lt: new Date(fecha.getTime() + 24 * 60 * 60 * 1000) } },
+          { conductorId, horaSalida: { gte: fecha, lt: new Date(fecha.getTime() + 24 * 60 * 60 * 1000) } }
+        ]
+      },
+      include: { ruta: true, automovil: true }
+    });
 
      // Verificar conflictos de tiempo (margen de 30 minutos)
      const margenMinutos = 30;
@@ -593,10 +593,9 @@ export class ValidacionService {
     const turnoExistente = await prisma.turno.findFirst({
       where: {
         rutaId,
-        fecha: { gte: fecha, lt: new Date(fecha.getTime() + 24 * 60 * 60 * 1000) },
         horaSalida: {
-          gte: new Date(horaSalida.getTime() - 5 * 60 * 1000), // 5 minutos antes
-          lte: new Date(horaSalida.getTime() + 5 * 60 * 1000)  // 5 minutos después
+          gte: new Date(fecha.getTime()),
+          lt: new Date(fecha.getTime() + 24 * 60 * 60 * 1000)
         }
       }
     });

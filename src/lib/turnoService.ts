@@ -2144,7 +2144,7 @@ export class TurnoService {
     const todosTurnos = await prisma.turno.findMany({
       where: {
         movilId,
-        fecha: {
+        horaSalida: {
           gte: inicioDiaActual,
           lt: finDiaActual
         },
