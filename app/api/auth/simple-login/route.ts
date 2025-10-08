@@ -99,18 +99,8 @@ export async function POST(request: NextRequest) {
 
     console.log('Usuario autenticado exitosamente:', user.usuario)
 
-    // Crear respuesta con cookie
-    const response = NextResponse.json({
-      success: true,
-      user: {
-        id: user.id,
-        usuario: user.usuario,
-        nombre: user.nombre
-      }
-    })
-
-    // Establecer cookie de sesión (compatible con RouteGuard)
-    response.cookies.set('session', JSON.stringify({
+    // Preparar datos de sesión y crear respuesta con cookie
+    const sessionData = {
       id: user.id,
       nombre: user.nombre,
       usuario: user.usuario,
@@ -129,11 +119,60 @@ export async function POST(request: NextRequest) {
       tablaInformes: user.tablaInformes,
       tablaPropietarios: user.tablaPropietarios,
       tablaProgramada: user.tablaProgramada
-    }), {
-      httpOnly: false, // Cambiado a false para que el cliente pueda leerlo
-      secure: process.env.NODE_ENV === 'production',
+    }
+
+    const response = NextResponse.json({
+      success: true,
+      user: {
+        id: user.id,
+        usuario: user.usuario,
+        nombre: user.nombre
+      },
+      sessionData
+    })
+
+    // Detectar si la conexión es HTTPS para configurar correctamente el atributo secure
+    const forwardedProto = request.headers.get('x-forwarded-proto')
+    const urlProto = request.nextUrl.protocol.replace(':', '').toLowerCase()
+    const hostHeader = (request.headers.get('host') || '').toLowerCase()
+    const hostname = request.nextUrl.hostname.toLowerCase()
+    const isPrivateHost = (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname.startsWith('10.') ||
+      hostname.startsWith('192.168.') ||
+      // Rango 172.16.0.0 – 172.31.255.255
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
+    )
+    // Simplificar: solo considerar HTTPS real del request URL y nunca marcar secure en hosts privados
+    const isHttps = (!isPrivateHost) && (urlProto === 'https')
+
+    // Logs de depuración para confirmar la decisión
+    console.log('[simple-login] host=%s, proto=%s, fwdProto=%s, isPrivate=%s, isHttps=%s', hostname, urlProto, forwardedProto, isPrivateHost, isHttps)
+
+    // Establecer cookie de sesión (compatible con RouteGuard)
+    response.cookies.set('session', JSON.stringify(sessionData), {
+      httpOnly: false, // Permitir lectura en cliente por RouteGuard/SessionChecker
+      secure: false, // Forzado para entorno LAN HTTP; evitamos rechazos del navegador
       sameSite: 'lax',
       maxAge: 8 * 60 * 60, // 8 horas
+      path: '/'
+    })
+
+    // Adjuntar headers de depuración para ver decisión en DevTools
+    response.headers.set('x-cookie-secure', String(isHttps))
+    response.headers.set('x-cookie-host', hostname)
+    response.headers.set('x-cookie-url-proto', urlProto)
+    if (forwardedProto) {
+      response.headers.set('x-cookie-fwd-proto', forwardedProto)
+    }
+
+    // Cookie de depuración adicional para verificar atributos en el browser
+    response.cookies.set('session_dbg', '1', {
+      httpOnly: false,
+      secure: false,
+      sameSite: 'lax',
+      maxAge: 5 * 60, // 5 minutos solo para ver comportamiento
       path: '/'
     })
 

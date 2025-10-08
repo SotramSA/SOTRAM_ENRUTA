@@ -37,6 +37,7 @@ export default function LoginForm() {
                     headers: {
                         'Content-Type': 'application/json',
                     },
+                    credentials: 'include',
                     body: JSON.stringify(values),
                 });
 
@@ -45,6 +46,16 @@ export default function LoginForm() {
                 if (!response.ok) {
                     setError(result.error || 'Error de autenticación');
                 } else {
+                    try {
+                        // Escribir cookie de sesión en el cliente como respaldo
+                        if (result?.sessionData) {
+                            const value = encodeURIComponent(JSON.stringify(result.sessionData))
+                            // Cookie accesible por JS, SameSite=Lax, sin Secure
+                            document.cookie = `session=${value}; Path=/; Max-Age=${8 * 60 * 60}; SameSite=Lax`;
+                        }
+                    } catch (e) {
+                        console.warn('No se pudo escribir cookie en cliente:', e)
+                    }
                     router.push('/admin');
                 }
             } catch (error) {

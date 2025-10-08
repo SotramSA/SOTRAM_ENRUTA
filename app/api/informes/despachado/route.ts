@@ -156,13 +156,22 @@ export async function POST(request: NextRequest) {
       .filter(f => f.horaSalida && f.noInterno) // excluir programados sin móvil y filas sin hora
       .sort((a, b) => a.minutosOrden - b.minutosOrden)
 
+    // Calcular "No de Viaje" por móvil según su aparición en el reporte
+    const contadorPorMovil = new Map<string, number>()
+    const filasConNumero = filas.map(f => {
+      const movil = f.noInterno
+      const count = (contadorPorMovil.get(movil) || 0) + 1
+      contadorPorMovil.set(movil, count)
+      return { ...f, noDeViaje: count }
+    })
+
     // Crear libro y hoja
     const workbook = new ExcelJS.Workbook()
     const worksheet = workbook.addWorksheet('Despachado')
 
     // Agregar título superior y congelar encabezado
     const titulo = `Informe Despachado - ${fecha}`
-    worksheet.mergeCells('A1:E1')
+    worksheet.mergeCells('A1:F1')
     const titleCell = worksheet.getCell('A1')
     titleCell.value = titulo
     titleCell.font = { bold: true, size: 14 }
@@ -172,7 +181,7 @@ export async function POST(request: NextRequest) {
     worksheet.views = [{ state: 'frozen', ySplit: 2 }]
 
     // Crear tabla con estilo para facilitar filtros
-    if (filas.length > 0) {
+    if (filasConNumero.length > 0) {
       worksheet.addTable({
         name: 'TablaDespachado',
         ref: 'A2',
@@ -180,16 +189,17 @@ export async function POST(request: NextRequest) {
         columns: [
           { name: 'Id Viaje', filterButton: true },
           { name: 'No interno', filterButton: true },
+          { name: 'No de Viaje', filterButton: true },
           { name: 'Despacho', filterButton: true },
           { name: 'Conductor', filterButton: true },
           { name: 'Hora de salida', filterButton: true }
         ],
-        rows: filas.map(f => [f.idViaje, f.noInterno, f.despacho, f.conductor, f.horaSalida]),
+        rows: filasConNumero.map(f => [f.idViaje, f.noInterno, f.noDeViaje, f.despacho, f.conductor, f.horaSalida]),
         style: { theme: 'TableStyleMedium9', showRowStripes: true }
       })
     } else {
       // Sin datos: escribir encabezados como fila 2 para evitar errores de tabla
-      const headers = ['Id Viaje', 'No interno', 'Despacho', 'Conductor', 'Hora de salida']
+      const headers = ['Id Viaje', 'No interno', 'No de Viaje', 'Despacho', 'Conductor', 'Hora de salida']
       const headerRow = worksheet.getRow(2)
       headers.forEach((h, i) => {
         const cell = headerRow.getCell(i + 1)
@@ -210,11 +220,12 @@ export async function POST(request: NextRequest) {
     // Nota: los filtros por columna vienen habilitados por la propia tabla
 
     // Ajuste de anchos
-    worksheet.getColumn(1).width = 14
-    worksheet.getColumn(2).width = 12
-    worksheet.getColumn(3).width = 22
-    worksheet.getColumn(4).width = 26
-    worksheet.getColumn(5).width = 14
+    worksheet.getColumn(1).width = 14 // Id Viaje
+    worksheet.getColumn(2).width = 12 // No interno
+    worksheet.getColumn(3).width = 12 // No de Viaje
+    worksheet.getColumn(4).width = 22 // Despacho
+    worksheet.getColumn(5).width = 26 // Conductor
+    worksheet.getColumn(6).width = 14 // Hora de salida
 
     const buffer = await workbook.xlsx.writeBuffer()
 
