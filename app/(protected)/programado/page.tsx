@@ -109,6 +109,7 @@ export default function ProgramadoPage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [poolMoviles, setPoolMoviles] = useState<MovilDisponible[]>([])
+  const [isLoadingPool, setIsLoadingPool] = useState(false)
   // Eliminado modal de edición en favor de drag & drop
   // Estados para drag & drop y cambios ya no son necesarios porque calculamos diferencias sobre programaciones
   const [isSavingChanges, setIsSavingChanges] = useState(false)
@@ -121,8 +122,9 @@ export default function ProgramadoPage() {
   }, [selectedDate])
 
   async function fetchAll() {
-    // Reactivamos fetchMovilesDisponibles ya que el error 500 está solucionado
-    await Promise.all([fetchProgramaciones(), fetchMovilesDisponibles()])
+    // Cargar primero las programaciones y luego los móviles disponibles para evitar conteos incorrectos
+    await fetchProgramaciones()
+    await fetchMovilesDisponibles()
   }
 
   async function fetchProgramaciones() {
@@ -204,6 +206,9 @@ export default function ProgramadoPage() {
 
   async function fetchMovilesDisponibles() {
     try {
+      setIsLoadingPool(true)
+      // Limpiar pool previo para evitar mostrar datos obsoletos mientras carga
+      setPoolMoviles([])
       console.log('🔍 Iniciando fetchMovilesDisponibles para fecha:', selectedDate)
       const response = await axios.get(`/api/programado/moviles-disponibles?fecha=${selectedDate}`)
       console.log('✅ Respuesta de API moviles-disponibles:', response.status, response.data)
@@ -216,6 +221,8 @@ export default function ProgramadoPage() {
       console.log('📋 Móviles disponibles actualizados')
     } catch (error) {
       console.error('❌ Error al obtener móviles disponibles:', error)
+    } finally {
+      setIsLoadingPool(false)
     }
   }
 
@@ -935,7 +942,14 @@ export default function ProgramadoPage() {
                     onDragOver={handleDragOver}
                     onDrop={handleDropOnPool}
                   >
-                    {visiblePoolMoviles.length === 0 ? (
+                    {isLoadingPool ? (
+                      <div className="text-center py-4">
+                        <div className="p-3 rounded-2xl bg-purple-100 inline-block mb-3">
+                          <RefreshCw className="w-6 h-6 text-purple-600 animate-spin" />
+                        </div>
+                        <p className="text-sm font-medium text-gray-600">Cargando móviles disponibles...</p>
+                      </div>
+                    ) : visiblePoolMoviles.length === 0 ? (
                       <div className="text-center py-4">
                         <div className="p-3 rounded-2xl bg-purple-100 inline-block mb-3">
                           <Car className="w-6 h-6 text-purple-600" />
