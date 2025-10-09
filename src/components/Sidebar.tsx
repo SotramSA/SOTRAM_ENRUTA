@@ -35,7 +35,7 @@ export default async function Sidebar() {
       name: 'Planillero',
       href: '/planillero',
       icon: 'FileText',
-      avalaible: session?.tablaTurno // Mismo permiso que Turnos
+      avalaible: session?.tablaProgramada // Mismo permiso que Turnos
     },
     {
       name: 'Sanciones Conductor',
