@@ -672,8 +672,16 @@ function TurnosPageContent() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {['DESPACHO_A','DESPACHO_B','DESPACHO_C'].map((tipo) => (
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {[
+              'DESPACHO_A',
+              'DESPACHO_B',
+              'DESPACHO_C',
+              'DESPACHO D RUT4 PAMPA-CORZO',
+              'DESPACHO D. RUT7 CORZO LORETO',
+              'DESPACHO E RUT7 CORZO',
+              'Despacho Puente piedra'
+            ].map((tipo) => (
               <Card key={tipo} className="border-2 border-green-500 bg-green-50">
                 <CardContent className="p-4 text-center">
                   <h3 className="font-semibold mb-4">{tipo.replace('_', ' ')}</h3>

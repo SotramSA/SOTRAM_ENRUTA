@@ -59,17 +59,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validar tipo de despacho
-    const tiposDespachoValidos = ['DESPACHO_A', 'DESPACHO_B', 'DESPACHO_C'];
-    if (!tiposDespachoValidos.includes(despacho)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Tipo de despacho inválido. Debe ser DESPACHO_A, DESPACHO_B o DESPACHO_C'
-        },
-        { status: 400 }
-      );
-    }
+    // Determinar rutaId a partir del tipo de despacho
+    // Acepta tokens (DESPACHO_A/B/C) y nombres de rutas en la BD
 
     // Convertir hora a formato ISO string - usar fecha actual del sistema
     const [horas, minutos] = hora.split(':').map(Number);
@@ -77,26 +68,32 @@ export async function POST(request: NextRequest) {
     const fechaAsignacion = new Date(); // Crear nueva fecha para la hora de salida
     fechaAsignacion.setHours(horas, minutos, 0, 0);
 
-    // Mapear tipo de despacho a rutaId
-    let rutaId: number;
-    switch (despacho) {
-      case 'DESPACHO_A':
-        rutaId = 1; // Despacho A
-        break;
-      case 'DESPACHO_B':
-        rutaId = 2; // Despacho B
-        break;
-      case 'DESPACHO_C':
-        rutaId = 3; // Despacho C
-        break;
-      default:
+    const TOKEN_TO_RUTAID: Record<string, number> = {
+      'DESPACHO_A': 1,
+      'DESPACHO_B': 2,
+      'DESPACHO_C': 3
+    };
+
+    let rutaId: number | null = null;
+    if (despacho in TOKEN_TO_RUTAID) {
+      rutaId = TOKEN_TO_RUTAID[despacho];
+    } else {
+      // Buscar por nombre de ruta (insensible a mayúsculas/minúsculas)
+      const rutaEncontrada = await prisma.ruta.findFirst({
+        where: { nombre: { equals: despacho, mode: 'insensitive' } },
+        select: { id: true, nombre: true }
+      });
+
+      if (!rutaEncontrada) {
         return NextResponse.json(
           {
             success: false,
-            error: 'Tipo de despacho no reconocido'
+            error: `Ruta no encontrada para el despacho: ${despacho}`
           },
           { status: 400 }
         );
+      }
+      rutaId = rutaEncontrada.id;
     }
 
     // Validar que el conductor existe y está activo
