@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
     // Validar que el automóvil existe y está activo
     const automovil = await prisma.automovil.findUnique({
       where: { id: parseInt(movilId) },
-      select: { id: true, movil: true, activo: true }
+      select: { id: true, movil: true, activo: true, enRevision: true }
     });
 
     if (!automovil) {
@@ -143,6 +143,17 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: `Automóvil ${automovil.movil} no está activo`
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validar que el automóvil no esté en revisión
+    if (automovil.enRevision) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `El automóvil ${automovil.movil} está actualmente en revisión técnica y no puede ser despachado`
         },
         { status: 400 }
       );

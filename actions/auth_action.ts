@@ -50,7 +50,8 @@ export const loginAction = async(
                    tablaConfiguracion: user.tablaConfiguracion,
                    tablaInformes: user.tablaInformes,
                    tablaPropietarios: user.tablaPropietarios,
-                   tablaProgramada: user.tablaProgramada
+                   tablaProgramada: user.tablaProgramada,
+                   tablaInspeccion: user.tablaInspeccion
                }
 
         // Establecer cookie de sesión

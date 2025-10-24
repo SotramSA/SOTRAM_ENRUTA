@@ -10,7 +10,13 @@ import RouteGuard from '@/src/components/RouteGuard'
 
 export default function InformesPage() {
   const [fecha, setFecha] = useState('')
+  const [fechaInicio, setFechaInicio] = useState('')
+  const [fechaFin, setFechaFin] = useState('')
+  const [fechaInicioDespachado, setFechaInicioDespachado] = useState('')
+  const [fechaFinDespachado, setFechaFinDespachado] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingRange, setIsLoadingRange] = useState(false)
+  const [isLoadingDespachadoRange, setIsLoadingDespachadoRange] = useState(false)
   const [loadingReport, setLoadingReport] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -57,6 +63,54 @@ export default function InformesPage() {
     }
   }
 
+  const handleGenerarInformeRango = async () => {
+    if (!fechaInicio || !fechaFin) {
+      alert('Por favor selecciona ambas fechas (inicial y final)')
+      return
+    }
+
+    if (new Date(fechaInicio) > new Date(fechaFin)) {
+      alert('La fecha inicial debe ser anterior o igual a la fecha final')
+      return
+    }
+
+    setIsLoadingRange(true)
+    try {
+      const response = await fetch('/api/informes/generar-rango', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ fechaInicio, fechaFin }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        if (response.status === 404) {
+          throw new Error(`No se encontraron turnos para el rango de fechas ${fechaInicio} - ${fechaFin}. Verifica que las fechas sean correctas y que existan turnos registrados para ese período.`)
+        }
+        throw new Error(errorData.error || 'Error al generar el informe por rango de fechas')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `informe-turnos-rango-${fechaInicio}-${fechaFin}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      alert('Informe por rango de fechas generado y descargado exitosamente')
+    } catch (error) {
+      console.error('Error:', error)
+      alert(error instanceof Error ? error.message : 'Error al generar el informe por rango de fechas')
+    } finally {
+      setIsLoadingRange(false)
+    }
+  }
+
   const handleGenerarInformeDespachado = async () => {
     if (!fecha) {
       alert('Por favor selecciona una fecha')
@@ -97,6 +151,54 @@ export default function InformesPage() {
       alert(error instanceof Error ? error.message : 'Error al generar el informe despachado')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleGenerarInformeDespachadoRango = async () => {
+    if (!fechaInicioDespachado || !fechaFinDespachado) {
+      alert('Por favor selecciona ambas fechas (inicial y final)')
+      return
+    }
+
+    if (new Date(fechaInicioDespachado) > new Date(fechaFinDespachado)) {
+      alert('La fecha inicial debe ser anterior o igual a la fecha final')
+      return
+    }
+
+    setIsLoadingDespachadoRange(true)
+    try {
+      const response = await fetch('/api/informes/despachado-rango', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ fechaInicio: fechaInicioDespachado, fechaFin: fechaFinDespachado }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        if (response.status === 404) {
+          throw new Error(`No se encontraron viajes despachados para el rango de fechas ${fechaInicioDespachado} - ${fechaFinDespachado}. Verifica que las fechas sean correctas y que existan viajes despachados para ese período.`)
+        }
+        throw new Error(errorData.error || 'Error al generar el informe despachado por rango de fechas')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `informe-despachado-rango-${fechaInicioDespachado}-${fechaFinDespachado}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      alert('Informe despachado por rango de fechas generado y descargado exitosamente')
+    } catch (error) {
+      console.error('Error:', error)
+      alert(error instanceof Error ? error.message : 'Error al generar el informe despachado por rango de fechas')
+    } finally {
+      setIsLoadingDespachadoRange(false)
     }
   }
 
@@ -350,6 +452,120 @@ export default function InformesPage() {
                     <>
                       <Download className="w-4 h-4" />
                       Informe Despachado
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Informe de Turnos por Rango de Fechas */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="p-3 bg-emerald-100 rounded-lg flex-shrink-0">
+                <Calendar className="w-6 h-6 text-emerald-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Informe de Turnos por Rango de Fechas</h3>
+                <p className="text-gray-600 text-sm">
+                  Genera un reporte Excel con todos los turnos de un período específico, organizados por fecha y ruta
+                </p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="fechaInicio" className="text-sm font-medium text-gray-700">Fecha Inicial</Label>
+                <Input
+                  id="fechaInicio"
+                  type="date"
+                  value={fechaInicio}
+                  onChange={(e) => setFechaInicio(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="fechaFin" className="text-sm font-medium text-gray-700">Fecha Final</Label>
+                <Input
+                  id="fechaFin"
+                  type="date"
+                  value={fechaFin}
+                  onChange={(e) => setFechaFin(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                />
+              </div>
+              <div className="flex items-end">
+                <button 
+                  onClick={handleGenerarInformeRango}
+                  disabled={isLoadingRange || !fechaInicio || !fechaFin}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  {isLoadingRange ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Generando...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      Generar Informe por Rango
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Informe Despachado por Rango de Fechas */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <div className="flex items-start gap-4 mb-6">
+              <div className="p-3 bg-teal-100 rounded-lg flex-shrink-0">
+                <Calendar className="w-6 h-6 text-teal-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Informe Despachado por Rango de Fechas</h3>
+                <p className="text-gray-600 text-sm">
+                  Genera un reporte Excel con todos los viajes despachados de un período específico, incluyendo turnos y programados realizados
+                </p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="fechaInicioDespachado" className="text-sm font-medium text-gray-700">Fecha Inicial</Label>
+                <Input
+                  id="fechaInicioDespachado"
+                  type="date"
+                  value={fechaInicioDespachado}
+                  onChange={(e) => setFechaInicioDespachado(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="fechaFinDespachado" className="text-sm font-medium text-gray-700">Fecha Final</Label>
+                <Input
+                  id="fechaFinDespachado"
+                  type="date"
+                  value={fechaFinDespachado}
+                  onChange={(e) => setFechaFinDespachado(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                />
+              </div>
+              <div className="flex items-end">
+                <button 
+                  onClick={handleGenerarInformeDespachadoRango}
+                  disabled={isLoadingDespachadoRange || !fechaInicioDespachado || !fechaFinDespachado}
+                  className="w-full bg-teal-600 hover:bg-teal-700 disabled:bg-teal-400 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  {isLoadingDespachadoRange ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Generando...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      Generar Informe Despachado
                     </>
                   )}
                 </button>

@@ -8,43 +8,47 @@ datasource db {
 }
 
 model Usuario {
-  id                    Int    @id @default(autoincrement())
-  usuario               String @unique
-  password              String
-  nombre                String
-  activo                Boolean @default(true)
-  tablaConductor        Boolean @default(false)
-  tablaAutomovil        Boolean @default(false)
-  tablaRuta             Boolean @default(false)
-  tablaConductorAutomovil Boolean @default(false)
-  tablaTurno            Boolean @default(false)
-  tablaPlanilla         Boolean @default(false)
-  tablaSancionConductor Boolean @default(false)
-  tablaSancionAutomovil Boolean @default(false)
-  tablaFecha            Boolean @default(false)
-  tablaUsuario          Boolean @default(false)
-  turnos                Turno[]
-  planillas             Planilla[]
-  tablaConfiguracion    Boolean @default(false)
-  tablaInformes         Boolean @default(false)
-  tablaPropietarios     Boolean @default(false)
-  tablaProgramada       Boolean @default(false)
-  programaciones        Programacion[]
+  id                      Int            @id @default(autoincrement())
+  nombre                  String
+  tablaConductor          Boolean        @default(false)
+  tablaAutomovil          Boolean        @default(false)
+  tablaRuta               Boolean        @default(false)
+  tablaConductorAutomovil Boolean        @default(false)
+  tablaTurno              Boolean        @default(false)
+  tablaPlanilla           Boolean        @default(false)
+  tablaSancionConductor   Boolean        @default(false)
+  tablaSancionAutomovil   Boolean        @default(false)
+  tablaFecha              Boolean        @default(false)
+  activo                  Boolean        @default(true)
+  usuario                 String         @unique
+  password                String
+  tablaUsuario            Boolean        @default(false)
+  tablaConfiguracion      Boolean        @default(false)
+  tablaInformes           Boolean        @default(false)
+  tablaProgramada         Boolean        @default(false)
+  tablaPropietarios       Boolean        @default(false)
+  tablaInspeccion         Boolean        @default(false)
+  planillas               Planilla[]
+  programaciones          Programacion[]
+  turnos                  Turno[]
+  despachos               FilaEspera[]
 }
 
 model Conductor {
-  id                 Int                  @id @default(autoincrement())
-  nombre             String
-  cedula             String
-  activo             Boolean              @default(true)
-  correo             String?
-  observaciones      String?
-  telefono           String?
-  licenciaConduccion DateTime?
-  conductorAutomovil ConductorAutomovil[]
-  sancionConductor   SancionConductor[]
-  turno              Turno[]
-  programacionesRealizadas Programacion[] @relation("ProgramacionRealizadaPorConductor")
+  id                       Int                  @id @default(autoincrement())
+  nombre                   String
+  cedula                   String
+  activo                   Boolean              @default(true)
+  correo                   String?
+  licenciaConduccion       DateTime?
+  observaciones            String?
+  telefono                 String?
+  requerido                Boolean              @default(false)
+  motivo                   String?
+  conductorAutomovil       ConductorAutomovil[]
+  programacionesRealizadas Programacion[]       @relation("ProgramacionRealizadaPorConductor")
+  sancionConductor         SancionConductor[]
+  turno                    Turno[]
 }
 
 model Propietario {
@@ -59,25 +63,28 @@ model Propietario {
 }
 
 model Automovil {
-  id                    Int                    @id @default(autoincrement())
-  movil                 String
-  placa                 String
-  activo                Boolean                @default(true)
-  disponible            Boolean                @default(true)
-  soat                  DateTime?
-  revisionTecnomecanica DateTime?
-  tarjetaOperacion      DateTime?
-  licenciaTransito      DateTime?
-  extintor              DateTime?
-  revisionPreventiva    DateTime?
-  automovilPropietario  AutomovilPropietario[]
-  conductorAutomovil    ConductorAutomovil[]
-  listaChequeo          ListaChequeo[]
-  sancionAutomovil      SancionAutomovil[]
-  turno                 Turno[]
-  planillas             Planilla[]
-  programaciones        Programacion[]
-  programacionesRealizadas Programacion[] @relation("ProgramacionRealizadaPor")
+  id                       Int                    @id @default(autoincrement())
+  movil                    String
+  placa                    String
+  activo                   Boolean                @default(true)
+  disponible               Boolean                @default(true)
+  enRevision               Boolean                @default(false)
+  colectivo                Boolean?
+  extintor                 DateTime?
+  licenciaTransito         DateTime?
+  revisionPreventiva       Boolean                @default(false)
+  revisionTecnomecanica    DateTime?
+  soat                     DateTime?
+  tarjetaOperacion         DateTime?
+  automovilPropietario     AutomovilPropietario[]
+  conductorAutomovil       ConductorAutomovil[]
+  inspecciones             Inspeccion[]
+  listaChequeo             ListaChequeo[]
+  planillas                Planilla[]
+  programaciones           Programacion[]
+  programacionesRealizadas Programacion[]         @relation("ProgramacionRealizadaPor")
+  sancionAutomovil         SancionAutomovil[]
+  turno                    Turno[]
 }
 
 model AutomovilPropietario {
@@ -103,8 +110,8 @@ model Ruta {
   fechaActualizacion DateTime?         @default(now())
   prioridad          Int?              @default(0)
   huecosDisponibles  HuecoDisponible[]
-  turno              Turno[]
   programaciones     Programacion[]
+  turno              Turno[]
 }
 
 model ConductorAutomovil {
@@ -126,38 +133,38 @@ model Turno {
   horaCreacion DateTime? @default(now())
   estado       String?   @default("PENDIENTE")
   usuarioId    Int?
-  automovil    Automovil @relation(fields: [movilId], references: [id])
   conductor    Conductor @relation(fields: [conductorId], references: [id])
+  automovil    Automovil @relation(fields: [movilId], references: [id])
   ruta         Ruta?     @relation(fields: [rutaId], references: [id])
   usuario      Usuario?  @relation(fields: [usuarioId], references: [id])
 }
 
 model Planilla {
-  id          Int       @id @default(autoincrement())
-  automovilId Int
-  fecha       DateTime
+  id            Int       @id @default(autoincrement())
+  fecha         DateTime
   observaciones String?
-  usuarioId   Int?
+  automovilId   Int
   fechaCreacion DateTime? @default(now())
-  automovil   Automovil @relation(fields: [automovilId], references: [id])
-  usuario     Usuario?  @relation(fields: [usuarioId], references: [id])
+  usuarioId     Int?
+  automovil     Automovil @relation(fields: [automovilId], references: [id])
+  usuario       Usuario?  @relation(fields: [usuarioId], references: [id])
 }
 
 model SancionConductor {
   id          Int       @id @default(autoincrement())
   conductorId Int
+  descripcion String
   fechaInicio DateTime
   fechaFin    DateTime
-  descripcion String
   conductor   Conductor @relation(fields: [conductorId], references: [id])
 }
 
 model SancionAutomovil {
   id          Int       @id @default(autoincrement())
   automovilId Int
+  descripcion String
   fechaInicio DateTime
   fechaFin    DateTime
-  descripcion String
   automovil   Automovil @relation(fields: [automovilId], references: [id])
 }
 
@@ -172,33 +179,62 @@ model ListaChequeo {
   id          Int       @id @default(autoincrement())
   automovilId Int
   fecha       DateTime
-  inspector   String?   // Nombre del inspector que realizó la lista de chequeo
-  items       String    // JSON string
+  items       String
+  inspector   String?
   automovil   Automovil @relation(fields: [automovilId], references: [id])
 }
 
 model Programacion {
-  id            Int       @id @default(autoincrement())
-  automovilId   Int?
-  fecha         DateTime
-  hora          Int
-  rutaId        Int?
-  estado        String    @default("PENDIENTE")
-  realizadoPorId Int?
+  id                      Int        @id @default(autoincrement())
+  automovilId             Int?
+  fecha                   DateTime
+  hora                    Int
+  rutaId                  Int?
+  estado                  String     @default("PENDIENTE")
+  usuarioId               Int?
+  realizadoPorId          Int?
   realizadoPorConductorId Int?
-  automovil     Automovil? @relation(fields: [automovilId], references: [id])
-  realizadoPor  Automovil? @relation("ProgramacionRealizadaPor", fields: [realizadoPorId], references: [id])
-  realizadoPorConductor Conductor? @relation("ProgramacionRealizadaPorConductor", fields: [realizadoPorConductorId], references: [id])
-  ruta          Ruta?     @relation(fields: [rutaId], references: [id])
-  usuario       Usuario?  @relation(fields: [usuarioId], references: [id])
-  usuarioId     Int?
+  automovil               Automovil? @relation(fields: [automovilId], references: [id])
+  realizadoPorConductor   Conductor? @relation("ProgramacionRealizadaPorConductor", fields: [realizadoPorConductorId], references: [id])
+  realizadoPor            Automovil? @relation("ProgramacionRealizadaPor", fields: [realizadoPorId], references: [id])
+  ruta                    Ruta?      @relation(fields: [rutaId], references: [id])
+  usuario                 Usuario?   @relation(fields: [usuarioId], references: [id])
+}
+
+model Inspeccion {
+  id              Int       @id @default(autoincrement())
+  automovilId     Int
+  fechaCreacion   DateTime  @default(now())
+  observaciones   String?
+  estado          String?   @default("PENDIENTE")
+  inspector       String?
+  nombreIngeniero String?
+  cedulaIngeniero String?
+  firmaDigital    String?
+  aprobada        Boolean   @default(false)
+  automovil       Automovil @relation(fields: [automovilId], references: [id])
 }
 
 model Configuracion {
-  id          Int       @id @default(autoincrement())
-  nombre      String
-  valor       String
-  activo      Boolean   @default(true)
-  descripcion String?
+  id            Int      @id @default(autoincrement())
+  activo        Boolean  @default(true)
   fechaCreacion DateTime @default(now())
+  descripcion   String?
+  nombre        String
+  valor         String
+}
+
+model FilaEspera {
+  id               Int      @id @default(autoincrement())
+  numeroMovil      String
+  nombreConductor  String
+  fechaCreacion    DateTime @default(now())
+  estado           String   @default("ESPERANDO") // ESPERANDO, DESPACHADO, CANCELADO
+  despachadoPor    Int?
+  despachadoAt     DateTime?
+  observaciones    String?
+  ipOrigen         String?
+  
+  // Relación con el usuario que despachó
+  usuarioDespacho  Usuario? @relation(fields: [despachadoPor], references: [id])
 }

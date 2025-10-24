@@ -9,7 +9,7 @@ export async function PUT(
   try {
     const { id: idParam } = await params;
     const id = parseInt(idParam);
-    const { movil, placa, activo, disponible, propietarios, conductores, soat, revisionTecnomecanica, tarjetaOperacion, licenciaTransito, extintor, revisionPreventiva } = await request.json();
+    const { movil, placa, activo, disponible, colectivo, propietarios, conductores, soat, revisionTecnomecanica, tarjetaOperacion, licenciaTransito, extintor, revisionPreventiva } = await request.json();
 
     if (!movil || !placa) {
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
@@ -25,12 +25,13 @@ export async function PUT(
           placa, 
           activo: activo !== undefined ? activo : true,
           disponible: disponible !== undefined ? disponible : true,
+          colectivo: colectivo !== undefined ? colectivo : null,
           soat: soat ? new Date(soat) : null,
           revisionTecnomecanica: revisionTecnomecanica ? new Date(revisionTecnomecanica) : null,
           tarjetaOperacion: tarjetaOperacion ? new Date(tarjetaOperacion) : null,
           licenciaTransito: licenciaTransito ? new Date(licenciaTransito) : null,
           extintor: extintor ? new Date(extintor) : null,
-          revisionPreventiva: revisionPreventiva ? new Date(revisionPreventiva) : null,
+          revisionPreventiva: revisionPreventiva !== undefined ? Boolean(revisionPreventiva) : false,
         }
       });
 
@@ -105,4 +106,4 @@ export async function DELETE(
   } catch (error) {
     return NextResponse.json({ error: 'Error al eliminar automóvil' }, { status: 500 });
   }
-} 
+}

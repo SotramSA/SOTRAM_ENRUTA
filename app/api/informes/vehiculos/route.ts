@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
         tarjetaOperacion: formatearFecha(vehiculo.tarjetaOperacion),
         licenciaTransito: formatearFecha(vehiculo.licenciaTransito),
         extintor: formatearFecha(vehiculo.extintor),
-        revisionPreventiva: formatearFecha(vehiculo.revisionPreventiva),
+        revisionPreventiva: vehiculo.revisionPreventiva ? 'Sí' : 'No',
         conductoresAsignados: conductoresAsignados || 'Sin asignar'
       })
     })
@@ -130,4 +130,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-} 
+}

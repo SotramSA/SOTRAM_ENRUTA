@@ -1921,12 +1921,15 @@ export class TurnoService {
 
     try {
       const [movil, conductor] = await Promise.all([
-        prisma.automovil.findUnique({ where: { id: movilId } }),
+        prisma.automovil.findUnique({ 
+          where: { id: movilId },
+          select: { id: true, movil: true, activo: true, enRevision: true }
+        }),
         prisma.conductor.findUnique({ where: { id: conductorId } })
       ]);
 
       console.log('📋 Resultados de búsqueda:', {
-        movil: movil ? { id: movil.id, movil: movil.movil, activo: movil.activo } : null,
+        movil: movil ? { id: movil.id, movil: movil.movil, activo: movil.activo, enRevision: movil.enRevision } : null,
         conductor: conductor ? { id: conductor.id, nombre: conductor.nombre, activo: conductor.activo } : null
       });
 
@@ -1946,6 +1949,12 @@ export class TurnoService {
         } else {
           throw new Error(`El conductor ${conductor.nombre} no está activo en el sistema`);
         }
+      }
+
+      // Validar que el automóvil no esté en revisión
+      if (movil.enRevision) {
+        console.error('❌ Error: Móvil está en revisión técnica');
+        throw new Error(`El móvil ${movil.movil} está actualmente en revisión técnica y no puede ser despachado`);
       }
 
       console.log('✅ Validación de móvil y conductor: OK');

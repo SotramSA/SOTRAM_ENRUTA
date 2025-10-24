@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import Image from "next/image"
 import { Users, Bus, UserCog, Menu, X, Calendar,
-  CircleOff, Ban, RefreshCw, Clock, Settings, Route, FileText, Activity, UserCheck
+  CircleOff, Ban, RefreshCw, Clock, Settings, Route, FileText, Activity, UserCheck, ClipboardCheck
  } from "lucide-react"
 import { useState, useEffect } from "react"
 import LogoutButton from "./ui/LogoutBuuton"
@@ -34,7 +34,8 @@ const iconMap = {
   Route,
   FileText,
   Activity,
-  UserCheck
+  UserCheck,
+  ClipboardCheck
 }
 
 export default function SidebarClient({ menuItems = [] }: SidebarClientProps) {

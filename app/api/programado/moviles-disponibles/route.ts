@@ -21,10 +21,14 @@ export async function GET(request: NextRequest) {
 
     
     // Obtener todos los móviles activos y disponibles
-    const todosLosMoviles = await prismaWithRetry.automovil.findMany({
+    const moviles = await prismaWithRetry.automovil.findMany({
       where: {
         activo: true,
-        disponible: true
+        disponible: true,
+        OR: [
+          { colectivo: false },
+          { colectivo: null }
+        ]
       },
       select: {
         id: true,
@@ -64,7 +68,7 @@ export async function GET(request: NextRequest) {
     // Removed debug log for assigned IDs size
 
     // Filtrar solo los móviles que no están asignados y siguen disponibles/activos
-    const movilesDisponibles = todosLosMoviles.filter(
+    const movilesDisponibles = moviles.filter(
       movil => !movilesAsignadosIds.has(movil.id)
     )
 

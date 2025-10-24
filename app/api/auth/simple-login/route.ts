@@ -118,7 +118,8 @@ export async function POST(request: NextRequest) {
       tablaConfiguracion: user.tablaConfiguracion,
       tablaInformes: user.tablaInformes,
       tablaPropietarios: user.tablaPropietarios,
-      tablaProgramada: user.tablaProgramada
+      tablaProgramada: user.tablaProgramada,
+      tablaInspeccion: user.tablaInspeccion
     }
 
     const response = NextResponse.json({

@@ -1,4 +1,5 @@
 import { prisma } from '@/src/lib/prisma'
+import prismaWithRetry from '@/lib/prismaClient'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function PUT(
@@ -44,15 +45,19 @@ export async function PUT(
       } else {
         // Asignar nuevo móvil
         // Verificar que el nuevo móvil esté disponible y activo
-        const nuevoMovil = await prisma.automovil.findFirst({
+        const movil = await prismaWithRetry.automovil.findFirst({
           where: {
             id: movilId,
             activo: true,
-            disponible: true
+            disponible: true,
+            OR: [
+              { colectivo: false },
+              { colectivo: null }
+            ]
           }
         })
 
-        if (!nuevoMovil) {
+        if (!movil) {
           return NextResponse.json({ error: 'Móvil no disponible' }, { status: 400 })
         }
 

@@ -19,6 +19,7 @@ export interface SessionData {
   tablaInformes: boolean
   tablaPropietarios: boolean
   tablaProgramada: boolean
+  tablaInspeccion: boolean
 }
 
 export async function getSession(): Promise<SessionData | null> {

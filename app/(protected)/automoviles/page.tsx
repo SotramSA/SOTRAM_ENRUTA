@@ -12,6 +12,7 @@ interface Automovil {
   placa: string
   activo: boolean
   disponible: boolean
+  colectivo?: boolean | null
   soat?: string | null
   revisionTecnomecanica?: string | null
   tarjetaOperacion?: string | null
@@ -47,6 +48,7 @@ interface FormData {
   placa: string
   activo: boolean
   disponible: boolean
+  colectivo?: boolean
   propietarios: number[]
   conductores: number[]
   soat?: string
@@ -164,6 +166,7 @@ export default function AutomovilManager() {
       placa: '',
       activo: true,
       disponible: true,
+      colectivo: false,
       propietarios: [],
       conductores: [],
       soat: '',
@@ -185,6 +188,7 @@ export default function AutomovilManager() {
       placa: '',
       activo: true,
       disponible: true,
+      colectivo: false,
       propietarios: [],
       conductores: [],
       soat: '',
@@ -243,6 +247,7 @@ export default function AutomovilManager() {
       placa: automovil.placa,
       activo: automovil.activo,
       disponible: automovil.disponible,
+      colectivo: automovil.colectivo || false,
       propietarios: automovil.automovilPropietario?.map((ap) => ap.propietario.id) || [],
       conductores: automovil.conductorAutomovil?.map((ca) => ca.conductor.id) || [],
       soat: automovil.soat ? new Date(automovil.soat).toISOString().slice(0, 10) : '',
@@ -277,7 +282,21 @@ export default function AutomovilManager() {
         apiNotifications.createSuccess('Automóvil')
       }
       
-      setForm({ movil: '', placa: '', activo: true, disponible: true, propietarios: [], conductores: [], soat: '', revisionTecnomecanica: '', tarjetaOperacion: '', licenciaTransito: '', extintor: '', revisionPreventiva: '' })
+      setForm({ 
+        movil: '', 
+        placa: '', 
+        activo: true, 
+        disponible: true, 
+        colectivo: false,
+        propietarios: [], 
+        conductores: [], 
+        soat: '', 
+        revisionTecnomecanica: '', 
+        tarjetaOperacion: '', 
+        licenciaTransito: '', 
+        extintor: '', 
+        revisionPreventiva: '' 
+      })
       setEditId(null)
       setIsModalOpen(false)
       fetchAutomoviles()
@@ -698,6 +717,20 @@ export default function AutomovilManager() {
                           />
                           <span className="ml-2 text-sm font-medium text-gray-700">
                             Automóvil disponible
+                          </span>
+                        </label>
+                      </div>
+
+                      <div>
+                        <label className="flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={form.colectivo || false}
+                            onChange={(e) => setForm({ ...form, colectivo: e.target.checked })}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span className="ml-2 text-sm font-medium text-gray-700">
+                            Es colectivo
                           </span>
                         </label>
                       </div>

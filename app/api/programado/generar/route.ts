@@ -318,7 +318,11 @@ export async function POST(request: NextRequest) {
         const movilesDisponibles = await prismaWithRetry.automovil.findMany({
           where: {
             activo: true,
-            disponible: true
+            disponible: true,
+            OR: [
+              { colectivo: false },
+              { colectivo: null }
+            ]
           },
           include: {
             automovilPropietario: {

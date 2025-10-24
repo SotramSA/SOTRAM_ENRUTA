@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { movil, placa, activo, disponible, propietarios, conductores, soat, revisionTecnomecanica, tarjetaOperacion, licenciaTransito, extintor, revisionPreventiva } = await request.json();
+    const { movil, placa, activo, disponible, colectivo, propietarios, conductores, soat, revisionTecnomecanica, tarjetaOperacion, licenciaTransito, extintor, revisionPreventiva } = await request.json();
     
     if (!movil || !placa) {
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
@@ -98,12 +98,13 @@ export async function POST(request: NextRequest) {
           placa, 
           activo: activo !== undefined ? activo : true,
           disponible: disponible !== undefined ? disponible : true,
+          colectivo: colectivo !== undefined ? colectivo : null,
           soat: soat ? new Date(soat) : null,
           revisionTecnomecanica: revisionTecnomecanica ? new Date(revisionTecnomecanica) : null,
           tarjetaOperacion: tarjetaOperacion ? new Date(tarjetaOperacion) : null,
           licenciaTransito: licenciaTransito ? new Date(licenciaTransito) : null,
           extintor: extintor ? new Date(extintor) : null,
-          revisionPreventiva: revisionPreventiva ? new Date(revisionPreventiva) : null,
+          revisionPreventiva: revisionPreventiva !== undefined ? Boolean(revisionPreventiva) : false,
         }
       });
 
@@ -141,4 +142,4 @@ export async function POST(request: NextRequest) {
       stack: error instanceof Error ? error.stack : undefined
     }, { status: 500 });
   }
-} 
+}

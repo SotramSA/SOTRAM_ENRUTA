@@ -5,7 +5,7 @@ import SidebarClient from "./SidebarClient"
 export default async function Sidebar() {
   const session = await getSession()
  
-
+ 
   const menuItems = [
     {
       name: 'Dashboard',
@@ -32,12 +32,6 @@ export default async function Sidebar() {
       avalaible: session?.tablaPlanilla
     },
     {
-      name: 'Planillero',
-      href: '/planillero',
-      icon: 'FileText',
-      avalaible: session?.tablaProgramada // Mismo permiso que Turnos
-    },
-    {
       name: 'Sanciones Conductor',
       href: '/sancionConductor',
       icon: 'Ban',
@@ -62,6 +56,12 @@ export default async function Sidebar() {
       avalaible: session?.tablaAutomovil,
     },
     {
+      name: "Inspecciones",
+      href: "/inspecciones",
+      icon: "ClipboardCheck",
+      avalaible: session?.tablaInspeccion,
+    },
+    {
       name: "Propietarios",
       href: "/propietarios",
       icon: "UserCheck",
@@ -72,6 +72,12 @@ export default async function Sidebar() {
       href: "/rutas",
       icon: "Route",
       avalaible: session?.tablaRuta,
+    },
+    {
+      name: "Fila de Espera",
+      href: "/admin/fila-espera",
+      icon: "Users2",
+      avalaible: session?.tablaRuta, // Mismo permiso que Despacho
     },
     {
       name: "Usuarios",
@@ -90,8 +96,7 @@ export default async function Sidebar() {
       href: "/configuracion",
       icon: "Settings",
       avalaible: session?.tablaTurno, // Mismo permiso que Turnos
-    },
-    
+    }, 
   ]
 
   // Filtrar ítems con permisos

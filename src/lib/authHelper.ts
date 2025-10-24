@@ -20,6 +20,7 @@ export interface SessionUser {
   tablaInformes: boolean;
   tablaPropietarios: boolean;
   tablaProgramada: boolean;
+  tablaInspeccion: boolean;
 }
 
 export async function getSessionUser(request: NextRequest): Promise<SessionUser | null> {

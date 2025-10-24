@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/src/lib/prisma';
+import prismaWithRetry from '@/lib/prismaClient';
 
 export async function PUT(
   request: NextRequest,
@@ -49,13 +50,21 @@ export async function PUT(
     }
 
     // Verificar que el móvil existe
-    const movil = await prisma.automovil.findUnique({
-      where: { id: parseInt(movilId) }
+    const movil = await prismaWithRetry.automovil.findFirst({
+      where: {
+        id: parseInt(movilId),
+        activo: true,
+        disponible: true,
+        OR: [
+          { colectivo: false },
+          { colectivo: null }
+        ]
+      }
     });
 
     if (!movil) {
       return NextResponse.json(
-        { success: false, error: 'Móvil no encontrado' },
+        { success: false, error: 'Móvil no encontrado o no disponible para programado' },
         { status: 404 }
       );
     }

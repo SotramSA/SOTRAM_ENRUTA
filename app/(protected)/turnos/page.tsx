@@ -222,7 +222,8 @@ function TurnosPageContent() {
           validacion.tieneListaChequeo && 
           !validacion.licenciaConduccionVencida &&
           validacion.documentosVencidos.length === 0 &&
-          !validacion.tieneSanciones) {
+          !validacion.tieneSanciones &&
+          !validacion.enRevision) {
         
         await cargarRutasDelDia(automovilSeleccionado); // Pasar el número de móvil
         await cargarProgramadosDelDia(automovilSeleccionado); // Pasar el número de móvil
@@ -328,12 +329,23 @@ function TurnosPageContent() {
       );
     }
 
+    // Si el automóvil está en revisión, mostrar error
+    if (validacion.enRevision) {
+      return (
+        <ValidationMessage
+          type="error"
+          title="Automóvil en Revisión Técnica"
+          message="El automóvil seleccionado está actualmente en revisión técnica y no puede ser despachado hasta que se complete la revisión."
+        />
+      );
+    }
+
     // Si todas las validaciones pasan, mostrar mensaje de éxito
     return (
       <ValidationMessage
         type="info"
         title="Validaciones Completadas"
-        message={`✅ Planilla: ${validacion.planilla ? 'Válida' : 'No encontrada'} | ✅ Lista de Chequeo: ${validacion.listaChequeo ? 'Completada' : 'No encontrada'} | ✅ Licencia: ${validacion.licenciaConduccionVencida ? 'Vencida' : 'Válida'} | ✅ Documentos: ${validacion.documentosVencidos.length > 0 ? `${validacion.documentosVencidos.length} vencidos` : 'Todos válidos'} | ✅ Sanciones: ${validacion.tieneSanciones ? 'Pendientes' : 'Sin sanciones'}`}
+        message={`✅ Planilla: ${validacion.planilla ? 'Válida' : 'No encontrada'} | ✅ Lista de Chequeo: ${validacion.listaChequeo ? 'Completada' : 'No encontrada'} | ✅ Licencia: ${validacion.licenciaConduccionVencida ? 'Vencida' : 'Válida'} | ✅ Documentos: ${validacion.documentosVencidos.length > 0 ? `${validacion.documentosVencidos.length} vencidos` : 'Todos válidos'} | ✅ Sanciones: ${validacion.tieneSanciones ? 'Pendientes' : 'Sin sanciones'} | ✅ Revisión: ${validacion.enRevision ? 'En revisión' : 'Disponible'}`}
       />
     );
   };
@@ -680,7 +692,8 @@ function TurnosPageContent() {
               'DESPACHO D RUT4 PAMPA-CORZO',
               'DESPACHO D. RUT7 CORZO LORETO',
               'DESPACHO E RUT7 CORZO',
-              'Despacho Puente piedra'
+              'Despacho Puente piedra',
+              'Despacho Colon vía Puente Piedra'
             ].map((tipo) => (
               <Card key={tipo} className="border-2 border-green-500 bg-green-50">
                 <CardContent className="p-4 text-center">

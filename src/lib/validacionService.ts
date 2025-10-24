@@ -35,6 +35,7 @@ export interface ValidacionResult {
     motivo: string;
   }>;
   tieneSanciones: boolean;
+  enRevision: boolean;
 }
 
 export class ValidacionService {
@@ -62,6 +63,10 @@ export class ValidacionService {
 
     if (!movil.activo) {
       return { valido: false, error: 'Móvil no está activo' };
+    }
+
+    if (movil.enRevision) {
+      return { valido: false, error: 'Móvil está en revisión y no puede ser asignado a turnos' };
     }
 
     // Los móviles pueden hacer múltiples rutas en el mismo día
@@ -512,13 +517,14 @@ export class ValidacionService {
    * Realiza todas las validaciones para un móvil y conductor
    */
   static async validarCompleta(movilId: number, conductorId: number): Promise<ValidacionResult> {
-    const [validacionPlanilla, validacionListaChequeo, validacionLicencia, validacionDocumentos, sancionesAutomovil, sancionesConductor] = await Promise.all([
+    const [validacionPlanilla, validacionListaChequeo, validacionLicencia, validacionDocumentos, sancionesAutomovil, sancionesConductor, automovil] = await Promise.all([
       this.validarPlanilla(movilId),
       this.validarListaChequeo(movilId),
       this.validarLicenciaConduccion(conductorId),
       this.validarDocumentosMovil(movilId),
       this.validarSancionesAutomovil(movilId),
-      this.validarSancionesConductor(conductorId)
+      this.validarSancionesConductor(conductorId),
+      prisma.automovil.findUnique({ where: { id: movilId }, select: { enRevision: true } })
     ]);
 
     return {
@@ -531,7 +537,8 @@ export class ValidacionService {
       documentosVencidos: validacionDocumentos.documentosVencidos,
       sancionesAutomovil,
       sancionesConductor,
-      tieneSanciones: sancionesAutomovil.length > 0 || sancionesConductor.length > 0
+      tieneSanciones: sancionesAutomovil.length > 0 || sancionesConductor.length > 0,
+      enRevision: automovil?.enRevision || false
     };
   }
 
