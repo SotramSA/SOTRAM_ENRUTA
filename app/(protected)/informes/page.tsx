@@ -10,6 +10,7 @@ import RouteGuard from '@/src/components/RouteGuard'
 
 export default function InformesPage() {
   const [fecha, setFecha] = useState('')
+
   const [fechaInicio, setFechaInicio] = useState('')
   const [fechaFin, setFechaFin] = useState('')
   const [fechaInicioDespachado, setFechaInicioDespachado] = useState('')
@@ -68,7 +69,7 @@ export default function InformesPage() {
       alert('Por favor selecciona ambas fechas (inicial y final)')
       return
     }
-
+    
     if (new Date(fechaInicio) > new Date(fechaFin)) {
       alert('La fecha inicial debe ser anterior o igual a la fecha final')
       return

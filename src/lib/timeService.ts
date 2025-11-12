@@ -204,10 +204,28 @@ export class TimeService {
     const seconds = parseInt(parts.find(p => p.type === 'second')?.value || '0');
     
     // Reconstruir la fecha en la zona horaria de Bogotá (como un objeto Date)
-    // Usar el constructor UTC para evitar la inferencia de la zona horaria local
-    const bogotaDate = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
+    // Los valores ya están en hora de Bogotá, usar constructor local
+    const bogotaDate = new Date(year, month - 1, day, hours, minutes, seconds);
     
     return { hours, minutes, date: bogotaDate };
+  }
+
+  /**
+   * Devuelve la fecha en formato YYYY-MM-DD según la zona horaria de Bogotá.
+   * Evita el salto de día después de las 7pm que ocurre usando toISOString().
+   */
+  static formatDateBogota(date: Date): string {
+    const formatter = new Intl.DateTimeFormat('es-CO', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const parts = formatter.formatToParts(date);
+    const y = parts.find(p => p.type === 'year')?.value || '0000';
+    const m = parts.find(p => p.type === 'month')?.value || '01';
+    const d = parts.find(p => p.type === 'day')?.value || '01';
+    return `${y}-${m}-${d}`;
   }
 
   /**

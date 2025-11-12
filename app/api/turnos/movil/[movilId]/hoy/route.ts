@@ -38,7 +38,7 @@ export async function GET(
 
     // Obtener la fecha actual (considerando simulación de tiempo)
     const currentTime = TimeService.getCurrentTime();
-    const today = currentTime.toISOString().split('T')[0];
+  const today = TimeService.formatDateBogota(currentTime);
 
     // Obtener todos los turnos del móvil para hoy usando el automovilId
     const turnoService = new TurnoService();
@@ -47,7 +47,7 @@ export async function GET(
     // Filtrar tanto turnos como programados para el día actual
     const turnosHoy = rutasMovilHoy.filter(turno => {
       // Extraer la fecha de horaSalida que está en formato ISO
-      const turnoDate = new Date(turno.horaSalida).toISOString().split('T')[0];
+  const turnoDate = TimeService.formatDateBogota(new Date(turno.horaSalida));
       return turnoDate === today; // Incluir tanto turnos como programados
     });
 

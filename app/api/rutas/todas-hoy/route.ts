@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     // Configurar TimeService con headers de simulación
     TimeService.setFromHeaders(request.headers);
     const currentTime = TimeService.getCurrentTime();
-    const today = currentTime.toISOString().split('T')[0];
+  const today = TimeService.formatDateBogota(currentTime);
 
     // Permitir saltar caché con parámetro de query (force=1)
     const { searchParams } = new URL(request.url);
@@ -129,8 +129,8 @@ export async function GET(request: NextRequest) {
       const minutes = Number(normalized.slice(-2));
 
       const fechaAsignacion = new Date(p.fecha);
-      // Asegurar que la hora se establece en UTC para evitar desfases por zona horaria
-      fechaAsignacion.setUTCHours(hours, minutes, 0, 0);
+      // Establecer la hora en la zona horaria local para evitar desfases
+      fechaAsignacion.setHours(hours, minutes, 0, 0);
 
       const estado = p.realizadoPorId ? 'COMPLETADO' : 'NO_COMPLETADO';
 

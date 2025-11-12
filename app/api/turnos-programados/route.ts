@@ -8,10 +8,8 @@ export async function GET(request: NextRequest) {
     const ahora = TimeService.getCurrentTime();
     
     // Obtener fecha actual del sistema (UTC para comparar con fechas de DB)
-    const year = ahora.getUTCFullYear();
-    const month = String(ahora.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(ahora.getUTCDate()).padStart(2, '0');
-    const fechaHoy = `${year}-${month}-${day}`;
+  const todayStr = TimeService.formatDateBogota(ahora);
+    const fechaHoy = todayStr;
 
 
 
@@ -29,7 +27,7 @@ export async function GET(request: NextRequest) {
     // Filtrar turnos de hoy comparando la fecha ISO sin zona horaria
     const turnosHoy = todosTurnos.filter(turno => {
       // Usar toISOString().split('T')[0] para obtener solo la fecha sin zona horaria
-      const fechaTurno = turno.fecha.toISOString().split('T')[0];
+  const fechaTurno = TimeService.formatDateBogota(new Date(turno.fecha));
       return fechaTurno === fechaHoy;
     });
 
@@ -45,7 +43,7 @@ export async function GET(request: NextRequest) {
     // Filtrar programados por fecha de hoy comparando con fecha ISO
     const programadosHoy = todosProgramados.filter(prog => {
       // Usar toISOString().split('T')[0] para obtener la fecha en formato ISO
-      const fechaProgramado = prog.fecha.toISOString().split('T')[0];
+  const fechaProgramado = TimeService.formatDateBogota(new Date(prog.fecha));
       const coincide = fechaProgramado === fechaHoy;
       
       // Log detallado para debug
@@ -179,7 +177,7 @@ export async function GET(request: NextRequest) {
       debug: {
         ...TimeService.getDebugInfo(),
         fechaHoy,
-        fechaUTC: `${day}/${month}/${year}`
+        fechaUTC: ahora.toISOString().split('T')[0]
       }
     });
 

@@ -1,7 +1,5 @@
 import Sidebar from "@/src/components/Sidebar";
 import SessionChecker from "@/src/components/SessionChecker";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 
 // Configuración para evitar prerenderizado de páginas protegidas
 export const dynamic = 'force-dynamic'
@@ -12,14 +10,9 @@ export default async function RootLayout({
 }: Readonly<{
     children: React.ReactNode;
 }>) {
-    // Verificar autenticación básica en el servidor
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('session');
-    
-    // Si no hay sesión, redirigir al login
-    if (!sessionCookie) {
-        redirect('/login');
-    }
+    // La verificación y redirección de sesión se maneja en middleware.
+    // Evitamos redirecciones en el layout del App Router para que el build
+    // no intente recolectar datos de páginas protegidas y falle.
 
     return (
         <>
