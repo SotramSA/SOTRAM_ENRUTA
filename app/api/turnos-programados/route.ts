@@ -11,9 +11,6 @@ export async function GET(request: NextRequest) {
   const todayStr = TimeService.formatDateBogota(ahora);
     const fechaHoy = todayStr;
 
-
-
-
     // Obtener todos los turnos
     const todosTurnos = await prisma.turno.findMany({
       include: {
@@ -51,7 +48,6 @@ export async function GET(request: NextRequest) {
       
       return coincide;
     });
-
 
     // Convertir turnos al formato esperado
     const turnosFormateados = turnosHoy.map(turno => ({

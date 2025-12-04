@@ -51,7 +51,6 @@ export async function GET(
       return turnoDate === today; // Incluir tanto turnos como programados
     });
 
-    
 
     // Procesar los turnos para incluir información adicional
     const turnosProcessed = turnosHoy.map(turno => ({
@@ -72,8 +71,6 @@ export async function GET(
         return null;
       })()
     }));
-
-    
 
     return NextResponse.json({
       success: true,

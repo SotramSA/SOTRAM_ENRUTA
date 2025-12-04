@@ -66,7 +66,11 @@ export async function POST(request: NextRequest) {
     const [horas, minutos] = hora.split(':').map(Number);
     const ahora = new Date(); // Usar fecha actual del sistema directamente
     const fechaAsignacion = new Date(); // Crear nueva fecha para la hora de salida
-    fechaAsignacion.setHours(horas, minutos, 0, 0);
+
+ 
+  const fechaahoraBogota = new Date(fechaAsignacion.getTime() - 5 * 60 * 60 * 1000);
+
+    fechaahoraBogota.setHours(horas, minutos, 0, 0);
 
     const TOKEN_TO_RUTAID: Record<string, number> = {
       'DESPACHO_A': 1,
@@ -161,8 +165,9 @@ export async function POST(request: NextRequest) {
 
     // Crear el turno directamente en la base de datos usando la fecha y hora exactas
     // Sin conversiones de zona horaria - usar exactamente lo que se proporciona
-    const ahoraDirecto = new Date(); // Fecha y hora actual del sistema
-
+    
+    const ahoraDirecto = new Date(); 
+    const ahoraBogota = new Date(ahoraDirecto.getTime() - 5 * 60 * 60 * 1000);
 
     function toFixedISOString(date: Date): string {
       const pad = (num: number, size: number = 2) => String(num).padStart(size, "0");
@@ -193,9 +198,9 @@ export async function POST(request: NextRequest) {
         movilId: parseInt(movilId),
         conductorId: parseInt(conductorId),
         rutaId,
-        fecha: toFixedISOString(ahoraDirecto),
-        horaSalida: toFixedISOString(fechaAsignacion),
-        horaCreacion: toFixedISOString(ahoraDirecto),
+        fecha: toFixedISOString(ahoraBogota),
+        horaSalida: toFixedISOString(fechaahoraBogota),
+        horaCreacion: toFixedISOString(ahoraBogota),
         estado: 'COMPLETADO',
         usuarioId: user.id
       },
