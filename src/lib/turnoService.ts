@@ -2116,32 +2116,25 @@ export class TurnoService {
    */
   async obtenerRutasMovilHoy(movilId: number): Promise<Turno[]> {
     const ahora = TimeService.getCurrentTime();
-    const fechaHoy = ahora.toISOString().split('T')[0];
+    const fechaHoy = TimeService.formatDateBogota(ahora);
 
     console.log('🔍 Buscando rutas del móvil hoy (turnos + programados):', {
       movilId,
       fechaHoy
     });
 
-    // Obtener la hora actual de Bogotá para filtrar eventos futuros
+    // Obtener la hora actual de Bogotá y construir límites del día en esa zona
     const ahoraBogotaDate = this.getHoraBogota(ahora).date;
-
-    // Fecha actual
-    const now = new Date();
-
-    // Inicio del día (00:00 UTC)
-    const inicioDiaActual = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate()
-    ));
-
-    // Fin del día (inicio del día siguiente 00:00 UTC)
-    const finDiaActual = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate() + 1
-    ));
+    const inicioDiaActual = new Date(
+      ahoraBogotaDate.getFullYear(),
+      ahoraBogotaDate.getMonth(),
+      ahoraBogotaDate.getDate()
+    );
+    const finDiaActual = new Date(
+      ahoraBogotaDate.getFullYear(),
+      ahoraBogotaDate.getMonth(),
+      ahoraBogotaDate.getDate() + 1
+    );
 
     console.log('📅 Filtro de fecha en obtenerRutasMovilHoy:', {
       inicioDiaActual: inicioDiaActual.toISOString(),
@@ -2247,7 +2240,7 @@ export class TurnoService {
         const hours = normalized.slice(0, -2); // primeros 2 dígitos
         const minutes = normalized.slice(-2);  // últimos 2 dígitos
 
-        const fechaAsignacion = new Date(); // Crear nueva fecha para la hora de salida
+        const fechaAsignacion = new Date(p.fecha);
         fechaAsignacion.setHours(Number(hours), Number(minutes), 0, 0);
 
         // Determinar el estado basado en si tiene realizadoPorId (móvil que realizó)
@@ -2258,7 +2251,7 @@ export class TurnoService {
         return {
           id: p.id,
           // Usar el mismo formato ISO que los turnos regulares
-          horaSalida: toFixedISOString(fechaAsignacion),
+          horaSalida: fechaAsignacion.toISOString(),
           ruta: p.ruta ? { id: p.ruta.id, nombre: p.ruta.nombre } : null,
           movil: p.automovil ? { id: p.automovil.id, movil: p.automovil.movil } : { id: 0, movil: 'N/A' }, // Asume que un programado tiene un movil asignado
           conductor: { id: 0, nombre: 'Programado' }, // Asigna un conductor por defecto para programados
@@ -2320,7 +2313,7 @@ export class TurnoService {
    */
   private async obtenerProgramadosDisponiblesComoHuecos(ahora: Date): Promise<HuecoDisponible[]> {
     // Obtener solo la fecha de hoy (YYYY-MM-DD)
-    const fechaHoy = ahora.toISOString().split('T')[0];
+    const fechaHoy = TimeService.formatDateBogota(ahora);
 
     console.log('🔍 Buscando programados disponibles como huecos:', {
       fechaHoy,
@@ -2461,8 +2454,7 @@ export class TurnoService {
    */
   private async verificarProgramadosHoy(ahora: Date): Promise<boolean> {
     // Obtener solo la fecha de hoy (YYYY-MM-DD)
-    const { date: ahoraBogotaDate } = this.getHoraBogota(ahora);
-    const fechaHoy = ahoraBogotaDate.toISOString().split('T')[0];
+    const fechaHoy = TimeService.formatDateBogota(ahora);
 
     // Obtener todos los programados y filtrar por fecha
     const todosProgramados = await prisma.programacion.findMany({

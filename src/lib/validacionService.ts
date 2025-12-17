@@ -40,13 +40,11 @@ export interface ValidacionResult {
 
 export class ValidacionService {
   /**
-   * Helper to normalize a Date object to the start of its day in UTC.
-   * This is crucial for consistent date-only comparisons, ignoring time and timezone components.
+   * Normaliza una fecha al inicio del día en UTC de la fecha/hora de Bogotá recibida.
+   * Usa los componentes de la fecha de Bogotá para construir 00:00:00 UTC del mismo día.
    */
   private static normalizeDateToStartOfDay(date: Date): Date {
-    const d = new Date(date);
-    d.setUTCHours(0, 0, 0, 0);
-    return d;
+    return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0));
   }
 
   /**
@@ -307,7 +305,7 @@ export class ValidacionService {
 
     const ahora = TimeService.getCurrentTime();
     const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora);
-    // Normalizar ambas fechas al inicio del día en UTC para una comparación de fecha pura
+    // Normalizar ambas fechas al inicio del día de Bogotá para comparación de solo fecha
     const fechaVencimientoNormalizada = this.normalizeDateToStartOfDay(new Date(conductor.licenciaConduccion));
     const ahoraBogotaDateNormalizada = this.normalizeDateToStartOfDay(ahoraBogotaDate);
     
@@ -355,7 +353,7 @@ export class ValidacionService {
 
     const ahora = TimeService.getCurrentTime();
     const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora);
-    // Normalizar la fecha actual de Bogotá al inicio del día en UTC para comparación de fecha pura
+    // Normalizar la fecha actual de Bogotá al inicio del día local para comparación de fecha
     const ahoraBogotaDateNormalizada = this.normalizeDateToStartOfDay(ahoraBogotaDate);
     const documentosVencidos: Array<{ tipo: string; fechaVencimiento: Date }> = [];
 
@@ -440,9 +438,9 @@ export class ValidacionService {
   }>> {
     const ahora = TimeService.getCurrentTime();
     const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora);
-    // Normalizar la fecha actual de Bogotá al inicio del día en UTC para las comparaciones
+    // Normalizar la fecha actual de Bogotá al inicio del día para las comparaciones
     const inicioDia = this.normalizeDateToStartOfDay(ahoraBogotaDate);
-    const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000); // Fin del día actual en UTC
+    const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000);
 
     
 
@@ -482,9 +480,9 @@ export class ValidacionService {
   }>> {
     const ahora = TimeService.getCurrentTime();
     const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora);
-    // Normalizar la fecha actual de Bogotá al inicio del día en UTC para las comparaciones
+    // Normalizar la fecha actual de Bogotá al inicio del día para las comparaciones
     const inicioDia = this.normalizeDateToStartOfDay(ahoraBogotaDate);
-    const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000); // Fin del día actual en UTC
+    const finDia = new Date(inicioDia.getTime() + 24 * 60 * 60 * 1000);
 
     
 
@@ -594,7 +592,8 @@ export class ValidacionService {
     horaSalida: Date
   ): Promise<{ valido: boolean; error?: string }> {
     const ahora = TimeService.getCurrentTime();
-    const fecha = this.normalizeDateToStartOfDay(ahora); // Normalizar a inicio del día
+    const { date: ahoraBogotaDate } = TimeService.getHoraBogota(ahora);
+    const fecha = this.normalizeDateToStartOfDay(ahoraBogotaDate); // Normalizar a inicio del día en Bogotá
 
     // Verificar si ya hay un turno asignado para ese hueco
     const turnoExistente = await prisma.turno.findFirst({

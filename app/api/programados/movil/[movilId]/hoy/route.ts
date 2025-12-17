@@ -16,12 +16,7 @@ export async function GET(
     // Configurar el TimeService con los headers de simulación
     TimeService.setFromHeaders(request.headers);
     const ahora = TimeService.getCurrentTime();
-    
-    // Obtener fecha actual del sistema (UTC para comparar con fechas de DB)
-    const year = ahora.getUTCFullYear();
-    const month = String(ahora.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(ahora.getUTCDate()).padStart(2, '0');
-    const fechaHoy = `${year}-${month}-${day}`;
+    const fechaHoy = TimeService.formatDateBogota(ahora);
 
     console.log('🔍 Buscando programados del móvil para hoy:', {
       movilId,
@@ -62,9 +57,11 @@ export async function GET(
       });
     });
 
-    // Filtrar por fecha de hoy usando fecha ISO
+    // Filtrar por fecha de hoy usando fecha en zona de Bogotá
     const programadosHoy = programados.filter(prog => {
-      const fechaProgramado = prog.fecha.toISOString().split('T')[0];
+      const fechaProgramado = TimeService.formatDateBogota(
+        prog.fecha instanceof Date ? prog.fecha : new Date(prog.fecha)
+      );
       return fechaProgramado === fechaHoy;
     });
 

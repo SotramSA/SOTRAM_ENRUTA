@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ValidacionService } from '@/src/lib/validacionService';
+import { TimeService } from '@/src/lib/timeService';
 
 export async function POST(request: NextRequest) {
   try {
+    // Configurar hora simulada si viene en headers
+    TimeService.setFromHeaders(request.headers);
     const body = await request.json();
     
     const { movilId, conductorId } = body;

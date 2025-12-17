@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/src/lib/prisma';
+import { TimeService } from '@/src/lib/timeService';
 
 export async function POST(request: NextRequest) {
   try {
+    TimeService.setFromHeaders(request.headers);
     const body = await request.json();
     const { numeroMovil, nombreInspector } = body;
 
@@ -28,12 +30,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Crear el registro de lista de chequeo: guardar solo FECHA (00:00:00) en zona Bogotá
-    const ahora = new Date();
-    const y = ahora.getFullYear();
-    const m = ahora.getMonth();
-    const d = ahora.getDate();
-    const fechaBogota = new Date(y, m, d, 0, 0, 0, 0);
+    // Crear el registro de lista de chequeo: guardar solo FECHA (00:00:00) del día de Bogotá
+    const current = TimeService.getCurrentTime();
+    const { date: bogotaNow } = TimeService.getHoraBogota(current);
+    const fechaBogota = new Date(Date.UTC(bogotaNow.getFullYear(), bogotaNow.getMonth(), bogotaNow.getDate(), 0, 0, 0, 0));
 
     const listaChequeo = await prisma.listaChequeo.create({
       data: {
@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
 // Nueva función para crear chequeo masivo de todos los móviles
 export async function PUT(request: NextRequest) {
   try {
+    TimeService.setFromHeaders(request.headers);
     const body = await request.json();
     const { nombreInspector } = body;
 
@@ -83,11 +84,11 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Obtener todos los automóviles activos que no tienen chequeo hoy
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const mañana = new Date(hoy);
-    mañana.setDate(mañana.getDate() + 1);
+    // Obtener todos los automóviles activos que no tienen chequeo hoy (día de Bogotá)
+    const ahora = TimeService.getCurrentTime();
+    const { date: bogotaNow } = TimeService.getHoraBogota(ahora);
+    const hoy = new Date(Date.UTC(bogotaNow.getFullYear(), bogotaNow.getMonth(), bogotaNow.getDate(), 0, 0, 0, 0));
+    const mañana = new Date(Date.UTC(bogotaNow.getFullYear(), bogotaNow.getMonth(), bogotaNow.getDate() + 1, 0, 0, 0, 0));
 
     const automovilesActivos = await prisma.automovil.findMany({
       where: {
@@ -118,9 +119,10 @@ export async function PUT(request: NextRequest) {
     // Crear chequeos para todos los móviles pendientes
     const chequeosCreados = await Promise.all(
       automovilesSinChequeo.map(async (automovil) => {
-        // Guardar solo fecha 00:00:00 del día actual
-        const now = new Date();
-        const fechaBogota = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+        // Guardar solo fecha 00:00:00 del día actual de Bogotá
+        const current = TimeService.getCurrentTime();
+        const { date: bogotaNow2 } = TimeService.getHoraBogota(current);
+        const fechaBogota = new Date(Date.UTC(bogotaNow2.getFullYear(), bogotaNow2.getMonth(), bogotaNow2.getDate(), 0, 0, 0, 0));
         return await prisma.listaChequeo.create({
           data: {
             automovilId: automovil.id,

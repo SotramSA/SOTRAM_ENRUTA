@@ -106,6 +106,7 @@ export class TimeService {
     }
     
     // Si no hay simulación, usar hora real
+    console.log('************' + new Date())
     return new Date();
   }
 

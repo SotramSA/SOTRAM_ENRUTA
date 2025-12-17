@@ -227,6 +227,10 @@ function TurnosPageContent() {
         
         await cargarRutasDelDia(automovilSeleccionado); // Pasar el número de móvil
         await cargarProgramadosDelDia(automovilSeleccionado); // Pasar el número de móvil
+        console.log()
+        console.log(TimeService.getSimulationHeaders());
+        console.log(TimeService);
+      
       }
       
     } catch (error) {
@@ -279,7 +283,7 @@ function TurnosPageContent() {
     if (validacion.documentosVencidos.length > 0) {
       const detalles = validacion.documentosVencidos.map(doc => {
         const fechaVencimiento = doc.fechaVencimiento instanceof Date ? doc.fechaVencimiento : new Date(doc.fechaVencimiento);
-        const fechaTexto = fechaVencimiento.toLocaleDateString('es-ES', { timeZone: 'UTC' });
+        const fechaTexto = fechaVencimiento.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
         return `📄 ${doc.tipo}: Vencido el ${fechaTexto}`;
       });
 
@@ -302,8 +306,8 @@ function TurnosPageContent() {
         validacion.sancionesAutomovil.forEach(sancion => {
           const ini = sancion.fechaInicio instanceof Date ? sancion.fechaInicio : new Date(sancion.fechaInicio);
           const fin = sancion.fechaFin instanceof Date ? sancion.fechaFin : new Date(sancion.fechaFin);
-          const iniTxt = isNaN(ini.getTime()) ? 'N/A' : ini.toLocaleDateString('es-ES', { timeZone: 'UTC' });
-          const finTxt = isNaN(fin.getTime()) ? 'N/A' : fin.toLocaleDateString('es-ES', { timeZone: 'UTC' });
+          const iniTxt = isNaN(ini.getTime()) ? 'N/A' : ini.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
+          const finTxt = isNaN(fin.getTime()) ? 'N/A' : fin.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
           detalles.push(`🚗 Automóvil: ${sancion.motivo} (del ${iniTxt} al ${finTxt})`);
         });
       }
@@ -313,8 +317,8 @@ function TurnosPageContent() {
         validacion.sancionesConductor.forEach(sancion => {
           const ini = sancion.fechaInicio instanceof Date ? sancion.fechaInicio : new Date(sancion.fechaInicio);
           const fin = sancion.fechaFin instanceof Date ? sancion.fechaFin : new Date(sancion.fechaFin);
-          const iniTxt = isNaN(ini.getTime()) ? 'N/A' : ini.toLocaleDateString('es-ES', { timeZone: 'UTC' });
-          const finTxt = isNaN(fin.getTime()) ? 'N/A' : fin.toLocaleDateString('es-ES', { timeZone: 'UTC' });
+          const iniTxt = isNaN(ini.getTime()) ? 'N/A' : ini.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
+          const finTxt = isNaN(fin.getTime()) ? 'N/A' : fin.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
           detalles.push(`👤 Conductor: ${sancion.motivo} (del ${iniTxt} al ${finTxt})`);
         });
       }

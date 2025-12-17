@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/src/lib/prisma';
+import { TimeService } from '@/src/lib/timeService';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // Obtener la fecha actual (solo fecha, sin hora)
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+    TimeService.setFromHeaders(request.headers as Headers);
+    const ahora = TimeService.getCurrentTime();
+    const { date: bogotaNow } = TimeService.getHoraBogota(ahora);
+    const startOfDay = new Date(Date.UTC(bogotaNow.getFullYear(), bogotaNow.getMonth(), bogotaNow.getDate(), 0, 0, 0, 0));
+    const endOfDay = new Date(Date.UTC(bogotaNow.getFullYear(), bogotaNow.getMonth(), bogotaNow.getDate() + 1, 0, 0, 0, 0));
 
     // Obtener todos los vehículos activos
     const vehiculos = await prisma.automovil.findMany({
@@ -21,7 +23,7 @@ export async function GET() {
           where: {
             fecha: {
               gte: startOfDay,
-              lte: endOfDay
+              lt: endOfDay
             }
           },
           orderBy: {
@@ -48,7 +50,7 @@ export async function GET() {
 
     return NextResponse.json({
       vehiculos: vehiculosFormateados,
-      fecha: today.toISOString(),
+      fecha: ahora.toISOString(),
       total: vehiculosFormateados.length,
       completados: vehiculosFormateados.filter(v => v.listaChequeo).length,
       pendientes: vehiculosFormateados.filter(v => !v.listaChequeo).length
