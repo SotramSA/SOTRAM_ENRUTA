@@ -460,18 +460,22 @@ function TurnosPageContent() {
       return;
     }
 
-    const fechaActual = new Date();
+    const fechaActual = TimeService.getCurrentTime();
+    const { date: bogotaNow } = TimeService.getHoraBogota(fechaActual);
+    const fechaSalidaStr = bogotaNow.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
+    const fechaRegistroStr = bogotaNow.toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Bogota' });
+    const horaRegistroStr = bogotaNow.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' });
     const reciboInfo = {
       id: Date.now(), // ID temporal para el recibo
-      fechaSalida: fechaActual.toLocaleDateString('es-ES'),
+      fechaSalida: fechaSalidaStr,
       horaSalida: ruta.hora,
       movil: automovilEncontrado.movil,
       placa: automovilEncontrado.placa,
       ruta: ruta.ruta,
       conductor: conductorEncontrado.nombre,
       despachadoPor: 'Sistema Turnos',
-      registro: fechaActual.toLocaleString('es-ES'),
-      qrData: `SOTRAM-${automovilEncontrado.movil}-${ruta.hora}-${fechaActual.getTime()}`
+      registro: `${fechaRegistroStr} ${horaRegistroStr}`,
+      qrData: `SOTRAM-${automovilEncontrado.movil}-${ruta.hora}-${bogotaNow.getTime()}`
     };
 
     setReciboData(reciboInfo);
@@ -487,20 +491,24 @@ function TurnosPageContent() {
       return;
     }
 
-    const fechaActual = new Date();
+    const fechaActual = TimeService.getCurrentTime();
+    const { date: bogotaNow2 } = TimeService.getHoraBogota(fechaActual);
+    const fechaSalidaStr2 = bogotaNow2.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
+    const fechaRegistroStr2 = bogotaNow2.toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Bogota' });
+    const horaRegistroStr2 = bogotaNow2.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' });
     const horaFormateada = `${String(programado.hora).padStart(2, '0')}:00`;
     
     const reciboInfo = {
       id: Date.now(), // ID temporal para el recibo
-      fechaSalida: fechaActual.toLocaleDateString('es-ES'),
+      fechaSalida: fechaSalidaStr2,
       horaSalida: horaFormateada,
       movil: automovilEncontrado.movil,
       placa: automovilEncontrado.placa,
       ruta: programado.ruta.nombre,
       conductor: conductorEncontrado.nombre,
       despachadoPor: 'Sistema Turnos',
-      registro: fechaActual.toLocaleString('es-ES'),
-      qrData: `SOTRAM-${automovilEncontrado.movil}-${horaFormateada}-${fechaActual.getTime()}`
+      registro: `${fechaRegistroStr2} ${horaRegistroStr2}`,
+      qrData: `SOTRAM-${automovilEncontrado.movil}-${horaFormateada}-${bogotaNow2.getTime()}`
     };
 
     setReciboData(reciboInfo);

@@ -55,10 +55,10 @@ export async function GET(
     const horaSalidaFormateada = isoToTimeHHMM(horaSalidaISO);
     
     const fechaCreacion = turno.horaCreacion ? new Date(turno.horaCreacion) : new Date();
-
-    // Formatear fecha y hora de creación
-    const fechaCreacionFormateada = fechaCreacion.toLocaleDateString('es-CO', opcionesFecha);
-    const horaCreacionFormateada = fechaCreacion.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: zonaHoraria });
+    const d = fechaCreacion;
+    const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    const fechaCreacionFormateada = `${String(d.getUTCDate()).padStart(2,'0')} de ${meses[d.getUTCMonth()]} de ${d.getUTCFullYear()}`;
+    const horaCreacionFormateada = `${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`;
 
     // Crear datos del recibo
     const recibo = {
