@@ -44,23 +44,18 @@ export async function GET(request: NextRequest) {
     // Contar automóviles activos (más eficiente que cargar todos)
     const totalAutomoviles = await prisma.automovil.count({ where: { activo: true } });
 
-    // Calcular inicio y fin del día en Bogotá
-    const { date: bogotaNow } = TimeService.getHoraBogota(currentTime);
+    // Calcular inicio y fin del día actual sin conversiones
     const inicioDiaActual = new Date(
-      bogotaNow.getFullYear(),
-      bogotaNow.getMonth(),
-      bogotaNow.getDate()
+      currentTime.getFullYear(),
+      currentTime.getMonth(),
+      currentTime.getDate()
     );
-    const finDiaActual = new Date(
-      bogotaNow.getFullYear(),
-      bogotaNow.getMonth(),
-      bogotaNow.getDate() + 1
-    );
+    const finDiaActual = new Date(inicioDiaActual.getTime() + 24 * 60 * 60 * 1000);
 
     // Consulta batched: Turnos de hoy (select mínimo)
     const turnosHoy = await prisma.turno.findMany({
       where: {
-        horaSalida: {
+        fecha: {
           gte: inicioDiaActual,
           lt: finDiaActual,
         },

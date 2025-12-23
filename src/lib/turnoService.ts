@@ -2123,18 +2123,8 @@ export class TurnoService {
       fechaHoy
     });
 
-    // Obtener la hora actual de Bogotá y construir límites del día en esa zona
-    const ahoraBogotaDate = this.getHoraBogota(ahora).date;
-    const inicioDiaActual = new Date(
-      ahoraBogotaDate.getFullYear(),
-      ahoraBogotaDate.getMonth(),
-      ahoraBogotaDate.getDate()
-    );
-    const finDiaActual = new Date(
-      ahoraBogotaDate.getFullYear(),
-      ahoraBogotaDate.getMonth(),
-      ahoraBogotaDate.getDate() + 1
-    );
+    const inicioDiaActual = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    const finDiaActual = new Date(inicioDiaActual.getTime() + 24 * 60 * 60 * 1000);
 
     console.log('📅 Filtro de fecha en obtenerRutasMovilHoy:', {
       inicioDiaActual: inicioDiaActual.toISOString(),
@@ -2146,11 +2136,10 @@ export class TurnoService {
     const todosTurnos = await prisma.turno.findMany({
       where: {
         movilId,
-        horaSalida: {
+        fecha: {
           gte: inicioDiaActual,
           lt: finDiaActual
         },
-        // horaSalida: { lte: ahoraBogotaDate }, // Se elimina este filtro para mostrar todas las rutas del día
         estado: { in: ['COMPLETADO', 'NO_COMPLETADO'] }
       },
       include: {

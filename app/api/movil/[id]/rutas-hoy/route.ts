@@ -26,42 +26,12 @@ export async function GET(
 
     const turnoService = new TurnoService();
     const todasLasRutas = await turnoService.obtenerRutasMovilHoy(movilId);
-
-    // Obtener la fecha actual en zona Bogotá para filtrar solo los turnos de hoy
-    const ahora = TimeService.getCurrentTime();
-    const fechaHoy = TimeService.formatDateBogota(ahora);
-
-    // Filtrar las rutas para mostrar solo las de hoy
-    const rutasHoy = todasLasRutas.filter(ruta => {
-      const dateObj = typeof ruta.horaSalida === 'string'
-        ? new Date(ruta.horaSalida)
-        : new Date(Number(ruta.horaSalida));
-      const fechaRutaBogota = TimeService.formatDateBogota(dateObj);
-      return fechaRutaBogota === fechaHoy;
-    });
-
-    console.log('🔍 API rutas-hoy: Rutas filtradas para hoy:', {
-      movilId,
-      fechaHoy,
-      totalRutasOriginales: todasLasRutas.length,
-      rutasHoy: rutasHoy.length,
-      rutas: rutasHoy.map(r => ({
-        hora: r.horaSalida,
-        ruta: r.ruta?.nombre,
-        conductor: r.conductor.nombre,
-        estado: r.estado
-      }))
-    });
-
     return NextResponse.json({
       success: true,
-      data: rutasHoy,
-      total: rutasHoy.length,
+      data: todasLasRutas,
+      total: todasLasRutas.length,
       meta: {
-        movilId: movilId.toString(),
-        fecha: fechaHoy,
-        totalOriginal: todasLasRutas.length,
-        filtradoHoy: rutasHoy.length
+        movilId: movilId.toString()
       }
     });
 
