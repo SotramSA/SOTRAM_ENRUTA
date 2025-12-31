@@ -314,7 +314,6 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
   <div class="title">PLANILLA DE VIAJE No. ${reciboData.id}</div>
   <div class="hora-salida">Hora de salida: ${reciboData.horaSalida}</div>
   <div class="ruta-destacada">${reciboData.ruta}</div>
-  <div class="info-row"><span class="label">Fecha:</span><span class="value">${reciboData.fechaSalida}</span></div>
   <div class="info-row"><span class="label">Móvil:</span><span class="value">${reciboData.movil}</span></div>
   <div class="info-row"><span class="label">Placa:</span><span class="value">${reciboData.placa}</span></div>${sustitucionInfo}${conductorRow}
   <div class="info-row"><span class="label">Despachado por:</span><span class="value">${reciboData.despachadoPor}</span></div>

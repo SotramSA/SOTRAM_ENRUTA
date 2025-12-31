@@ -167,11 +167,6 @@ export default function ReciboImpresion({ data, onPrint }: ReciboImpresionProps)
               <div class="divider"></div>
               
               <div class="info-row">
-                <span class="label">Fecha:</span>
-                <span class="value">${data.fechaSalida}</span>
-              </div>
-              
-              <div class="info-row">
                 <span class="label">Móvil:</span>
                 <span class="value">${data.movil}</span>
               </div>
@@ -244,11 +239,6 @@ export default function ReciboImpresion({ data, onPrint }: ReciboImpresionProps)
          </div>
         
         <div className="title">PLANILLA DE VIAJE No. {data.id}</div>
-        
-        <div className="info-row">
-          <span className="label">Fecha de salida:</span>
-          <span className="value">{data.fechaSalida}</span>
-        </div>
         
         <div className="info-row">
           <span className="label">Hora de salida:</span>
