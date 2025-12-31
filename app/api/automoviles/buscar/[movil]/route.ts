@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { TimeService } from '@/src/lib/timeService';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ movil: string }> }
 ) {
   try {
-    TimeService.setFromHeaders(request.headers);
     const { movil } = await params;
     const numeroMovil = movil;
 
@@ -21,10 +19,11 @@ export async function GET(
 
     if (automovil) {
       // Verificar si ya existe una lista de chequeo para hoy
-      const ahora = TimeService.getCurrentTime();
-      const { date: bogotaNow } = TimeService.getHoraBogota(ahora);
-      const hoy = new Date(Date.UTC(bogotaNow.getFullYear(), bogotaNow.getMonth(), bogotaNow.getDate(), 0, 0, 0, 0));
-      const manana = new Date(Date.UTC(bogotaNow.getFullYear(), bogotaNow.getMonth(), bogotaNow.getDate() + 1, 0, 0, 0, 0));
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+
+      const manana = new Date(hoy);
+      manana.setDate(hoy.getDate() + 1);
 
       const listaChequeoHoy = await prisma.listaChequeo.findFirst({
         where: {

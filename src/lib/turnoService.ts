@@ -16,7 +16,7 @@ export interface HuecoDisponible {
   horaSalida: string | number; // string para turnos ISO, number para programados
   prioridad: 'ROTACION' | 'MISMA_RUTA' | 'CUALQUIERA';
   razon: string;
-  frecuenciaCalculada: number;
+  frecuenciaCalculada: number; 
 }
 
 // Nueva interfaz para huecos almacenados en la base de datos
@@ -2123,8 +2123,9 @@ export class TurnoService {
       fechaHoy
     });
 
-    const inicioDiaActual = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
-    const finDiaActual = new Date(inicioDiaActual.getTime() + 24 * 60 * 60 * 1000);
+    const inicioDiaActual = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 0, 0, 0, 0);
+    inicioDiaActual.setHours(inicioDiaActual.getHours() - 5);
+    const finDiaActual = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() + 1, 0, 0, 0, 0);
 
     console.log('📅 Filtro de fecha en obtenerRutasMovilHoy:', {
       inicioDiaActual: inicioDiaActual.toISOString(),

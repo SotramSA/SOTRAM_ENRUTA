@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { prisma } from '@/src/lib/prisma'
+ 
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,12 +18,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No hay sesión activa' }, { status: 401 })
     }
 
-    // Decodificar la cookie de sesión
     let sessionData
+    const rawValue = sessionCookie.value
     try {
-      sessionData = JSON.parse(decodeURIComponent(sessionCookie.value))
-    } catch (error) {
-      return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 })
+      sessionData = JSON.parse(rawValue)
+    } catch (e1) {
+      try {
+        sessionData = JSON.parse(decodeURIComponent(rawValue))
+      } catch (e2) {
+        return NextResponse.json({ error: 'Sesión inválida' }, { status: 401 })
+      }
     }
 
     // Verificar que la sesión contenga los datos necesarios

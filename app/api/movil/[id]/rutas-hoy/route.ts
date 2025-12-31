@@ -25,13 +25,28 @@ export async function GET(
     }
 
     const turnoService = new TurnoService();
-    const todasLasRutas = await turnoService.obtenerRutasMovilHoy(movilId);
+    const rutasHoy = await turnoService.obtenerRutasMovilHoy(movilId);
+
+    console.log('🔍 API rutas-hoy: Rutas filtradas para hoy:', {
+      movilId,
+      totalRutasOriginales: rutasHoy.length,
+      rutasHoy: rutasHoy.length,
+      rutas: rutasHoy.map(r => ({
+        hora: r.horaSalida,
+        ruta: r.ruta?.nombre,
+        conductor: r.conductor.nombre,
+        estado: r.estado
+      }))
+    });
+
     return NextResponse.json({
       success: true,
-      data: todasLasRutas,
-      total: todasLasRutas.length,
+      data: rutasHoy,
+      total: rutasHoy.length,
       meta: {
-        movilId: movilId.toString()
+        movilId: movilId.toString(),
+        totalOriginal: rutasHoy.length,
+        filtradoHoy: rutasHoy.length
       }
     });
 

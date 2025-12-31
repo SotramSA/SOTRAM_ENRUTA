@@ -44,15 +44,16 @@ export async function GET(request: NextRequest) {
     // Contar automóviles activos (más eficiente que cargar todos)
     const totalAutomoviles = await prisma.automovil.count({ where: { activo: true } });
 
-    // Calcular inicio y fin del día actual sin conversiones
-    const inicioDiaActual = new Date(
-      currentTime.getFullYear(),
-      currentTime.getMonth(),
-      currentTime.getDate()
-    );
-    const finDiaActual = new Date(inicioDiaActual.getTime() + 24 * 60 * 60 * 1000);
+    // Calcular inicio y fin del día en hora local (sin conversiones)
+    const now = new Date();
+    const inicioDiaActual = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    // restar 5 horas
+    inicioDiaActual.setHours(inicioDiaActual.getHours() - 5);
 
-    // Consulta batched: Turnos de hoy (select mínimo)
+    
+    const finDiaActual = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
+
+    // Consulta batched: Turnos de hoy (select mínimo) usando fecha del día
     const turnosHoy = await prisma.turno.findMany({
       where: {
         fecha: {

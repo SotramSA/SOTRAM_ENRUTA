@@ -50,12 +50,18 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
           headers: {
             'Content-Type': 'application/json',
           },
+          credentials: 'same-origin',
           body: JSON.stringify({ permission })
         })
 
         if (response.ok) {
-          const { hasPermission } = await response.json()
-          setIsAuthorized(hasPermission)
+          const contentType = response.headers.get('content-type') || ''
+          if (contentType.includes('application/json')) {
+            const { hasPermission } = await response.json()
+            setIsAuthorized(Boolean(hasPermission))
+          } else {
+            setIsAuthorized(false)
+          }
         } else {
           setIsAuthorized(false)
         }

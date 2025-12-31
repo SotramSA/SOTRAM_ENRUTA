@@ -283,7 +283,7 @@ function TurnosPageContent() {
     if (validacion.documentosVencidos.length > 0) {
       const detalles = validacion.documentosVencidos.map(doc => {
         const fechaVencimiento = doc.fechaVencimiento instanceof Date ? doc.fechaVencimiento : new Date(doc.fechaVencimiento);
-        const fechaTexto = fechaVencimiento.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
+        const fechaTexto = fechaVencimiento.toLocaleDateString('es-ES', { timeZone: 'UTC' });
         return `📄 ${doc.tipo}: Vencido el ${fechaTexto}`;
       });
 
@@ -306,8 +306,8 @@ function TurnosPageContent() {
         validacion.sancionesAutomovil.forEach(sancion => {
           const ini = sancion.fechaInicio instanceof Date ? sancion.fechaInicio : new Date(sancion.fechaInicio);
           const fin = sancion.fechaFin instanceof Date ? sancion.fechaFin : new Date(sancion.fechaFin);
-          const iniTxt = isNaN(ini.getTime()) ? 'N/A' : ini.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
-          const finTxt = isNaN(fin.getTime()) ? 'N/A' : fin.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
+          const iniTxt = isNaN(ini.getTime()) ? 'N/A' : ini.toLocaleDateString('es-ES', { timeZone: 'UTC' });
+          const finTxt = isNaN(fin.getTime()) ? 'N/A' : fin.toLocaleDateString('es-ES', { timeZone: 'UTC' });
           detalles.push(`🚗 Automóvil: ${sancion.motivo} (del ${iniTxt} al ${finTxt})`);
         });
       }
@@ -317,8 +317,8 @@ function TurnosPageContent() {
         validacion.sancionesConductor.forEach(sancion => {
           const ini = sancion.fechaInicio instanceof Date ? sancion.fechaInicio : new Date(sancion.fechaInicio);
           const fin = sancion.fechaFin instanceof Date ? sancion.fechaFin : new Date(sancion.fechaFin);
-          const iniTxt = isNaN(ini.getTime()) ? 'N/A' : ini.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
-          const finTxt = isNaN(fin.getTime()) ? 'N/A' : fin.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
+          const iniTxt = isNaN(ini.getTime()) ? 'N/A' : ini.toLocaleDateString('es-ES', { timeZone: 'UTC' });
+          const finTxt = isNaN(fin.getTime()) ? 'N/A' : fin.toLocaleDateString('es-ES', { timeZone: 'UTC' });
           detalles.push(`👤 Conductor: ${sancion.motivo} (del ${iniTxt} al ${finTxt})`);
         });
       }
@@ -460,22 +460,18 @@ function TurnosPageContent() {
       return;
     }
 
-    const fechaActual = TimeService.getCurrentTime();
-    const { date: bogotaNow } = TimeService.getHoraBogota(fechaActual);
-    const fechaSalidaStr = bogotaNow.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
-    const fechaRegistroStr = bogotaNow.toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Bogota' });
-    const horaRegistroStr = bogotaNow.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' });
+    const fechaActual = new Date();
     const reciboInfo = {
       id: Date.now(), // ID temporal para el recibo
-      fechaSalida: fechaSalidaStr,
+      fechaSalida: fechaActual.toLocaleDateString('es-ES'),
       horaSalida: ruta.hora,
       movil: automovilEncontrado.movil,
       placa: automovilEncontrado.placa,
       ruta: ruta.ruta,
       conductor: conductorEncontrado.nombre,
       despachadoPor: 'Sistema Turnos',
-      registro: `${fechaRegistroStr} ${horaRegistroStr}`,
-      qrData: `SOTRAM-${automovilEncontrado.movil}-${ruta.hora}-${bogotaNow.getTime()}`
+      registro: fechaActual.toLocaleString('es-ES'),
+      qrData: `SOTRAM-${automovilEncontrado.movil}-${ruta.hora}-${fechaActual.getTime()}`
     };
 
     setReciboData(reciboInfo);
@@ -491,24 +487,20 @@ function TurnosPageContent() {
       return;
     }
 
-    const fechaActual = TimeService.getCurrentTime();
-    const { date: bogotaNow2 } = TimeService.getHoraBogota(fechaActual);
-    const fechaSalidaStr2 = bogotaNow2.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
-    const fechaRegistroStr2 = bogotaNow2.toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Bogota' });
-    const horaRegistroStr2 = bogotaNow2.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' });
+    const fechaActual = new Date();
     const horaFormateada = `${String(programado.hora).padStart(2, '0')}:00`;
     
     const reciboInfo = {
       id: Date.now(), // ID temporal para el recibo
-      fechaSalida: fechaSalidaStr2,
+      fechaSalida: fechaActual.toLocaleDateString('es-ES'),
       horaSalida: horaFormateada,
       movil: automovilEncontrado.movil,
       placa: automovilEncontrado.placa,
       ruta: programado.ruta.nombre,
       conductor: conductorEncontrado.nombre,
       despachadoPor: 'Sistema Turnos',
-      registro: `${fechaRegistroStr2} ${horaRegistroStr2}`,
-      qrData: `SOTRAM-${automovilEncontrado.movil}-${horaFormateada}-${bogotaNow2.getTime()}`
+      registro: fechaActual.toLocaleString('es-ES'),
+      qrData: `SOTRAM-${automovilEncontrado.movil}-${horaFormateada}-${fechaActual.getTime()}`
     };
 
     setReciboData(reciboInfo);

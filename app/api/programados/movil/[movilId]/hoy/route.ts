@@ -16,11 +16,13 @@ export async function GET(
     // Configurar el TimeService con los headers de simulación
     TimeService.setFromHeaders(request.headers);
     const ahora = TimeService.getCurrentTime();
-    const fechaHoy = TimeService.formatDateBogota(ahora);
+    const inicioDiaActual = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 0, 0, 0, 0);
+    const finDiaActual = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() + 1, 0, 0, 0, 0);
 
-    console.log('🔍 Buscando programados del móvil para hoy:', {
+    console.log('🔍 Buscando programados del móvil para hoy (local):', {
       movilId,
-      fechaHoy
+      inicioDiaActual: inicioDiaActual.toISOString(),
+      finDiaActual: finDiaActual.toISOString()
     });
 
     // Buscar el automóvil por número de móvil
@@ -32,11 +34,15 @@ export async function GET(
       return NextResponse.json({ error: 'Móvil no encontrado' }, { status: 404 });
     }
 
-    // Obtener programados del móvil para hoy
+    // Obtener programados del móvil para hoy (filtrado en BD por fecha local)
     const programados = await prismaWithRetry.executeWithRetry(async () => {
       return await prismaWithRetry.programacion.findMany({
         where: {
-          automovilId: automovil.id
+          automovilId: automovil.id,
+          fecha: {
+            gte: inicioDiaActual,
+            lt: finDiaActual
+          }
         },
         include: {
           automovil: {
@@ -57,18 +63,16 @@ export async function GET(
       });
     });
 
-    // Filtrar por fecha de hoy usando fecha en zona de Bogotá
-    const programadosHoy = programados.filter(prog => {
-      const fechaProgramado = TimeService.formatDateBogota(
-        prog.fecha instanceof Date ? prog.fecha : new Date(prog.fecha)
-      );
-      return fechaProgramado === fechaHoy;
-    });
+    // Ya están filtrados por fecha en la consulta
+    const programadosHoy = programados;
 
     console.log('📊 Programados del móvil encontrados:', {
       total: programados.length,
       hoy: programadosHoy.length,
-      fechaHoy,
+      rangoLocal: {
+        inicio: inicioDiaActual.toISOString(),
+        fin: finDiaActual.toISOString()
+      },
       movil: automovil.movil
     });
 
@@ -103,6 +107,8 @@ export async function GET(
       };
     });
 
+    const fechaLocal = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
+
     return NextResponse.json({
       success: true,
       programados: programadosProcesados,
@@ -110,7 +116,7 @@ export async function GET(
         total: programadosProcesados.length,
         futuros: programadosProcesados.filter(p => p.estaEnFuturo).length,
         pasados: programadosProcesados.filter(p => !p.estaEnFuturo).length,
-        fechaHoy
+        fechaLocal
       },
       debug: TimeService.getDebugInfo()
     });
