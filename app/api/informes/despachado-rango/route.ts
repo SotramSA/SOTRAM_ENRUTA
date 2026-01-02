@@ -50,6 +50,10 @@ export async function POST(request: NextRequest) {
     const [yearFin, monthFin, dayFin] = fechaFin.split('-').map(Number)
     const fechaFinExclusivo = new Date(yearFin, monthFin - 1, dayFin + 1, 0, 0, 0, 0)
 
+    // Ajustar a UTC-5
+    fechaInicioDate.setUTCHours(fechaInicioDate.getUTCHours() - 5)
+    fechaFinExclusivo.setUTCHours(fechaFinExclusivo.getUTCHours() - 5)
+
     console.log("Inicio local:", fechaInicioDate)
     console.log("Fin local:", fechaFinExclusivo)
 

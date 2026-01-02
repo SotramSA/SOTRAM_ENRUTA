@@ -41,6 +41,8 @@ export async function POST(request: NextRequest) {
     console.log('Fecha recibida:', fecha)
     console.log('Fecha inicio (ISO/UTC):', fechaInicio.toISOString())
     console.log('Fecha fin exclusiva (ISO/UTC):', fechaFinExclusivo.toISOString())
+    console.log(fechaInicio)
+    console.log(fechaFinExclusivo)
 
     // Obtener todos los turnos de la fecha especificada (mismo criterio que Programacion)
     let turnos = await prismaWithRetry.executeWithRetry(async () => {
@@ -86,22 +88,18 @@ export async function POST(request: NextRequest) {
 
     // Se elimina el fallback amplio para asegurar que los turnos sean estrictamente del día solicitado
 
-    console.log(`Buscando turnos y programaciones para fecha: ${fecha}`)
-    console.log(`Fecha inicio: ${fechaInicio.toISOString()}`)
-    console.log(`Fecha fin exclusiva: ${fechaFinExclusivo.toISOString()}`)
-    console.log(`Turnos encontrados: ${turnos.length}`)
-    console.log(`Programaciones encontradas: ${turnosProgramados.length}`)
+
     
     // Mostrar información de los turnos encontrados para depuración
     if (turnos.length > 0) {
-      console.log('Turnos encontrados:')
+    
       turnos.forEach((turno, index) => {
         console.log(`${index + 1}. ID: ${turno.id}, Fecha: ${turno.fecha}, HoraCreacion: ${turno.horaCreacion}, Conductor: ${turno.conductor.nombre}`)
       })
     }
 
     if (turnosProgramados.length > 0) {
-      console.log('Programaciones encontradas:')
+   
       turnosProgramados.forEach((programado, index) => {
         console.log(`${index + 1}. ID: ${programado.id}, Fecha: ${programado.fecha}, Hora: "${programado.hora}" (tipo: ${typeof programado.hora}), Ruta: ${programado.ruta?.nombre || 'N/A'}, Móvil: ${programado.automovil?.movil || 'N/A'}`)
       })
