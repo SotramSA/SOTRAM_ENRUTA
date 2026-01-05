@@ -91,7 +91,6 @@ async function main() {
           tarjetaOperacion: getRandomDate(),
           licenciaTransito: getRandomDate(),
           extintor: getRandomDate(),
-          revisionPreventiva: Math.random() > 0.5,
         },
       });
     } else {

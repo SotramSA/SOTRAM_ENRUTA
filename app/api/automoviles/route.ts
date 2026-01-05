@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
           tarjetaOperacion: tarjetaOperacion ? new Date(tarjetaOperacion) : null,
           licenciaTransito: licenciaTransito ? new Date(licenciaTransito) : null,
           extintor: extintor ? new Date(extintor) : null,
-          revisionPreventiva: revisionPreventiva !== undefined ? Boolean(revisionPreventiva) : false,
+          revisionPreventiva: revisionPreventiva !== undefined ? !!revisionPreventiva : false,
         }
       });
 

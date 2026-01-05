@@ -10,7 +10,7 @@ interface Automovil {
   movil: string;
   placa: string;
   enRevision: boolean;
-  revisionPreventiva: boolean;
+  revisionPreventiva?: boolean;
 }
 
 interface Inspeccion {

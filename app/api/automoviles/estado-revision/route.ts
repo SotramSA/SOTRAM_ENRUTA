@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (revisionPreventiva !== null) {
-      whereClause.revisionPreventiva = revisionPreventiva === 'true';
+     whereClause.revisionPreventiva = revisionPreventiva === 'true';
     }
 
     const automoviles = await prisma.automovil.findMany({

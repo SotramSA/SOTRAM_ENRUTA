@@ -242,11 +242,8 @@ function TurnosPageContent() {
     }
   };
 
-  // Función para generar mensaje de validación
   const generarMensajeValidacion = () => {
     if (!validacion) return null;
-
-    // Si no tiene planilla, mostrar error
     if (!validacion.tienePlanilla) {
       return (
         <ValidationMessage
@@ -256,8 +253,6 @@ function TurnosPageContent() {
         />
       );
     }
-
-    // Si no tiene lista de chequeo, mostrar error
     if (!validacion.tieneListaChequeo) {
       return (
         <ValidationMessage
@@ -267,8 +262,6 @@ function TurnosPageContent() {
         />
       );
     }
-
-    // Si la licencia de conducción está vencida, mostrar error
     if (validacion.licenciaConduccionVencida) {
       return (
         <ValidationMessage
@@ -278,15 +271,12 @@ function TurnosPageContent() {
         />
       );
     }
-
-    // Si tiene documentos vencidos, mostrar error
     if (validacion.documentosVencidos.length > 0) {
       const detalles = validacion.documentosVencidos.map(doc => {
         const fechaVencimiento = doc.fechaVencimiento instanceof Date ? doc.fechaVencimiento : new Date(doc.fechaVencimiento);
         const fechaTexto = fechaVencimiento.toLocaleDateString('es-ES', { timeZone: 'UTC' });
         return `📄 ${doc.tipo}: Vencido el ${fechaTexto}`;
       });
-
       return (
         <ValidationMessage
           type="error"
@@ -296,12 +286,8 @@ function TurnosPageContent() {
         />
       );
     }
-
-    // Si tiene sanciones, mostrar error
     if (validacion.tieneSanciones) {
       const detalles: string[] = [];
-
-      // Agregar detalles de sanciones del automóvil
       if (validacion.sancionesAutomovil.length > 0) {
         validacion.sancionesAutomovil.forEach(sancion => {
           const ini = sancion.fechaInicio instanceof Date ? sancion.fechaInicio : new Date(sancion.fechaInicio);
@@ -311,8 +297,6 @@ function TurnosPageContent() {
           detalles.push(`🚗 Automóvil: ${sancion.motivo} (del ${iniTxt} al ${finTxt})`);
         });
       }
-
-      // Agregar detalles de sanciones del conductor
       if (validacion.sancionesConductor.length > 0) {
         validacion.sancionesConductor.forEach(sancion => {
           const ini = sancion.fechaInicio instanceof Date ? sancion.fechaInicio : new Date(sancion.fechaInicio);
@@ -322,7 +306,6 @@ function TurnosPageContent() {
           detalles.push(`👤 Conductor: ${sancion.motivo} (del ${iniTxt} al ${finTxt})`);
         });
       }
-
       return (
         <ValidationMessage
           type="error"
@@ -332,8 +315,6 @@ function TurnosPageContent() {
         />
       );
     }
-
-    // Si el automóvil está en revisión, mostrar error
     if (validacion.enRevision) {
       return (
         <ValidationMessage
@@ -343,8 +324,6 @@ function TurnosPageContent() {
         />
       );
     }
-
-    // Si todas las validaciones pasan, mostrar mensaje de éxito
     return (
       <ValidationMessage
         type="info"

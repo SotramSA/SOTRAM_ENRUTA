@@ -18,7 +18,7 @@ interface Automovil {
   tarjetaOperacion?: string | null
   licenciaTransito?: string | null
   extintor?: string | null
-  revisionPreventiva?: string | null
+  revisionPreventiva?: boolean | null
   automovilPropietario: {
     id: number
     propietario: {
@@ -56,7 +56,6 @@ interface FormData {
   tarjetaOperacion?: string
   licenciaTransito?: string
   extintor?: string
-  revisionPreventiva?: string
 }
 
 interface Propietario {
@@ -94,8 +93,7 @@ export default function AutomovilManager() {
     revisionTecnomecanica: '', 
     tarjetaOperacion: '', 
     licenciaTransito: '', 
-    extintor: '', 
-    revisionPreventiva: '' 
+    extintor: '' 
   })
   const [editId, setEditId] = useState<number | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -173,8 +171,7 @@ export default function AutomovilManager() {
       revisionTecnomecanica: '',
       tarjetaOperacion: '',
       licenciaTransito: '',
-      extintor: '',
-      revisionPreventiva: ''
+      extintor: ''
     })
     setIsModalOpen(true)
   }
@@ -195,8 +192,7 @@ export default function AutomovilManager() {
       revisionTecnomecanica: '',
       tarjetaOperacion: '',
       licenciaTransito: '',
-      extintor: '',
-      revisionPreventiva: ''
+      extintor: ''
     })
   }
 
@@ -255,7 +251,6 @@ export default function AutomovilManager() {
       tarjetaOperacion: automovil.tarjetaOperacion ? new Date(automovil.tarjetaOperacion).toISOString().slice(0, 10) : '',
       licenciaTransito: automovil.licenciaTransito ? new Date(automovil.licenciaTransito).toISOString().slice(0, 10) : '',
       extintor: automovil.extintor ? new Date(automovil.extintor).toISOString().slice(0, 10) : '',
-      revisionPreventiva: automovil.revisionPreventiva ? new Date(automovil.revisionPreventiva).toISOString().slice(0, 10) : '',
     })
     setIsModalOpen(true)
   }
@@ -266,13 +261,18 @@ export default function AutomovilManager() {
     
     try {
       const payload = {
-        ...form,
+        movil: form.movil,
+        placa: form.placa,
+        activo: form.activo,
+        disponible: form.disponible,
+        colectivo: form.colectivo,
+        propietarios: form.propietarios,
+        conductores: form.conductores,
         soat: form.soat ? form.soat : null,
         revisionTecnomecanica: form.revisionTecnomecanica ? form.revisionTecnomecanica : null,
         tarjetaOperacion: form.tarjetaOperacion ? form.tarjetaOperacion : null,
         licenciaTransito: form.licenciaTransito ? form.licenciaTransito : null,
         extintor: form.extintor ? form.extintor : null,
-        revisionPreventiva: form.revisionPreventiva ? form.revisionPreventiva : null,
       }
       if (editId) {
         await axios.put(`/api/automoviles/${editId}`, payload)
@@ -294,8 +294,7 @@ export default function AutomovilManager() {
         revisionTecnomecanica: '', 
         tarjetaOperacion: '', 
         licenciaTransito: '', 
-        extintor: '', 
-        revisionPreventiva: '' 
+        extintor: '' 
       })
       setEditId(null)
       setIsModalOpen(false)
@@ -788,13 +787,7 @@ export default function AutomovilManager() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Revisión Preventiva</label>
-                        <input
-                          type="date"
-                          value={form.revisionPreventiva || ''}
-                          onChange={(e) => setForm({ ...form, revisionPreventiva: e.target.value })}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
+                        {/* Campo de revisión preventiva removido: ahora se maneja como boolean en backoffice */}
                       </div>
 
                     </div>
@@ -1003,13 +996,7 @@ export default function AutomovilManager() {
                         })() : 'No registrado'}
                       </span></p>
                       <p><span className="font-medium text-gray-700">Revisión Preventiva:</span> <span className="text-gray-900">
-                        {viewItem.revisionPreventiva ? (() => {
-                          try {
-                            return new Date(viewItem.revisionPreventiva).toLocaleDateString('es-ES')
-                          } catch {
-                            return 'Fecha inválida'
-                          }
-                        })() : 'No registrada'}
+                        {viewItem.revisionPreventiva ? 'Sí' : 'No'}
                       </span></p>
 
                     </div>

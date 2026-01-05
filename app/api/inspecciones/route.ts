@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
         where: { id: parseInt(automovilId) },
         data: {
           enRevision: false,
-          revisionPreventiva: true
+          revisionPreventiva:true
         }
       });
     } else {
