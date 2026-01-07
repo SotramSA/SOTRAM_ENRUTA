@@ -15,10 +15,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Validar fechas
-    const inicio = new Date(fechaInicio);
-    const fin = new Date(fechaFin);
+    const [startY, startM, startD] = fechaInicio.split('-').map(Number);
+    const [endY, endM, endD] = fechaFin.split('-').map(Number);
+    const inicio = new Date(Date.UTC(startY, startM - 1, startD, 0, 0, 0, 0));
+    const finExclusive = new Date(Date.UTC(endY, endM - 1, endD + 1, 0, 0, 0, 0));
     
-    if (inicio > fin) {
+    if (inicio > finExclusive) {
       return NextResponse.json(
         { error: 'La fecha de inicio debe ser anterior a la fecha de fin' },
         { status: 400 }
@@ -47,7 +49,7 @@ export async function POST(request: NextRequest) {
       where: {
         fecha: {
           gte: inicio,
-          lte: fin
+          lt: finExclusive
         },
         automovil: {
           activo: true
@@ -81,9 +83,9 @@ export async function POST(request: NextRequest) {
     const fechas: string[] = [];
     const fechaActual = new Date(inicio);
     
-    while (fechaActual <= fin) {
+    while (fechaActual < finExclusive) {
       fechas.push(fechaActual.toISOString().slice(0, 10));
-      fechaActual.setDate(fechaActual.getDate() + 1);
+      fechaActual.setUTCDate(fechaActual.getUTCDate() + 1);
     }
 
     // Crear workbook con ExcelJS
