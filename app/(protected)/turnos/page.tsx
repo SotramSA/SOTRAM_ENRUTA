@@ -227,9 +227,7 @@ function TurnosPageContent() {
         
         await cargarRutasDelDia(automovilSeleccionado); // Pasar el número de móvil
         await cargarProgramadosDelDia(automovilSeleccionado); // Pasar el número de móvil
-        console.log()
-        console.log(TimeService.getSimulationHeaders());
-        console.log(TimeService);
+        
       
       }
       

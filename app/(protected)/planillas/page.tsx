@@ -210,12 +210,10 @@ const getFechaHoy = () => {
       const año = currentDate.getFullYear()
       const mes = currentDate.getMonth() + 1
 
-      console.log(`🔍 Consultando planillas para automóvil ${automovilSeleccionado.id}, año ${año}, mes ${mes}`)
       
       const res = await axios.get(`/api/planillas?automovilId=${automovilSeleccionado.id}&año=${año}&mes=${mes}`)
       
-      console.log('📡 Respuesta completa de API planillas:', res.data)
-      console.log('📦 Planillas extraídas:', res.data.planillas)
+
       
       return res.data.planillas || []
     } catch (error) {
@@ -249,14 +247,13 @@ const getFechaHoy = () => {
 
       // Luego cargar planillas
       const planillas = await fetchPlanillas()
-      console.log('📅 Planillas recibidas de API:', planillas)
+   
       setPlanillasExistentes(planillas)
-      console.log('📅 Planillas cargadas:', planillas.length)
-      console.log('📅 Fechas de planillas:', planillas.map((p: Planilla) => p.fecha))
+     
 
       // Finalmente generar las fechas con ambos datos
       generarFechasMes(currentDate, planillas, sanciones)
-      console.log('🎯 Fechas del mes generadas')
+      
     } catch (error) {
       console.error('Error al cargar datos completos:', error)
     } finally {

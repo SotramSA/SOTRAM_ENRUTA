@@ -11,18 +11,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Se requieren fechaInicio y fechaFin' }, { status: 400 });
     }
 
-    // Convertir fechas a zona horaria local (Colombia)
-    const inicio = new Date(fechaInicio + 'T00:00:00-05:00');
-    const fin = new Date(fechaFin + 'T23:59:59-05:00');
+console.log('Fechas recibidas:', fechaInicio, fechaFin);
+    // Usar fechas tal como están, sin conversión de zona horaria
+    const inicio = new Date(fechaInicio);
+    const fin = new Date(fechaFin + 'T23:59:59');
 
-    // 1. Horarios con más demanda de rutas (24 horas) - Convertir a hora colombiana
+    console.log('Fechas sin conversión:', inicio, fin);
+
+// 1. Horarios con más demanda de rutas (24 horas) - Sin conversión de zona horaria
     const demandaPorHora = await prisma.$queryRaw`
       SELECT 
-        EXTRACT(HOUR FROM ("horaSalida" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Bogota')) as hora,
+        EXTRACT(HOUR FROM "horaSalida") as hora,
         COUNT(*) as cantidad
       FROM "Turno" 
       WHERE "horaSalida" >= ${inicio} AND "horaSalida" <= ${fin}
-      GROUP BY EXTRACT(HOUR FROM ("horaSalida" AT TIME ZONE 'UTC' AT TIME ZONE 'America/Bogota'))
+      GROUP BY EXTRACT(HOUR FROM "horaSalida")
       ORDER BY hora
     `;
 
@@ -84,7 +87,7 @@ export async function GET(request: NextRequest) {
 
 
 
-    // 5. Balance entre rutas con prioridad 1 (A y B)
+// 5. Balance entre rutas con prioridad 1 (A y B)
     const balanceRutas = await prisma.$queryRaw`
       SELECT 
         r.nombre,
@@ -98,7 +101,51 @@ export async function GET(request: NextRequest) {
       ORDER BY r.nombre
     `;
 
+    // 5.1. Balance de todas las rutas (conteo general)
+    const balanceTodasRutas = await prisma.$queryRaw`
+      SELECT 
+        r.nombre,
+        COUNT(t.id) as cantidadTurnos
+      FROM "Ruta" r
+      INNER JOIN "Turno" t ON r.id = t."rutaId" 
+        AND t."horaSalida" >= ${inicio} 
+        AND t."horaSalida" <= ${fin}
+      GROUP BY r.id, r.nombre
+      ORDER BY cantidadTurnos DESC
+    `;
 
+// 5.2. Balance de rutas por usuario que despachó
+    const balanceRutasPorUsuario = await prisma.$queryRaw`
+      SELECT 
+        u.nombre as "usuarioNombre",
+        u.usuario as "usuarioId",
+        r.nombre as "rutaNombre",
+        COUNT(t.id) as "cantidadTurnos"
+      FROM "Usuario" u
+      INNER JOIN "Turno" t ON u.id = t."usuarioId"
+      INNER JOIN "Ruta" r ON r.id = t."rutaId"
+      WHERE t."horaSalida" >= ${inicio} 
+        AND t."horaSalida" <= ${fin}
+      GROUP BY u.id, u.nombre, u.usuario, r.id, r.nombre
+      ORDER BY u.nombre, "cantidadTurnos" DESC
+    `;
+
+    console.log('Balance rutas por usuario raw:', balanceRutasPorUsuario);
+
+    // Agrupar datos por usuario para el frontend
+    const balanceRutasPorUsuarioAgrupado: { [key: string]: Array<{ rutaNombre: string; cantidadTurnos: number }> } = {};
+    (balanceRutasPorUsuario as any[]).forEach(item => {
+      const usuarioKey = item.usuarioNombre || item.usuario_nombre || 'Usuario desconocido';
+      if (!balanceRutasPorUsuarioAgrupado[usuarioKey]) {
+        balanceRutasPorUsuarioAgrupado[usuarioKey] = [];
+      }
+      balanceRutasPorUsuarioAgrupado[usuarioKey].push({
+        rutaNombre: item.rutaNombre || item.ruta_nombre || 'Sin nombre',
+        cantidadTurnos: Number(item.cantidadTurnos || item.cantidadturnos || 0)
+      });
+    });
+
+console.log('Balance rutas por usuario agrupado:', balanceRutasPorUsuarioAgrupado);
 
     // 6. Métricas generales
     const metricasGenerales = await prisma.$queryRaw`
@@ -109,12 +156,6 @@ export async function GET(request: NextRequest) {
       FROM "Turno" 
       WHERE "horaSalida" >= ${inicio} AND "horaSalida" <= ${fin}
     `;
-
-
-
-
-
-
 
     // Convertir todos los BigInt a Number de manera segura
     const tiempoPromedioNum = Number((tiempoPromedio as any[])[0]?.tiempopromediominutos || 0);
@@ -138,18 +179,25 @@ export async function GET(request: NextRequest) {
       cantidadTurnos: Number(item.cantidadturnos || 0)
     }));
 
+    const balanceTodasRutasConvertido = (balanceTodasRutas as any[]).map(item => ({
+      nombre: item.nombre,
+      cantidadTurnos: Number(item.cantidadturnos || 0)
+    }));
+
     const metricasGeneralesConvertidas = {
       totalTurnos: Number((metricasGenerales as any[])[0]?.totalturnos || 0),
       turnosNoCompletados: Number((metricasGenerales as any[])[0]?.turnosnocompletados || 0),
       turnosCompletados: Number((metricasGenerales as any[])[0]?.turnoscompletados || 0)
     };
 
-    const response = {
+const response = {
       demandaPorHora: demandaCompleta,
       tiempoPromedioMinutos: tiempoPromedioNum,
       automovilesActivos: automovilesActivosConvertidos,
       conductoresActivos: conductoresActivosConvertidos,
       balanceRutas: balanceRutasConvertido,
+      balanceTodasRutas: balanceTodasRutasConvertido,
+      balanceRutasPorUsuario: balanceRutasPorUsuarioAgrupado,
       metricasGenerales: metricasGeneralesConvertidas,
       fechaInicio: fechaInicio,
       fechaFin: fechaFin
@@ -169,12 +217,14 @@ export async function GET(request: NextRequest) {
         const fechaFin = searchParams.get('fechaFin') || '';
 
         const demandaCompleta = Array.from({ length: 24 }, (_, i) => ({ hora: i, cantidad: 0 }));
-        const response = {
+const response = {
           demandaPorHora: demandaCompleta,
           tiempoPromedioMinutos: 0,
           automovilesActivos: [],
           conductoresActivos: [],
           balanceRutas: [],
+          balanceTodasRutas: [],
+          balanceRutasPorUsuario: {},
           metricasGenerales: {
             totalTurnos: 0,
             turnosNoCompletados: 0,

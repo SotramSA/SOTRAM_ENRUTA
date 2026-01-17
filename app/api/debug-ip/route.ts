@@ -26,12 +26,7 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Log para debugging
-    console.log('🔍 DEBUG IP - Información completa:');
-    console.log('- IP Detectada:', detectedIP);
-    console.log('- IP Autorizada:', authorizedIP);
-    console.log('- ¿Autorizada?:', isAuthorized);
-    console.log('- Headers relevantes:', relevantHeaders);
+  
 
     return NextResponse.json({
       detectedIP,

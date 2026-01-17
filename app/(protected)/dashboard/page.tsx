@@ -51,6 +51,16 @@ interface DashboardData {
     nombre: string
     cantidadTurnos: number
   }>
+  balanceTodasRutas: Array<{
+    nombre: string
+    cantidadTurnos: number
+  }>
+  balanceRutasPorUsuario: {
+    [usuarioNombre: string]: Array<{
+      rutaNombre: string
+      cantidadTurnos: number
+    }>
+  }
   metricasGenerales: {
     totalTurnos: number
     turnosNoCompletados: number
@@ -111,7 +121,7 @@ export default function DashboardPage() {
     return `${horas}h ${mins}m`
   }
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8']
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8']
 
   if (loading) {
     return (
@@ -120,11 +130,11 @@ export default function DashboardPage() {
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
             <p className="text-gray-600">Cargando dashboard...</p>
-          </div>
-        </div>
-      </RouteGuard>
-    )
-  }
+</div>
+      </div>
+    </RouteGuard>
+  )
+}
 
   return (
     <RouteGuard requiredPermission="tablaInformes">
@@ -231,7 +241,7 @@ export default function DashboardPage() {
 
               {/* Gráficos */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                {/* 1. Horarios con más demanda */}
+{/* 1. Horarios con más demanda */}
                 <Card className="bg-white rounded-lg shadow-sm border border-gray-200">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -365,7 +375,7 @@ export default function DashboardPage() {
                 </Card>
               </div>
 
-              {/* 5. Balance entre rutas A y B */}
+{/* 5. Balance entre rutas A y B */}
               <Card className="bg-white rounded-lg shadow-sm border border-gray-200">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -377,41 +387,43 @@ export default function DashboardPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <ResponsiveContainer width="100%" height={300}>
-                      <PieChart>
-                        <Pie
-                          data={data.balanceRutas}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ nombre, cantidadTurnos }) => `${nombre}: ${cantidadTurnos}`}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="cantidadTurnos"
-                        >
-                          {data.balanceRutas.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={(value) => [`${value} turnos`, 'Cantidad']} />
-                      </PieChart>
-                    </ResponsiveContainer>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                    <div className="min-h-[350px]">
+                      <ResponsiveContainer width="100%" height={350}>
+                        <PieChart>
+                          <Pie
+                            data={data.balanceRutas}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ nombre, cantidadTurnos }) => `${nombre}: ${cantidadTurnos}`}
+                            outerRadius={100}
+                            fill="#8884d8"
+                            dataKey="cantidadTurnos"
+                          >
+                            {data.balanceRutas.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value) => [`${value} turnos`, 'Cantidad']} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
                     
                     <div className="flex flex-col justify-center space-y-4">
                       {data.balanceRutas.map((ruta, index) => (
                         <div key={ruta.nombre} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
                             <div 
-                              className="w-4 h-4 rounded-full"
+                              className="w-5 h-5 rounded-full flex-shrink-0"
                               style={{ backgroundColor: COLORS[index % COLORS.length] }}
                             />
-                            <div>
-                              <p className="font-medium text-gray-900">Ruta {ruta.nombre}</p>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-900 truncate">Ruta {ruta.nombre}</p>
                               <p className="text-sm text-gray-600">Prioridad 1</p>
                             </div>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right flex-shrink-0 ml-4">
                             <p className="text-2xl font-bold" style={{ color: COLORS[index % COLORS.length] }}>
                               {ruta.cantidadTurnos}
                             </p>
@@ -423,6 +435,149 @@ export default function DashboardPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* 6. Balance de todas las rutas */}
+              <Card className="bg-white rounded-lg shadow-sm border border-gray-200 mt-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="w-5 h-5" />
+                    Balance de Todas las Rutas
+                  </CardTitle>
+                  <CardDescription>
+                    Distribución de turnos entre todas las rutas del sistema
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                    <div className="min-h-[400px]">
+                      <ResponsiveContainer width="100%" height={400}>
+                        <BarChart data={data.balanceTodasRutas.slice(0, 10)} margin={{ top: 20, right: 30, left: 20, bottom: 100 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis 
+                            dataKey="nombre" 
+                            angle={-45}
+                            textAnchor="end"
+                            height={100}
+                            interval={0}
+                            label={{ value: 'Rutas', position: 'insideBottom', offset: -80 }}
+                          />
+                          <YAxis label={{ value: 'Turnos', angle: -90, position: 'insideLeft' }} />
+                          <Tooltip 
+                            formatter={(value) => [`${value} turnos`, 'Cantidad']}
+                          />
+                          <Bar dataKey="cantidadTurnos" fill="#10B981" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                    
+                    <div className="flex flex-col space-y-3">
+                      <div className="max-h-[400px] overflow-y-auto pr-2">
+                        {data.balanceTodasRutas.map((ruta, index) => (
+                          <div key={ruta.nombre} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg mb-3">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 ${
+                                index === 0 ? 'bg-yellow-500' : 
+                                index === 1 ? 'bg-gray-400' : 
+                                index === 2 ? 'bg-orange-500' : 'bg-green-500'
+                              }`}>
+                                {index + 1}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-gray-900 truncate">Ruta {ruta.nombre}</p>
+                                <p className="text-sm text-gray-600">Todas las rutas</p>
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0 ml-4">
+                              <p className="text-2xl font-bold text-green-600">
+                                {ruta.cantidadTurnos}
+                              </p>
+                              <p className="text-xs text-gray-500">turnos</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 7. Balance de rutas por usuario */}
+              {data.balanceRutasPorUsuario && Object.keys(data.balanceRutasPorUsuario).length > 0 && (
+                <Card className="bg-white rounded-lg shadow-sm border border-gray-200 mt-6">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="w-5 h-5" />
+                      Balance de Rutas por Usuario
+                    </CardTitle>
+                    <CardDescription>
+                      Distribución de rutas despachadas por cada usuario en el período seleccionado
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+                      {Object.entries(data.balanceRutasPorUsuario).map(([usuarioNombre, rutas]) => (
+                        <div key={usuarioNombre} className="bg-white border border-gray-200 rounded-lg p-6">
+                          <div className="mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-1">{usuarioNombre}</h3>
+                            <p className="text-sm text-gray-600">
+                              {rutas.reduce((total, ruta) => total + (ruta.cantidadTurnos || 0), 0)} turnos despachados
+                            </p>
+                          </div>
+                          
+                          <div className="min-h-[250px]">
+                            <ResponsiveContainer width="100%" height={250}>
+                              <BarChart 
+                                data={rutas}
+                                margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                              >
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis 
+                                  dataKey="rutaNombre" 
+                                  angle={-45}
+                                  textAnchor="end"
+                                  height={80}
+                                  interval={0}
+                                  tick={{ fontSize: 12 }}
+                                />
+                                <YAxis tick={{ fontSize: 12 }} />
+                                <Tooltip 
+                                  formatter={(value) => [`${value} turnos`, 'Cantidad']}
+                                  labelFormatter={(label) => `Ruta: ${label}`}
+                                />
+                                <Bar 
+                                  dataKey="cantidadTurnos" 
+                                  fill="#3B82F6" 
+                                  radius={[4, 4, 0, 0]}
+                                />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                          
+                          <div className="mt-4 space-y-2 max-h-40 overflow-y-auto">
+                            {[...rutas]
+                              .sort((a, b) => (b.cantidadTurnos || 0) - (a.cantidadTurnos || 0))
+                              .map((ruta, index) => (
+                              <div key={`${usuarioNombre}-ruta-${ruta.rutaNombre || index}`} className="flex items-center justify-between text-sm">
+                                <div className="flex items-center gap-2">
+                                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 ${
+                                    index === 0 ? 'bg-yellow-500' : 
+                                    index === 1 ? 'bg-gray-400' : 
+                                    index === 2 ? 'bg-orange-500' : 'bg-blue-500'
+                                  }`}>
+                                    {index + 1}
+                                  </div>
+                                  <span className="text-gray-700 truncate">{ruta.rutaNombre || 'Sin nombre'}</span>
+                                </div>
+                                <span className="font-medium text-gray-900">{ruta.cantidadTurnos || 0}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </>
           )}
         </div>
