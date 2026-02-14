@@ -56,57 +56,58 @@ export default function ReciboImpresion({ data, onPrint }: ReciboImpresionProps)
                   }
                   body {
                     margin: 0;
-                    padding: 8px;
+                    padding: 25px; /* Aumentado de 15px */
                     font-family: 'Arial', sans-serif;
-                    font-size: 14px;
-                    line-height: 1.3;
+                    font-size: 11px; /* Reducido de 12px para compensar el margen */
+                    line-height: 1.2;
                   }
                 }
                 body {
                   margin: 0;
-                  padding: 8px;
+                  padding: 25px; /* Aumentado de 15px */
                   font-family: 'Arial', sans-serif;
-                  font-size: 14px;
-                  line-height: 1.3;
+                  font-size: 11px; /* Reducido de 12px */
+                  line-height: 1.2;
                   width: 80mm;
                   max-width: 80mm;
+                  box-sizing: border-box; /* Asegura que el padding no aumente el ancho total */
                 }
                 .header {
                   text-align: center;
-                  margin-bottom: 12px;
+                  margin-bottom: 8px;
                 }
                 .logo {
-                  width: 70px;
-                  height: 70px;
-                  margin: 0 auto 8px;
+                  width: 60px; /* Reducido de 70px */
+                  height: 60px;
+                  margin: 0 auto 5px;
                   display: block;
                 }
                 .company-name {
-                  font-size: 18px;
+                  font-size: 16px; /* Reducido de 18px */
                   font-weight: bold;
-                  margin-bottom: 8px;
+                  margin-bottom: 5px;
                 }
                 .title {
-                  font-size: 18px;
+                  font-size: 16px; /* Reducido de 18px */
                   font-weight: bold;
                   text-align: center;
-                  margin: 12px 0;
+                  margin: 10px 0;
                   border-bottom: 2px solid #000;
-                  padding-bottom: 6px;
+                  padding-bottom: 5px;
                 }
                 .info-row {
                   display: flex;
                   justify-content: space-between;
-                  margin: 5px 0;
-                  padding: 2px;
+                  margin: 3px 0;
+                  padding: 1px;
                 }
                 .label {
                   font-weight: bold;
-                  font-size: 15px;
+                  font-size: 13px; /* Reducido de 15px */
                 }
                 .value {
                   text-align: right;
-                  font-size: 15px;
+                  font-size: 13px; /* Reducido de 15px */
                 }
                 .qr-section {
                   text-align: center;
@@ -129,20 +130,20 @@ export default function ReciboImpresion({ data, onPrint }: ReciboImpresionProps)
                   margin: 5px 0;
                 }
                 .ruta-destacada {
-                  font-size: 24px;
-                  font-weight: bold;
-                  text-align: center;
-                  margin: 10px 0;
-                  padding: 8px;
-                  background-color: #f0f0f0;
-                  border: 2px solid #000;
-                }
-                .hora-salida {
-                  font-size: 20px;
+                  font-size: 20px; /* Reducido de 24px */
                   font-weight: bold;
                   text-align: center;
                   margin: 8px 0;
                   padding: 6px;
+                  background-color: #f0f0f0;
+                  border: 2px solid #000;
+                }
+                .hora-salida {
+                  font-size: 18px; /* Reducido de 20px */
+                  font-weight: bold;
+                  text-align: center;
+                  margin: 6px 0;
+                  padding: 5px;
                 }
               </style>
             </head>
@@ -200,14 +201,14 @@ export default function ReciboImpresion({ data, onPrint }: ReciboImpresionProps)
               </div>
               
               <div class="footer">
-               SOTRAM S.A
+               SOTRAM S.A prueba xd
               </div>
             </body>
           </html>
         `);
-        
+
         printWindow.document.close();
-        
+
         // Generar QR en la ventana de impresión
         setTimeout(() => {
           const qrCanvas = printWindow.document.getElementById('qr-code') as HTMLCanvasElement;
@@ -232,72 +233,73 @@ export default function ReciboImpresion({ data, onPrint }: ReciboImpresionProps)
 
   return (
     <div className="hidden">
-             <div ref={printRef} className="print-only">
-         <div className="header">
-           <img src="/logo png.png" alt="Logo" className="logo" />
-           <div className="company-name">SOTRAM S.A</div>
-         </div>
-        
+      <div ref={printRef} className="print-only">
+        <div className="header">
+          <img src="/logo png.png" alt="Logo" className="logo" />
+          <div className="company-name">SOTRAM S.A</div>
+        </div>
+
         <div className="title">PLANILLA DE VIAJE No. {data.id}</div>
-        
+
         <div className="info-row">
           <span className="label">Hora de salida:</span>
           <span className="value">{data.horaSalida}</span>
         </div>
-        
+
         <div className="divider"></div>
-        
+
         <div className="info-row">
           <span className="label">Móvil:</span>
           <span className="value">{data.movil}</span>
         </div>
-        
+
         <div className="info-row">
           <span className="label">Placa:</span>
           <span className="value">{data.placa}</span>
         </div>
-        
+
         <div className="info-row">
           <span className="label">Ruta:</span>
           <span className="value">{data.ruta}</span>
         </div>
-        
+
         <div className="divider"></div>
-        
+
         <div className="info-row">
           <span className="label">Conductor:</span>
           <span className="value">{data.conductor}</span>
         </div>
-        
+
         <div className="info-row">
           <span className="label">Despachado por:</span>
           <span className="value">{data.despachadoPor}</span>
         </div>
-        
+
         <div className="info-row">
           <span className="label">Registro:</span>
           <span className="value">{data.registro}</span>
         </div>
-        
+
         <div className="qr-section">
           <div className="qr-code">
             <canvas ref={qrRef} width="120" height="120"></canvas>
           </div>
         </div>
-        
+
         <div className="footer">
           SOTRAM S.A
         </div>
       </div>
-      
+
       <style jsx>{`
         .print-only {
           width: 80mm;
           max-width: 80mm;
-          font-family: 'Courier New', monospace;
-          font-size: 12px;
+          font-family: 'Arial', sans-serif;
+          font-size: 11px;
           line-height: 1.2;
-          padding: 10px;
+          padding: 25px;
+          box-sizing: border-box;
         }
         .header {
           text-align: center;
@@ -360,7 +362,7 @@ export default function ReciboImpresion({ data, onPrint }: ReciboImpresionProps)
           }
           body {
             margin: 0;
-            padding: 10px;
+            padding: 25px;
           }
         }
       `}</style>

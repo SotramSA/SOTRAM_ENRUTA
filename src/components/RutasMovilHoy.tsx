@@ -28,14 +28,14 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
   const [rutas, setRutas] = useState<Ruta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Estados para el modal de confirmar recibo programado
   const [showModalReciboProgramado, setShowModalReciboProgramado] = useState(false);
   const [programadoParaRecibo, setProgramadoParaRecibo] = useState<any>(null);
 
   const fetchRutas = async () => {
     try {
-      
+
       setLoading(true);
       setError(null);
 
@@ -45,7 +45,7 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
         }
       });
 
-      
+
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -56,7 +56,7 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
       const data = await response.json();
 
       setRutas(data.data || []);
-      
+
     } catch (err) {
       console.error('🔍 RutasMovilHoy: Error en fetch:', err);
       setError(err instanceof Error ? err.message : 'Error desconocido');
@@ -107,10 +107,10 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
       }
 
       const response = await fetch(`/api/programados/${programadoParaRecibo.id}/recibo?${params.toString()}`);
-     
+
       if (response.ok) {
         const reciboData = await response.json();
-         console.log("\n\n\nACA ESTA EL CONSOLE"+reciboData)
+        console.log("\n\n\nACA ESTA EL CONSOLE" + reciboData)
         if (reciboData) {
           const printWindow = window.open('', '_blank', 'width=1,height=1,left=-1000,top=-1000,scrollbars=no,resizable=no,toolbar=no,location=no,directories=no,status=no,menubar=no');
           if (printWindow) {
@@ -123,10 +123,10 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
             }, 500);
           }
         }
-        
+
         // Actualizar las rutas después de generar el recibo exitosamente
         await fetchRutas();
-        
+
       } else {
         console.error('Error al generar el recibo');
       }
@@ -200,10 +200,10 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
               }, 500);
             }
           }
-          
+
           // Actualizar las rutas después de generar el recibo exitosamente
           await fetchRutas();
-          
+
         } else {
           console.error('Error al generar el recibo');
         }
@@ -236,7 +236,7 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
         return;
       }
 
-      
+
       alert(`Estado actualizado a ${nuevoEstado}`);
       await fetchRutas();
     } catch (error) {
@@ -261,7 +261,7 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
         alert('Error eliminando turno');
         return;
       }
-      
+
       alert('Turno eliminado');
       await fetchRutas();
     } catch (error) {
@@ -291,19 +291,19 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
   <style>
     @media print {
       @page { size: 80mm auto; margin: 0; }
-      body { margin: 0; padding: 8px; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.3; }
+      body { margin: 0; padding: 25px; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.2; }
     }
-    body { margin: 0; padding: 8px; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.3; width: 80mm; max-width: 80mm; }
-    .header { text-align: center; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-    .logo { width: 50px; height: 50px; display: block; }
-    .company-name { font-size: 16px; font-weight: bold; }
-    .title { font-size: 15px; font-weight: bold; text-align: center; margin: 8px 0; border-bottom: 2px solid #000; padding-bottom: 4px; }
-    .info-row { display: flex; justify-content: space-between; margin: 4px 0; padding: 2px; }
-    .label { font-weight: bold; font-size: 13px; }
-    .value { text-align: right; font-size: 13px; }
-    .hora-salida { font-size: 20px; font-weight: bold; text-align: center; margin: 8px 0; padding: 6px; }
-    .ruta-destacada { font-size: 28px; font-weight: bold; text-align: center; margin: 8px 0; padding: 8px; }
-    .footer { text-align: center; margin-top: 8px; font-size: 11px; border-top: 1px solid #000; padding-top: 4px; }
+    body { margin: 0; padding: 25px; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.2; width: 80mm; max-width: 80mm; box-sizing: border-box; }
+    .header { text-align: center; margin-bottom: 6px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .logo { width: 45px; height: 45px; display: block; }
+    .company-name { font-size: 14px; font-weight: bold; }
+    .title { font-size: 14px; font-weight: bold; text-align: center; margin: 6px 0; border-bottom: 2px solid #000; padding-bottom: 4px; }
+    .info-row { display: flex; justify-content: space-between; margin: 3px 0; padding: 1px; }
+    .label { font-weight: bold; font-size: 12px; }
+    .value { text-align: right; font-size: 12px; }
+    .hora-salida { font-size: 18px; font-weight: bold; text-align: center; margin: 6px 0; padding: 5px; }
+    .ruta-destacada { font-size: 24px; font-weight: bold; text-align: center; margin: 6px 0; padding: 6px; }
+    .footer { text-align: center; margin-top: 6px; font-size: 10px; border-top: 1px solid #000; padding-top: 4px; }
   </style>
 </head>
 <body>
@@ -318,7 +318,7 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
   <div class="info-row"><span class="label">Placa:</span><span class="value">${reciboData.placa}</span></div>${sustitucionInfo}${conductorRow}
   <div class="info-row"><span class="label">Despachado por:</span><span class="value">${reciboData.despachadoPor}</span></div>
   <div class="info-row"><span class="label">Registro:</span><span class="value">${reciboData.registro}</span></div>
-  <div class="footer">EnRuta 2025</div>
+  <div class="footer">EnRuta 2026</div>
 </body>
 </html>`;
   };
@@ -332,14 +332,14 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
   };
 
   function formatHourString(hourStr: string) {
-  // Aseguramos que el string tenga al menos 4 dígitos con ceros a la izquierda
-  const normalized = hourStr.padStart(4, "0");
+    // Aseguramos que el string tenga al menos 4 dígitos con ceros a la izquierda
+    const normalized = hourStr.padStart(4, "0");
 
-  const hours = normalized.slice(0, -2); // primeros 2 dígitos
-  const minutes = normalized.slice(-2);  // últimos 2 dígitos
+    const hours = normalized.slice(0, -2); // primeros 2 dígitos
+    const minutes = normalized.slice(-2);  // últimos 2 dígitos
 
-  return `${hours}:${minutes}`;
-}
+    return `${hours}:${minutes}`;
+  }
 
 
   if (loading) {
@@ -398,7 +398,7 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
                 className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${ruta.tipo === 'programado'
                   ? 'bg-orange-50 border-orange-200 hover:bg-orange-100'
                   : 'bg-white border-gray-200 hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 <div className="flex items-center space-x-3">
                   <div className="flex items-center space-x-2">
@@ -442,9 +442,9 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
                       onClick={() => toggleEstadoTurno(ruta)}
                       className="p-1.5 text-gray-600 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-colors"
                       title="Alternar estado NO_COMPLETADO/COMPLETADO"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                      </button>
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                    </button>
                   )}
                   {/* Botón eliminar solo para turnos (no programados) */}
                   {ruta.tipo !== 'programado' && (
