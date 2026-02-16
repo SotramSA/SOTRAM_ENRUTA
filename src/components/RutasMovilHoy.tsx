@@ -289,24 +289,95 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
 <head>
   <title>Recibo</title>
   <style>
-    @media print {
-      @page { size: 80mm auto; margin: 0; }
-      body { margin: 0; padding: 25px; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.2; }
-    }
-    body { margin: 0; padding: 25px; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.2; width: 80mm; max-width: 80mm; box-sizing: border-box; }
-    .header { text-align: center; margin-bottom: 6px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-    .logo { width: 45px; height: 45px; display: block; }
-    .company-name { font-size: 14px; font-weight: bold; }
-    .title { font-size: 14px; font-weight: bold; text-align: center; margin: 6px 0; border-bottom: 2px solid #000; padding-bottom: 4px; }
-    .info-row { display: flex; justify-content: space-between; margin: 3px 0; padding: 1px; }
-    .label { font-weight: bold; font-size: 12px; }
-    .value { text-align: right; font-size: 12px; }
-    .hora-salida { font-size: 18px; font-weight: bold; text-align: center; margin: 6px 0; padding: 5px; }
-    .ruta-destacada { font-size: 24px; font-weight: bold; text-align: center; margin: 6px 0; padding: 6px; }
-    .footer { text-align: center; margin-top: 6px; font-size: 10px; border-top: 1px solid #000; padding-top: 4px; }
-  </style>
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+
+  html, body {
+    width: 72mm;
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    font-size: 11px;
+    line-height: 1.2;
+    box-sizing: border-box;
+  }
+
+  .ticket {
+  width: 72mm;
+  margin: 0 auto;   /* 🔥 Esto lo centra */
+  padding: 8px;
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+
+  .header {
+    text-align: center;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .logo {
+    width: 40px;
+    height: 40px;
+  }
+
+  .company-name {
+    font-size: 14px;
+    font-weight: bold;
+  }
+
+  .title {
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+    margin: 6px 0;
+    border-bottom: 1px solid #000;
+    padding-bottom: 4px;
+  }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 3px 0;
+  }
+
+  .label {
+    font-weight: bold;
+  }
+
+  .hora-salida {
+    font-size: 18px;
+    font-weight: bold;
+    text-align: center;
+    margin: 6px 0;
+  }
+
+  .ruta-destacada {
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    margin: 6px 0;
+  }
+
+  .footer {
+    text-align: center;
+    margin-top: 6px;
+    font-size: 10px;
+    border-top: 1px solid #000;
+    padding-top: 4px;
+  }
+</style>
+
 </head>
 <body>
+ <div class="ticket">
   <div class="header">
     <img src="/logo png.png" alt="Logo" class="logo" />
     <div class="company-name">SOTRAM S.A</div>
@@ -319,6 +390,7 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
   <div class="info-row"><span class="label">Despachado por:</span><span class="value">${reciboData.despachadoPor}</span></div>
   <div class="info-row"><span class="label">Registro:</span><span class="value">${reciboData.registro}</span></div>
   <div class="footer">EnRuta 2026</div>
+  </div>
 </body>
 </html>`;
   };
