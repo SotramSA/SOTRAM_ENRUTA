@@ -1,6 +1,6 @@
 'use server'
 
-import { prisma } from "@/src/lib/prisma";
+import prisma from "@/lib/prisma";
 import { loginSchema, registerSchema } from "@/src/lib/zod";
 import bcrypt from "bcryptjs";
 import { z} from "zod";

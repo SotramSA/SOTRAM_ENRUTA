@@ -92,7 +92,5 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error al obtener programaciones:', error)
     return NextResponse.json({ error: 'Error al obtener programaciones' }, { status: 500 })
-  } finally {
-    await prismaWithRetry.$disconnect();
   }
 }

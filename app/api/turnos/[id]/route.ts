@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TurnoService } from '@/src/lib/turnoService';
 import { TimeService } from '@/src/lib/timeService';
-import { prisma } from '@/src/lib/prisma';
+import prisma from '@/lib/prisma';
 
 const turnoService = new TurnoService();
 

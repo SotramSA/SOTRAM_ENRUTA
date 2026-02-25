@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/src/lib/prisma';
+import prisma from '@/lib/prisma';
 import { TimeService } from '@/src/lib/timeService';
 
 export async function POST(request: NextRequest) {
@@ -65,8 +65,6 @@ export async function POST(request: NextRequest) {
       { error: 'Error interno del servidor' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -159,7 +157,5 @@ export async function PUT(request: NextRequest) {
       { error: 'Error interno del servidor' },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

@@ -99,7 +99,5 @@ export async function GET(request: NextRequest) {
       { error: 'Error al obtener móviles disponibles', details: error.message },
       { status: 500 }
     )
-  } finally {
-    await prismaWithRetry.$disconnect();
   }
 }

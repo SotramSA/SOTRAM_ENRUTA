@@ -1,4 +1,4 @@
-import { prisma } from '@/src/lib/prisma'
+import prisma from '@/lib/prisma'
 import prismaWithRetry from '@/lib/prismaClient'
 import { NextRequest, NextResponse } from 'next/server'
 

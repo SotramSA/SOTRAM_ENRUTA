@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/src/lib/prisma';
+import prisma from '@/lib/prisma';
 import ExcelJS from 'exceljs';
 
 export async function POST(request: NextRequest) {

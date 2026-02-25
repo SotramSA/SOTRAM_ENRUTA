@@ -784,7 +784,5 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
     return NextResponse.json({ error: 'Error al generar programación' }, { status: 500 })
-  } finally {
-    await prismaWithRetry.$disconnect();
   }
 }

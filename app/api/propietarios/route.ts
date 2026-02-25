@@ -42,8 +42,6 @@ export async function GET() {
       { error: 'Error al obtener propietarios' },
       { status: 500 }
     )
-  } finally {
-    await prismaWithRetry.$disconnect();
   }
 }
 
@@ -190,7 +188,5 @@ export async function POST(request: NextRequest) {
       { error: 'Error al crear propietario' },
       { status: 500 }
     )
-  } finally {
-    await prismaWithRetry.$disconnect();
   }
 }

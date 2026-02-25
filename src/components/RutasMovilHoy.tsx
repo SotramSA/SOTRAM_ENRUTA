@@ -306,7 +306,7 @@ export default forwardRef<RutasMovilHoyRef, RutasMovilHoyProps>(function RutasMo
 
   .ticket {
   width: 72mm;
-  margin: 0 auto;   /* 🔥 Esto lo centra */
+  margin: 0 auto;   /* Esto lo centra */
   padding: 8px;
   font-family: Arial, sans-serif;
   font-size: 11px;

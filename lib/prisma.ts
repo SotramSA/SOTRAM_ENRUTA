@@ -1,9 +1,16 @@
 import { PrismaClient } from '@prisma/client';
 
-// PrismaClient is attached to the `global` object in development to prevent
-// exhausting your database connection limit.
-//
-// Learn more: https://pris.ly/d/help/next-js-best-practices
+/**
+ * PrismaClient singleton instance
+ * 
+ * Este archivo exporta la instancia global de Prisma para usar en toda la aplicación.
+ * 
+ * IMPORTANTE:
+ * - En desarrollo: Se cachea en global para evitar múltiples conexiones
+ * - En producción: Se usa el pool de conexiones de PostgreSQL
+ * - NO hacer $disconnect() en endpoints de API - eso cierra la conexión pool
+ * - Los parámetros de pool deben estar en DATABASE_URL: ?connection_limit=10&pool_timeout=20
+ */
 
 declare global {
   // allow global `var` declarations
@@ -14,7 +21,7 @@ declare global {
 const prisma =
   global.prisma ||
   new PrismaClient({
-    log: ['query'],
+    log: process.env.NODE_ENV === 'development' ? ['query'] : undefined,
     datasources: {
       db: {
         url: process.env.DATABASE_URL,
@@ -22,11 +29,9 @@ const prisma =
     },
   });
 
-// Logging de queries en desarrollo
+// En desarrollo, cachear la instancia global para evitar exhausting connections
 if (process.env.NODE_ENV !== 'production') {
-  // Los logs ya están configurados en el PrismaClient con log: ['query']
+  global.prisma = prisma;
 }
-
-if (process.env.NODE_ENV !== 'production') global.prisma = prisma;
 
 export default prisma;

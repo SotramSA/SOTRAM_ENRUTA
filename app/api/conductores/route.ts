@@ -70,8 +70,6 @@ export async function GET(request: NextRequest) {
       details: error instanceof Error ? error.message : 'Error desconocido',
       stack: error instanceof Error ? error.stack : undefined
     }, { status: 500 });
-  } finally {
-    await prismaWithRetry.$disconnect();
   }
 }
 
@@ -120,7 +118,5 @@ export async function POST(request: NextRequest) {
       error: 'Error al crear conductor',
       details: error instanceof Error ? error.message : 'Error desconocido'
     }, { status: 500 });
-  } finally {
-    await prismaWithRetry.$disconnect();
   }
 } 

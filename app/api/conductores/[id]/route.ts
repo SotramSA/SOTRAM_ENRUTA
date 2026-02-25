@@ -101,8 +101,6 @@ export async function PUT(
         stack: error instanceof Error ? error.stack : undefined
       })
     }, { status: 500 });
-  } finally {
-    await prismaWithRetry.$disconnect();
   }
 }
 
@@ -132,7 +130,5 @@ export async function DELETE(
     return NextResponse.json({ message: 'Conductor eliminado correctamente' });
   } catch (error) {
     return NextResponse.json({ error: 'Error al eliminar conductor' }, { status: 500 });
-  } finally {
-    await prismaWithRetry.$disconnect();
   }
 } 

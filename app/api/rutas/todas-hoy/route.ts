@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TimeService } from '@/src/lib/timeService';
-import { prisma } from '@/src/lib/prisma';
+import prisma from '@/lib/prisma';
 
 // Caché en memoria con TTL corto (30s) para respuestas de "todas-hoy"
 const CACHE_TTL_MS = 30_000;

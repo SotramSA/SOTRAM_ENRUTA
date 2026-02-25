@@ -131,7 +131,5 @@ export async function GET(
       },
       { status: 500 }
     );
-  } finally {
-    await prismaWithRetry.$disconnect();
   }
 }
