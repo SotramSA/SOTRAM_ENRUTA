@@ -50,22 +50,24 @@ export async function POST(request: NextRequest) {
     // Crear el turno directamente usando fechas exactas del sistema
     const ahoraDirecto = new Date(); // Fecha y hora actual del sistema
 
-    const turno = await prisma.turno.create({
-      data: {
-        movilId: parseInt(movilId),
-        conductorId: parseInt(conductorId),
-        rutaId,
-        fecha: ahoraDirecto,
-        horaSalida: fechaAsignacion,
-        horaCreacion: ahoraDirecto,
-        estado: 'PENDIENTE',
-        usuarioId: 1 // Usuario de prueba
-      },
-      include: {
-        ruta: true,
-        conductor: true,
-        automovil: true
-      }
+    const turno = await prismaWithRetry.executeWithRetry(async () => {
+      return await prismaWithRetry.turno.create({
+        data: {
+          movilId: parseInt(movilId),
+          conductorId: parseInt(conductorId),
+          rutaId,
+          fecha: ahoraDirecto,
+          horaSalida: fechaAsignacion,
+          horaCreacion: ahoraDirecto,
+          estado: 'PENDIENTE',
+          usuarioId: 1 // Usuario de prueba
+        },
+        include: {
+          ruta: true,
+          conductor: true,
+          automovil: true
+        }
+      })
     });
 
     return NextResponse.json({
