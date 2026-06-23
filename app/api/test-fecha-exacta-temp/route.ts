@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prismaWithRetry from '@/lib/prismaClient'
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,27 +22,30 @@ export async function POST(request: NextRequest) {
     const fechaAsignacion = new Date(); // Crear nueva fecha para la hora de salida
     fechaAsignacion.setHours(horas, minutos, 0, 0);
 
-    // Mapear tipo de despacho a rutaId
-    let rutaId: number;
-    switch (despacho) {
-      case 'DESPACHO_A':
-        rutaId = 1;
-        break;
-      case 'DESPACHO_B':
-        rutaId = 2;
-        break;
-      case 'DESPACHO_C':
-        rutaId = 3;
-        break;
-      default:
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: 'Tipo de despacho no reconocido' 
+    // Buscar la ruta por nombre en la base de datos (case-insensitive)
+    const rutaRecord = await prismaWithRetry.executeWithRetry(async () => {
+      return await prismaWithRetry.ruta.findFirst({
+        where: {
+          nombre: {
+            equals: despacho,
+            mode: 'insensitive'
           },
-          { status: 400 }
-        );
+          activo: true
+        }
+      })
+    })
+
+    if (!rutaRecord) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Tipo de despacho no reconocido o ruta inactiva'
+        },
+        { status: 400 }
+      )
     }
+
+    const rutaId = rutaRecord.id;
 
     // Crear el turno directamente usando fechas exactas del sistema
     const ahoraDirecto = new Date(); // Fecha y hora actual del sistema

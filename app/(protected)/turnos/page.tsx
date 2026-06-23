@@ -99,6 +99,7 @@ function TurnosPageContent() {
   const [horaAsignacion, setHoraAsignacion] = useState<string>('');
   const [reciboData, setReciboData] = useState<any>(null);
   const [showRecibo, setShowRecibo] = useState(false);
+  const [rutasDisponibles, setRutasDisponibles] = useState<{id:number; nombre:string}[]>([]);
 
   useEffect(() => {
     cargarDatosIniciales();
@@ -148,6 +149,11 @@ function TurnosPageContent() {
           ? conductoresResult.data
           : (conductoresResult.data?.conductores ?? [])
       );
+      // Cargar rutas activas dinámicamente
+      const rutasResult = await safeFetch('/api/rutas');
+      if (rutasResult.success) {
+        setRutasDisponibles(Array.isArray(rutasResult.data) ? rutasResult.data : rutasResult.data?.data ?? []);
+      }
       
     } catch (error) {
       console.error('Error cargando datos iniciales:', error);
@@ -666,21 +672,12 @@ function TurnosPageContent() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {[
-              'DESPACHO_A',
-              'DESPACHO_B',
-              'DESPACHO_C',
-              'DESPACHO D RUT4 PAMPA-CORZO',
-              'DESPACHO D. RUT7 CORZO LORETO',
-              'DESPACHO E RUT7 CORZO',
-              'Despacho Puente piedra',
-              'Despacho Colon vía Puente Piedra'
-            ].map((tipo) => (
-              <Card key={tipo} className="border-2 border-green-500 bg-green-50">
+            {rutasDisponibles.map((r) => (
+              <Card key={r.id} className="border-2 border-green-500 bg-green-50">
                 <CardContent className="p-4 text-center">
-                  <h3 className="font-semibold mb-4">{tipo.replace('_', ' ')}</h3>
+                  <h3 className="font-semibold mb-4">{r.nombre.replace('_', ' ')}</h3>
                   <Button 
-                    onClick={() => abrirModalAsignacion(tipo)}
+                    onClick={() => abrirModalAsignacion(r.nombre)}
                     className="w-full"
                     variant="default"
                   >
